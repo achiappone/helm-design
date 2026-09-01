@@ -1,0 +1,15 @@
+# python env - 615 MB, rebuildable from requirements
+.venv/
+__pycache__/
+*.pyc
+
+# generated geometry and renders - every one of these rebuilds from cad/*.py
+cad/out/
+cad/superseded/
+
+# third-party CAD dropped in for reference, not ours to redistribute
+NF-F12_iPPC_Public-CAD/
+NF-F12_iPPC_Public-CAD.*
+6c2a27c198e24591510c5ef0e264251b-*.STEP
+
+.DS_Store
