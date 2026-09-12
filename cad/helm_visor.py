@@ -10,7 +10,9 @@ give a POSITIVE position that vibration cannot walk out of, and the wave
 washer keeps preload as the plastic relaxes. Same idea as an MFD bail mount.
 
   16 teeth -> 22.5 deg per click, range +15 to -25 deg
-  M5 316 SS + wave washer + nyloc. Firm hand pressure to click, holds otherwise.
+  M5 x 30 316 SS through a captive 316 NYLOC in the shell upstand. Set by hand:
+  firm enough to stay put, loose enough to click over the detent bare-handed.
+  Tef-Gel the threads - 316 galls on 316, and the pocket is a crevice.
 
 The leading edge turns down 8 mm. That is not styling: on two pivots the hood
 is a 310 mm cantilever, and the lip turns a floppy flat plate into a channel.
@@ -35,7 +37,11 @@ R_EAR = H["R_EAR"]                 # match the shell's ear so the joint is flush
 EAR_T = 6.0                        # this part's own thickness, not a mating dim
 BOLT_D = 5.4                       # M5 clearance; the shell takes the 4.3 pilot
 assert R_T1 < R_EAR, "teeth would run off the edge of the ear"
-assert BOLT_D > H["PIV_BOLT"], "visor bolt hole must clear, not thread"
+# Neither side threads any more: the shell upstand carries a captive 316 nyloc
+# and both holes are clearance. What still has to hold is that this one is not
+# the tighter of the two, or the bolt binds here and the hand-set preload reads
+# as tighter than what actually reaches the crown.
+assert BOLT_D >= H["PIV_BOLT"], "visor bolt hole must not be tighter than the shell's"
 # A crown stands TOOTH_H*1.25 proud of the face it is built on, so the two ear
 # faces must sit that far APART or the teeth simply bury themselves in the
 # opposing solid instead of interleaving. rev B had them coincident: the

@@ -26,18 +26,28 @@ VISOR  = _solid("cad/out/helm_visor_revC.stp")
 BRACKET = _solid("cad/out/tilt_bracket_revC.stp")
 SHROUD_F = _solid("cad/out/heatsink_shroud_revD.stp")
 _fan_raw = import_step("NF-F12_iPPC_Public-CAD.stp")
-# one of Noctua's 11 solids has no triangulation and kills tessellate on the
-# whole compound; drop just that one
-_ok = []
-for _s in _fan_raw.solids():
-    try:
-        _s.tessellate(0.2); _ok.append(_s)
-    except Exception:
-        pass
-FAN = _ok[0]
-for _s in _ok[1:]:
-    FAN = FAN + _s
-print(f"  fan: {len(_ok)}/{len(_fan_raw.solids())} solids usable")
+# ALL 11 solids now. This used to drop any solid whose tessellate() raised,
+# which sounds conservative and was not: the one it dropped was solid 0, the
+# 119 x 25 x 119 FRAME - 55 cm3, more than half the fan. Every assembly render
+# showed the impeller and eight corner bumpers hanging in mid air, and nothing
+# said so, because the filter swallowed the exception and printed a count that
+# looked healthy at 10/11.
+#
+# The frame is not broken. It is 583 faces and exactly ONE of them fails to
+# mesh, so render.safe_tessellate now keeps the other 582 instead of discarding
+# the solid. See the note there.
+# DO NOT boolean-union these. Fusing Noctua's 11 solids one by one collapses
+# them: 96.0 cm3 of parts comes out as 5.6 cm3 in 6 solids, because OCC's fuse
+# cannot cope with the overlapping, self-intersecting geometry a vendor ships
+# for visualisation. The union destroyed the frame and the impeller and left the
+# corner bumpers, which is exactly what the assembly renders have been showing.
+# A Compound just holds them together with no boolean at all - same 96.0 cm3,
+# same 1180 faces, and the renderer meshes each face on its own anyway.
+FAN = Compound(_fan_raw.solids())
+_fv = FAN.volume/1000
+assert _fv > 90.0, (
+    f"fan compound is {_fv:.1f} cm3, expected ~96 - something fused it again")
+print(f"  fan: {len(_fan_raw.solids())} solids as a compound, {_fv:.1f} cm3")
 SHROUD = _solid("cad/out/lp24_shroud_revD.stp")
 CLAMP  = _solid("cad/out/lp24_clamp_revD.stp")
 
@@ -70,7 +80,7 @@ BRK = Pos(0, H["BP_Y"], H["BP_Z"]) * BRACKET
 asm = [
     (BRK, (0.10, 0.26, 0.52)),
     (Pos(0, 0, 0) * SHELL, BLUE),
-    (Pos(0, 0, H["DEPTH"] + H["COVER_T"]) * Rot(180, 0, 0) * COVER, BLUE2),
+    (Pos(0, 0, H["DEPTH"] + H["COVER_T"] + H["GASKET_C"]) * Rot(180, 0, 0) * COVER, BLUE2),
     (tilt(0), BLUE),
 ]
 # Camera solved rather than guessed: az=198, el=-112 gives depth.z>0 (front
@@ -86,7 +96,7 @@ YAW = Rot(0, -40, 0)
 for ang, name in ((15, "up"), (0, "flat"), (-30, "down")):
     a2 = [(YAW * BRK, (0.10, 0.26, 0.52)),
           (YAW * SHELL, BLUE),
-          (YAW * Pos(0, 0, H["DEPTH"] + H["COVER_T"]) * Rot(180, 0, 0) * COVER, BLUE2),
+          (YAW * Pos(0, 0, H["DEPTH"] + H["COVER_T"] + H["GASKET_C"]) * Rot(180, 0, 0) * COVER, BLUE2),
           (YAW * tilt(ang), (0.32, 0.62, 0.95))]
     png(f"cad/out/asm_tilt_{name}.png", render_multi(a2, 198, -100, W=900, H=760)[0])
 print("  asm_tilt_up / flat / down")

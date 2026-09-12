@@ -1,13 +1,47 @@
 import base64, json, pathlib, datetime
 R = json.load(open("cad/out/renders.json"))
 D = json.load(open("cad/out/dims.json"))
-AD = json.load(open("cad/out/asmdims.json"))
+# The assembly elevations are ONE of this page's many inputs, and for several revs a
+# single broken drawing script took the whole build review down with it - which is
+# backwards, because the page is how anyone finds out something is broken. Missing
+# drawings are now reported ON the page instead of killing it. A hard failure here
+# would hide the renders, the dimensions and the checks as well.
+try:
+    AD = json.load(open("cad/out/asmdims.json"))
+except FileNotFoundError:
+    AD = []
+# Detent counts and fastener sizes are quoted in the prose below. They are read
+# from the model, not retyped - the page said "20 teeth = 18 deg" for two revs
+# after the shell dropped to 16, which is exactly the drift the JSON exists to stop.
+H = json.load(open("cad/out/housing.json"))
+CLICK = 360/H["N_TEETH"]
+RIM, GASKET_T, GASKET_W = H["RIM"], H["GASKET_T"], H["GASKET_W"]
+try:
+    SD = json.load(open("cad/out/subdims.json"))
+except FileNotFoundError:
+    SD = []
+def subpic(name):
+    for v in SD:
+        if v["name"] == name:
+            return pic(f"cad/out/{v['name']}.png", v["title"], v.get("note", ""))
+    return _missing(name, f"cad/out/{name}.png")
+# Counted off the geometry, not retyped - the page has quoted a wrong
+# fastener count and a wrong bezel through two revisions already.
+NBOLT = H["N_BRIM_BOLTS"]
+BEZEL = (H["OUT_W"] - H["APER_W"])/2
+NUT_AF, NUT_DEEP = H["NUT_AF"], H["NUT_DEEP"]
 MD = json.load(open("cad/out/measdims.json"))
 def mdwg(i):
     v = MD[i]
     return (f'<figure class="tile dwg"><div class="vp">{open(f"cad/out/{v["name"]}.svg").read()}</div>'
             f'<figcaption><span class="cap">{v["title"]}</span></figcaption></figure>')
 def adwg(i):
+    if i >= len(AD):
+        return ('<figure class="tile dwg"><div class="vp" style="padding:34px 22px">'
+                '<p class="note" style="margin:0"><b>Assembly elevation not built.</b> '
+                'cad/assembly_dims.py did not produce this drawing, so it is missing here '
+                'rather than silently absent.</p></div>'
+                '<figcaption><span class="cap">NOT BUILT</span></figcaption></figure>')
     v = AD[i]
     return (f'<figure class="tile dwg"><div class="vp">{open(f"cad/out/{v[chr(39)+chr(39)] if False else v["name"]}.svg").read()}</div>'
             f'<figcaption><span class="cap">{v["title"]}</span></figcaption></figure>')
@@ -19,12 +53,24 @@ def dwg(i):
 def img(i):
     b = base64.b64encode(open(R[i]["file"], "rb").read()).decode()
     return f'data:image/png;base64,{b}'
+def _missing(cap, what):
+    return (f'<figure class="tile dwg"><div class="vp" style="padding:34px 22px">'
+            f'<p class="note" style="margin:0"><b>Not built.</b> {what} is missing, so it '
+            f'is reported here rather than left silently out of the page.</p></div>'
+            f'<figcaption><span class="cap">{cap} &mdash; NOT BUILT</span></figcaption></figure>')
 def svgpic(path, cap, note=""):
+    try:
+        body = open(path).read()
+    except FileNotFoundError:
+        return _missing(cap, path)
     n = f'<p class="note">{note}</p>' if note else ""
-    return (f'<figure class="tile dwg"><div class="vp">{open(path).read()}</div>'
+    return (f'<figure class="tile dwg"><div class="vp">{body}</div>'
             f'<figcaption><span class="cap">{cap}</span>{n}</figcaption></figure>')
 def pic(path, cap, note=""):
-    b = base64.b64encode(open(path, "rb").read()).decode()
+    try:
+        b = base64.b64encode(open(path, "rb").read()).decode()
+    except FileNotFoundError:
+        return _missing(cap, path)
     n = f'<p class="note">{note}</p>' if note else ""
     return (f'<figure class="tile"><div class="vp"><img src="data:image/png;base64,{b}" alt="{cap}"></div>'
             f'<figcaption><span class="cap">{cap}</span>{n}</figcaption></figure>')
@@ -33,7 +79,7 @@ def tile(i, cap, note=""):
     return (f'<figure class="tile"><div class="vp"><img src="{img(i)}" alt="{cap}" loading="lazy"></div>'
             f'<figcaption><span class="cap">{cap}</span>{n}</figcaption></figure>')
 
-HTML = f"""<title>Helm Print Package</title>
+HTML = f"""<title>Helm Housing rev C</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;450;600&display=swap">
@@ -166,11 +212,11 @@ a{{color:var(--accent)}}
 </header>
 
 <section>
-  <div class="sheet-hd"><h2>Assembly</h2><span class="rev">REV B</span>
+  <div class="sheet-hd"><h2>Assembly</h2><span class="rev">REV {H["REV"]}</span>
     <span class="file">front shell + rear cover</span></div>
   <div class="grid">
     {pic("cad/out/asm_housing.png","Assembled - front","Nothing on the face. Every fastener is either behind the unit or hidden under the visor.")}
-    {pic("cad/out/asm_housing_rear.png","Assembled - rear","25 M4 through the cover into the shell&rsquo;s brim, plus the Gore vent and the heatsink aperture. Cable now exits the &minus;x short side.")}
+    {pic("cad/out/asm_housing_rear.png","Assembled - rear","{NBOLT} M3 through the cover into the shell&rsquo;s brim, plus the Gore vent and the heatsink aperture. Cable now exits the &minus;x short side.")}
   </div>
   <div class="grid dwgs">
     {svgpic("cad/out/exp_cad.svg","Exploded - numbered","Balloons match the BOM. Sensor breakouts sit on the tray; the antenna bulkhead and whip mount through the rear cover.")}
@@ -234,7 +280,7 @@ a{{color:var(--accent)}}
     <tr><td class="m">26</td><td><b>M20&times;1.5 90&deg; elbow gland</b></td><td>1</td><td>Screws into a <b>perpendicular tapped boss</b> at (&minus;150, &minus;46), 10 mm proud. Tapping drill &Oslash;18.5. The elbow turns the cable parallel to the cover</td></tr>
     <tr><td class="m">27</td><td>M12&times;1.5 Gore vent</td><td>1</td><td>Low on the back. Do not paint or block</td></tr>
     <tr><td class="m">28</td><td>SMA female bulkhead, M16</td><td>1</td><td><b>Top wall</b> at x=&minus;165, z=10. Plain bore &mdash; the wall is already <b>7.7 mm</b>, inside the 1&ndash;8 mm grip</td></tr>
-    <tr><td class="m">29</td><td>3 mm cord gasket</td><td>~2.3 m</td><td>Brim gland. ⚠ confirm 3 mm vs 3/32&Prime;</td></tr>
+    <tr><td class="m">29</td><td>{GASKET_T:.0f} mm rubber foam sheet</td><td>~2.3 m of {GASKET_W:.1f} mm band</td><td>Continuous, cut to the brim. NOT punched for the screws.</td></tr>
     <tr><td class="m">30</td><td>Belden 1058A</td><td>as needed</td><td>12 pair 20 AWG PLTC</td></tr>
     <tr><td class="m">31</td><td>Dash tilt bracket</td><td>1</td><td>ASA ~87 g. 276 &times; 99 &times; 32. Screws flat to the <b>dash face</b>, housing cantilevered off the top. Screw rows 65 mm apart</td></tr>
     <tr><td class="m">32</td><td>Fan shroud</td><td>1</td><td>ASA ~82 g. 138 &times; 138 &times; <b>52</b>. Spoke guard, louvres, wire pass-through</td></tr>
@@ -286,7 +332,7 @@ a{{color:var(--accent)}}
   <div class="flag">
     <h3>Mounting, cable entry and tie-downs</h3>
     <p><b>VESA is gone.</b> The unit hinges on <b>bottom pivots at x &plusmn;120</b>, detented like the visor at
-       <b>18&deg; per click</b>, so it tilts back to read standing and forward when seated.</p>
+       <b>{CLICK:.1f}&deg; per click</b>, so it tilts back to read standing and forward when seated.</p>
     <p>The bracket screws <b>flat to the vertical front face of the dash</b> with the housing cantilevered off its
        top edge &mdash; the plate mounts backwards relative to how it was first drawn, which needs no change to the
        part. It does change the load path: the housing now hangs off the face instead of sitting on it, so the screw
@@ -294,6 +340,17 @@ a{{color:var(--accent)}}
     <p>About <b>1.43 kg</b> hangs there with its CG ~60 mm off the face, giving <b>5.0 N&middot;m</b> at 6g.
        The screw rows moved from <b>26 to 65 mm apart</b>, which cuts the per-screw load from 97 N to <b>39 N</b> and
        stops the plate flexing between them. Free &mdash; the plate was already long enough.</p>
+    <p><b>That 5.0 N&middot;m has to be held shut, not just carried.</b> The detent flanks are at 45&deg;, so the
+       axial SEPARATING force equals the tangential one: <b>240 N per ear</b> at 6g, trying to push the crowns apart.
+       A wave washer on a thread formed in ASA is a ~50&ndash;100 N part and loses &mdash; the crown climbs its own
+       ramps, ratchets a click, and gives up preload the plastic never recovers.</p>
+    <p>So the shell ear no longer carries the thread. Its hole is <b>&Oslash;{H["BP_BOLT"]} clearance</b> and a
+       <b>captive 316 hex nut</b> sits in a {NUT_AF} A/F pocket {NUT_DEEP} deep in the OUTBOARD face, leaving
+       <b>{H["BP_NUT_WALL"]:.1f} mm</b> of ear behind the crown. Bolt, Bellevilles, sleeve and washers are
+       <b>all 316</b> &mdash; a brass insert against a 316 bolt is a ~0.25 V couple in salt water and the brass, as
+       the smaller part, dezincifies. <b>Tef-Gel the threads</b>: 316 galls on 316, and a nut in a plastic pocket is
+       a textbook crevice. Plain hex, not a nyloc &mdash; a nyloc is 5.0 thick and would leave only 3.7 mm under the
+       teeth, and its nylon relaxes under sustained Belleville load anyway. The Bellevilles are the locking element.</p>
     <p><b>The cable now leaves at 45&deg; toward the right.</b> Bore axis is (&minus;1, 0, &minus;1)/&radic;2, so it
        exits sideways rather than straight back, with a raised boss giving the O-ring a seat perpendicular to that
        axis. At (&minus;150, &minus;50) it sits <b>37 mm from the tilt axis</b>: a 30&deg; swing moves the cable
@@ -302,7 +359,7 @@ a{{color:var(--accent)}}
        past what an M20 gland will clamp. The cover is <b>thinned locally to 3 mm</b> on the inside, bringing the
        clamped thickness to a measured <b>9.05 mm</b>.</p>
     <p><b>A side-wall exit is still impossible</b>, and it is worth knowing why: the shell is 24 mm deep, the front
-       face takes z 0&ndash;2.5 and the gasket groove 21.7&ndash;24, leaving 19.2 mm. A bore spans its own diameter
+       face takes z 0&ndash;2.5 and the brim face sits at 22, leaving 19.5 mm. A bore spans its own diameter
        in z whatever direction it points, so &Oslash;20.5 will not go and angling it makes it worse.</p>
     <p><b>8 tie-wrap anchors</b>, 4 top and 4 bottom at x &plusmn;30 and &plusmn;90.</p>
   </div>
@@ -495,7 +552,7 @@ a{{color:var(--accent)}}
 </section>
 
 <section>
-  <div class="sheet-hd"><h2>Hinged visor</h2><span class="rev">REV B</span>
+  <div class="sheet-hd"><h2>Hinged visor</h2><span class="rev">REV {H["REV"]}</span>
     <span class="file">helm_visor_revB.stp</span></div>
   <div class="grid">
     {pic("cad/out/asm_tilt_up.png","Tilted up","+15&deg;. Clears a standing eye looking down at the screen.")}
@@ -507,7 +564,7 @@ a{{color:var(--accent)}}
       <tr><td>Hood</td><td>58 mm deep, 4 mm</td></tr>
       <tr><td>Leading edge</td><td>45&deg; bevel, 6 mm</td></tr>
       <tr><td>Pivot span</td><td>300 mm</td></tr>
-      <tr><td>Detent teeth</td><td>20 &mdash; 18&deg; per click</td></tr>
+      <tr><td>Detent teeth</td><td>{H["N_TEETH"]} &mdash; {CLICK:.1f}&deg; per click</td></tr>
       <tr><td>Pivot bolt</td><td>M5 316 SS + wave washer</td></tr>
       <tr><td>Mass in ASA</td><td>~55 g</td></tr>
     </table></div>
@@ -521,11 +578,11 @@ a{{color:var(--accent)}}
 </section>
 
 <section>
-  <div class="sheet-hd"><h2>Housing parts</h2><span class="rev">REV B</span>
+  <div class="sheet-hd"><h2>Housing parts</h2><span class="rev">REV {H["REV"]}</span>
     <span class="file">helm_shell_revB.stp &middot; helm_cover_revB.stp &middot; helm_visor_revA.stp</span></div>
   <div class="grid">
     {tile(0,"Front shell - face","Four buttons at 26 mm pitch with the encoder below, on the right. Visor pivots at the top. Nothing else on the face.")}
-    {tile(1,"Front shell - inside","Tapered wall: 4 mm at the face growing to the 22 mm rear brim. 17.8&deg; off vertical, so no ledge to bridge.")}
+    {tile(1,"Front shell - inside","Straight wall, {RIM:.0f} mm thick from the back of the bezel to the rear brim. No taper, so the brim face is exactly {RIM:.0f} mm.")}
     {tile(2,"Rear cover","Gore vent, heatsink aperture and the sensor standoffs. VESA deleted; the unit hinges on bottom pivots now.")}
     {tile(3,"Visor - hinged","Pivots on detent teeth at 15&deg; per click. Adjust by hand; the teeth stop vibration walking it out of position.")}
   </div>
@@ -592,6 +649,39 @@ a{{color:var(--accent)}}
 <section>
   <div class="sheet-hd"><h2>Drawings</h2><span class="file">shroud &middot; all dimensions mm</span></div>
   <div class="grid dwgs">{dwg(0)}{dwg(1)}{dwg(2)}{dwg(3)}</div>
+</section>
+
+<section>
+  <div class="sheet-hd"><h2>Subassemblies</h2><span class="file">the things a whole-unit render cannot show</span></div>
+  <p>A render of the finished unit answers &ldquo;what does it look like&rdquo;. It does not answer
+     &ldquo;where does that go&rdquo; or &ldquo;how do I hold it while the glue sets&rdquo;, which are the
+     questions that come up with a part in your hand. Each view below exists because a specific question
+     had no picture.</p>
+  <div class="grid">
+    {subpic("sub_antenna_context")}
+    {subpic("sub_antenna_detail")}
+  </div>
+  <div class="grid">
+    {subpic("sub_thermal_exploded")}
+    {subpic("sub_heatsink_jig")}
+  </div>
+  <div class="flag">
+    <h3>The thermal path</h3>
+    <p><b>The display&rsquo;s back is metal</b>, and it is both the largest heat source and the largest
+       conductor in the box. Until this revision it faced <b>{H["TC_GAP"]:.1f} mm of dead air</b> across the
+       heat aperture to the alloy plate, so every watt the panel made had to cross that gap by convection
+       &mdash; in a <em>sealed</em> enclosure. That gap, not the fan, was the bottleneck.</p>
+    <p>An aluminium <b>conduction block {H["TC_L"]:.0f} &times; {H["TC_W"]:.0f} &times; {H["TC_T"]:.1f}</b>,
+       with a {H["TC_PAD"]} mm gap pad at each end, now bridges it: panel back &rarr; pad &rarr; block &rarr;
+       pad &rarr; alloy plate &rarr; fins &rarr; fan. Metal the whole way, nothing moving, nothing to seize.
+       Its thickness is <em>derived</em> from the assembled stack, so if the foam, the panel depth or the
+       cover thickness move again, the block moves with them.</p>
+    <p>The <b>Pi</b> is the other source and it is handled differently, because it is 178 mm from anything
+       metal and already carries its own heatsink and fan. In a sealed box that fan does not export heat
+       &mdash; but it <em>stirs</em>, which lifts internal convection from roughly 4 to 15&ndash;20 W/m&sup2;K,
+       and that term is the bottleneck. If it proves insufficient the fallback is a
+       <b>5 &times; 100 mm aluminium bar</b> to the plate (~12.5 K at 7 W), not a heat pipe.</p>
+  </div>
 </section>
 
 <section>

@@ -13,6 +13,57 @@ def png(path, rgb):
     open(path, 'wb').write(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', hdr)
                            + chunk(b'IDAT', zlib.compress(raw, 6)) + chunk(b'IEND', b''))
 
+def safe_tessellate(shape, tol):
+    """build123d's own tessellate() is all-or-nothing: it walks every face and
+    reads its triangulation, so ONE face that failed to mesh returns None and
+    raises, losing the entire solid. Third-party STEP is full of those - Noctua's
+    NF-F12 frame is 583 faces and a handful never mesh, which silently dropped
+    the whole 55 cm3 frame from every assembly render and left the fan showing as
+    blades and corner bumpers floating in mid air.
+
+    So: mesh explicitly, then skip the faces that did not take, instead of
+    throwing away the 570 that did. A few missing facets on a bought part shown
+    for context is a far better answer than no part at all.
+    """
+    from OCP.BRepMesh import BRepMesh_IncrementalMesh
+    from OCP.BRep import BRep_Tool
+    from OCP.TopLoc import TopLoc_Location
+    from OCP.TopAbs import TopAbs_REVERSED
+    BRepMesh_IncrementalMesh(shape.wrapped, tol, False, 0.3, True)
+    verts, tris, skipped = [], [], 0
+    for f in shape.faces():
+        loc = TopLoc_Location()
+        poly = BRep_Tool.Triangulation_s(f.wrapped, loc)
+        if poly is None:
+            skipped += 1
+            continue
+        trsf = loc.Transformation()
+        off = len(verts)
+        for i in range(1, poly.NbNodes() + 1):
+            pt = poly.Node(i).Transformed(trsf)
+            verts.append((pt.X(), pt.Y(), pt.Z()))
+        rev = f.wrapped.Orientation() == TopAbs_REVERSED
+        for i in range(1, poly.NbTriangles() + 1):
+            t = poly.Triangle(i)
+            a, b, c = t.Value(1), t.Value(2), t.Value(3)
+            if rev:
+                b, c = c, b
+            tris.append((off + a - 1, off + b - 1, off + c - 1))
+    return verts, tris, skipped
+
+
+def _mesh(shape, tol):
+    """Fast path first, tolerant path only when the fast one dies."""
+    try:
+        v, t = shape.tessellate(tol)
+        return [(q.X, q.Y, q.Z) for q in v], t
+    except Exception:
+        v, t, skipped = safe_tessellate(shape, tol)
+        if skipped:
+            print(f"  ~ tessellate: recovered {len(t)} tris, skipped {skipped} bad face(s)")
+        return v, t
+
+
 def rot(az, el):
     a, e = math.radians(az), math.radians(el)
     Rz = np.array([[math.cos(a), -math.sin(a), 0], [math.sin(a), math.cos(a), 0], [0, 0, 1]])
@@ -21,8 +72,8 @@ def rot(az, el):
 
 def render(step, az, el, W=1000, H=750, ss=2, base=(0.16, 0.42, 0.78), bg=None):
     shape = import_step(step)
-    verts, tris = shape.tessellate(0.06)
-    V = np.array([[v.X, v.Y, v.Z] for v in verts], dtype=np.float64)
+    verts, tris = _mesh(shape, 0.06)
+    V = np.array(verts, dtype=np.float64)
     T = np.array(tris, dtype=np.int32)
     cen = (V.min(0) + V.max(0)) / 2
     V = V - cen
@@ -122,8 +173,9 @@ if __name__ == "__main__":
         ("heatsink_shroud_revD", "Fan shroud - NF-F12",     200, 28),
     ]
     # ── detail crops ──────────────────────────────────────────────────────
-    # The antenna knockout is 22 x 19 x 4 and the lead-in recesses are 0.6 deep;
-    # at whole-part scale neither reads. Cut a chunk out and render that.
+    # The antenna knockout is 22 x 19 x 4 and does not read at whole-part
+    # scale. Cut a chunk out and render that. The two lead-in details that used
+    # to sit beside it are gone with the recesses they existed to show.
     from build123d import import_step as _imp, Pos, Box, Align, export_step
     import json as _json
     _H = _json.load(open("cad/out/housing.json"))
@@ -131,20 +183,9 @@ if __name__ == "__main__":
     _cover = _imp("cad/out/helm_cover_revC.stp")
     _crop = _cover & (Pos(_H["ANT_X"], -_H["ANT_Y"], 0) * Box(70, 70, 40, align=(Align.CENTER,)*3))
     export_step(_crop, "cad/out/detail_antenna.stp")
-    for _name, _cx, _cy, _cz, _w, _d, _h in (
-            ("detail_leadin",  _H["BTN_X"][1], -52.0, 2.0, 46, 40, 6),
-            # SECTION: cut on the recess centreline so its 0.6 x 1.6 profile in
-            # the 2.5 face is visible as a shape, not inferred from shading.
-            ("detail_section", _H["BTN_X"][1] - 12.5, -50.0, 1.6, 25, 44, 7.2),
-):
-        _crop = _shell & (Pos(_cx, _cy, _cz) * Box(_w, _d, _h, align=(Align.CENTER,)*3))
-        export_step(_crop, f"cad/out/{_name}.stp")
-    # Shallow elevation on purpose: the recess is only 0.6 deep and the pocket
-    # 4, so a raking light is the only thing that makes either read as depth.
-    jobs += [("detail_antenna", "DETAIL - antenna bulkhead on the cover", 20, 40),
-             ("detail_leadin",  "DETAIL - recessed lead-in + button",  180, -20),
-             # az 270 puts the cut plane square to camera: y across, z up.
-             ("detail_section", "SECTION - lead-in recess in the 2.5 face", 270, -6)]
+    # Shallow elevation on purpose: the pocket is 4 deep, so a raking light is
+    # the only thing that makes it read as depth.
+    jobs += [("detail_antenna", "DETAIL - antenna bulkhead on the cover", 20, 40)]
 
     out = []
     for i, (f, title, az, el) in enumerate(jobs):
@@ -163,8 +204,8 @@ def render_multi(parts, az, el, W=1200, H=850, ss=2, bgtint=0.55, style="solid")
     import numpy as _np
     Vs, Ts, Cs, off = [], [], [], 0
     for shape, col in parts:
-        v, t = shape.tessellate(0.12)
-        Vs.append(_np.array([[q.X, q.Y, q.Z] for q in v]))
+        v, t = _mesh(shape, 0.12)
+        Vs.append(_np.array(v))
         Ts.append(_np.array(t, dtype=_np.int32) + off)
         Cs.append(_np.tile(_np.array(col, dtype=float), (len(t), 1)))
         off += len(v)

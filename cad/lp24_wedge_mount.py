@@ -74,8 +74,28 @@ body = fillet(body.edges().filter_by(Axis.Y).group_by(Axis.Z)[-1], 6.0)
 bottom = body.faces().sort_by(Axis.Z)[0]
 body = offset(body, amount=-WALL, openings=bottom, kind=Kind.INTERSECTION)
 
+# There is deliberately NO vertical-corner fillet after this union. The line
+# that used to sit here,
+#     fillet(p.edges().filter_by(Axis.Z).group_by(SortBy.LENGTH)[-1], 4.0)
+# threw at EVERY radius, not just at 4.0, so do not go hunting for a smaller
+# number - the real limit is 0 and max_fillet cannot converge on it either.
+# It came over from lp24_upright_mount.py, whose body genuinely does have four
+# tall vertical corners to round because its connector face stands upright. A
+# wedge has none: every face here is the 45 deg incline, the top flat, the back
+# slope or an XZ side wall. So filter_by(Axis.Z) on the fused part finds only 8
+# edges, every one of them BASE_T long, and every one of them a tangent seam
+# where the base plate's CORNER_R round meets a flat side. A plane and a
+# cylinder already G1 across an edge have no corner left to take a radius,
+# which is what OCC means by "There are no suitable edges for chamfer or
+# fillet". Those corners are already rounded - CORNER_R did it up at the base
+# plate. A root fillet where the walls land on the base top face IS buildable
+# (max_fillet allows ~13 mm there) but that is a different feature, and the
+# middle M5 pair at (0, +-BOLT_Y) already grazes the wall foot, so it is not
+# something to slip in silently.
+assert not body.edges().filter_by(Axis.Z), (
+    "wedge body grew a vertical face - round its corners before the shell op, "
+    "the way lp24_upright_mount.py does, not after the union")
 p = base + body
-p = fillet(p.edges().filter_by(Axis.Z).group_by(SortBy.LENGTH)[-1], 4.0)
 
 # ------------------------------------------------- LP-24 on the angled face
 a = math.radians(ANGLE)
@@ -132,7 +152,10 @@ p -= Pos(X_FRONT + 2, 0, BASE_T) * Box(20.0, DRAIN_W, DRAIN_H,
 # --------------------------------------------------- first-layer chamfer
 p = chamfer(p.faces().sort_by(Axis.Z)[0].edges(), 0.5)
 
-out = "/Users/anthonychiappone/Helm_Design/cad/out/lp24_wedge_mount_revA.stp"
+# Repo-root-relative, like every other script here. This used to be an
+# absolute /Users/... path, which meant a run from anywhere but the main
+# checkout - a worktree, say - silently wrote its STEP into the main repo.
+out = "cad/out/lp24_wedge_mount_revA.stp"
 export_step(p, out)
 print(f"WEDGE  volume={p.volume/1000:.1f} cm^3  solids={len(p.solids())}")
 bb = p.bounding_box()
@@ -147,7 +170,7 @@ for sy in (-1, 1):
     clamp -= Pos(0, sy * SR_PITCH / 2) * Cylinder(4.5 / 2, 40)
     clamp -= Pos(0, sy * SR_PITCH / 2, 12 - 2.6) * Cone(
         8.4 / 2, 4.5 / 2, 2.6, align=(Align.CENTER, Align.CENTER, Align.MIN))
-out2 = "/Users/anthonychiappone/Helm_Design/cad/out/lp24_wedge_clamp_revA.stp"
+out2 = "cad/out/lp24_wedge_clamp_revA.stp"
 export_step(clamp, out2)
 print(f"CLAMP  volume={clamp.volume/1000:.1f} cm^3  solids={len(clamp.solids())}")
 print(f"       {out2}")

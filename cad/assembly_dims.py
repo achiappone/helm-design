@@ -2,6 +2,13 @@
 
 rot(az,el) cannot orbit horizontally, so each view yaws the model and reuses
 one solved front camera (az=180, el=-90: depth->+z, up->+y, right->-x).
+
+EVERY number that reaches a label is formatted from housing.json. rev B typed
+its labels as literals and they rotted in place: the front elevation still read
+"384.0 x 160.0" long after the outline came down to 327 x 166.5, and the
+control dims were 21.0 - rev B's button pitch DOWN a column that no longer
+exists. A drawing that disagrees with the solid it is drawn over is worse than
+no drawing, so nothing here is allowed to be a literal.
 """
 import sys, json, math, base64
 sys.path.insert(0, "cad")
@@ -9,19 +16,59 @@ from build123d import *
 from render import render_multi, png
 
 H = json.load(open("cad/out/housing.json"))
+assert H.get("REV") == "C", f"housing.json is rev {H.get('REV')}, these views are rev C"
 OW, OH, DEPTH, CT = H["OUT_W"], H["OUT_H"], H["DEPTH"], H["COVER_T"]
 APW, APH = H["APER_W"], H["APER_H"]
-DCX, CCX = H["DISP_CX"], H["COL_CX"]
-BTN_Y, ENC_Y = H["BTN_Y"], H["ENC_Y"]
-ANT_X, GPS_X, BUMP_H = H["ANT_X"], H["GPS_X"], H["PI_BUMP_H"]
+DCX, DCY = H["DISP_CX"], H["DISP_CY"]
+# rev C moved the controls out of a COLUMN beside the screen into a ROW under
+# it, so there is no COL_CX / BTN_Y / ENC_Y any more - this file died on the
+# first of those. BTN_X is four x positions, ENC_X the encoder's, ROW_CY the
+# single y they all share.
+BTN_X, ENC_X, ROW_CY = H["BTN_X"], H["ENC_X"], H["ROW_CY"]
+BTN_D, ENC_D = H["BTN_D"], H["ENC_D"]
+ANT_X, ANT_Y, SMA_D = H["ANT_X"], H["ANT_Y"], H["SMA_D"]
+BUMP_H, GASKET_W, RIM = H["PI_BUMP_H"], H["GASKET_W"], H["RIM"]
+PIV_X, PIV_Y, PIV_Z, N_TEETH = H["PIV_X"], H["PIV_Y"], H["PIV_Z"], H["N_TEETH"]
 
-SHELL = import_step("cad/out/helm_shell_revB.stp")
-COVER = import_step("cad/out/helm_cover_revB.stp")
-VISOR = import_step("cad/out/helm_visor_revB.stp")
-# display fitted, otherwise the front elevation looks straight through the
-# aperture at the cover behind and reads as clutter
-DISP = Pos(DCX, 0, 2.5) * Box(305, 125, 17.5, align=(Align.CENTER, Align.CENTER, Align.MIN))
-ASM = [SHELL, Pos(0, 0, DEPTH + CT) * Rot(180, 0, 0) * COVER, VISOR, DISP]
+# The row is dimensioned as a row, which is only honest if it IS one: one
+# shared y and one shared pitch. Either would have caught the rev B carry-over.
+assert len(BTN_X) == 4, f"the row dim assumes four keys, housing.json has {len(BTN_X)}"
+BTN_PITCH = BTN_X[0] - BTN_X[1]
+assert all(abs((BTN_X[i] - BTN_X[i+1]) - BTN_PITCH) < 1e-9 for i in range(3)), (
+    f"buttons are not on one pitch ({BTN_X}) - a single pitch dim would lie")
+assert ROW_CY + BTN_D/2 < H["APER_Y"] - APH/2, (
+    "control row is not below the display aperture - this drawing is rev B again")
+
+SHELL = import_step("cad/out/helm_shell_revC.stp")
+COVER = import_step("cad/out/helm_cover_revC.stp")
+VISOR = import_step("cad/out/helm_visor_revC.stp")
+# Cover placement is assembly.py's, not this file's: Rot(180,0,0) then z up by
+# DEPTH + COVER_T. The brim seal is closed-cell foam that the screws crush, so
+# the cover rides on the COMPRESSED thickness - take that from housing.json the
+# moment it publishes it rather than keeping a copy here, because a private
+# copy is exactly how the two files would end up drawing different stacks.
+GASKET_C = H.get("GASKET_C", 0.0)   # 0.0 until housing.json carries the band
+COVER_Z = DEPTH + CT + GASKET_C
+COVER_PLACED = Pos(0, 0, COVER_Z) * Rot(180, 0, 0) * COVER
+# Check the placement against the solid rather than trusting the arithmetic.
+# min.Z is NOT the seal - the display bearing posts stand 17 mm proud of the
+# sealing face and reach down into the cavity, so the lowest point of the cover
+# is inside the shell. The OUTERMOST point is the crown of the Pi bump-out, and
+# that is also the number the side elevation calls the overall depth, so one
+# check covers the placement and that label together.
+_cz = COVER_PLACED.bounding_box().max.Z
+assert abs(_cz - (COVER_Z + BUMP_H)) < 1e-6, (
+    f"cover crowns at z={_cz:.3f}, expected {COVER_Z + BUMP_H:.3f} - placement "
+    f"disagrees with cad/assembly.py")
+assert abs(SHELL.bounding_box().size.X - OW) < 1e-6, (
+    f"shell is {SHELL.bounding_box().size.X:.1f} wide, housing.json says {OW:.1f}")
+
+# Display fitted, otherwise the front elevation looks straight through the
+# aperture at the cover behind and reads as clutter. Envelope only, and the
+# same 305 x 125 representation assembly.py uses - but at DISP_CY, because the
+# panel sits HIGH in rev C to leave the control row its band at the bottom.
+DISP = Pos(DCX, DCY, 2.5) * Box(305, 125, 17.5, align=(Align.CENTER, Align.CENTER, Align.MIN))
+ASM = [SHELL, COVER_PLACED, VISOR, DISP]
 
 AZ, EL = 180, -90
 DIM = "#c2410c"
@@ -60,33 +107,68 @@ def note(P, pt, label, dx, dy, anchor="start", fs=17):
             f'font-family="IBM Plex Mono,monospace" font-size="{fs}" font-weight="500" '
             f'text-anchor="{anchor}" dy="6">{label}</text>')
 
+# Rear-face callout anchors. These three live on the COVER and helm_housing.py
+# does NOT publish them (GL_X/GL_Y, VENT_X/VENT_Y, AP_CX), so they are written
+# here in SHELL coordinates - the cover is authored mirrored in y and then flown
+# Rot(180,0,0), which puts every cover feature back at its shell y. No number
+# from them reaches a label, they only aim the leader; if one moves the leader
+# points at bare plastic, which is visible rather than silent.
+GL_XY   = (-120.0, -56.0)           # cable gland boss
+VENT_XY = ( -55.0, -64.0)           # Gore vent
+HEAT_XY = ( 103.0,   0.0)           # heat-plate aperture centre
+
+# The four yaws mirror each other, so a flip that puts a dim OUTSIDE the part in
+# the front view puts it INSIDE in the rear view. Every off/flip below was set
+# against the projected pixel positions, not guessed.
 VIEWS = [
- ("dimasm_front", "FRONT ELEVATION", Rot(0, 0, 0), 1240, 760, lambda P: (
-    dim(P, (-OW/2, -OH/2, 0), (OW/2, -OH/2, 0), "384.0", off=68, flip=-1) +
-    dim(P, (OW/2, -OH/2, 0), (OW/2, OH/2, 0), "160.0", off=52, flip=-1) +
-    dim(P, (DCX-APW/2, APH/2, 0), (DCX+APW/2, APH/2, 0), "293.5", off=52, flip=1) +
-    dim(P, (DCX+APW/2, -APH/2, 0), (DCX+APW/2, APH/2, 0), "110.7", off=-46, flip=1, fs=16) +
-    dim(P, (CCX, BTN_Y[0], 0), (CCX, BTN_Y[1], 0), "21.0", off=46, flip=1, fs=15) +
-    note(P, (CCX, BTN_Y[0], 0), "4x &#216;12.0 BUTTON", 100, -95) +
-    note(P, (CCX, ENC_Y, 0), "&#216;9.7 ENCODER", 100, 95) +
-    note(P, (DCX, 0, 0), "ACTIVE AREA 292.5 x 109.7", -50, 118, "end"))),
+ ("dimasm_front", "FRONT ELEVATION", Rot(0, 0, 0), 1240, 820, lambda P: (
+    dim(P, (-OW/2, -OH/2, 0), (OW/2, -OH/2, 0), f"{OW:.1f}", off=96, flip=-1) +
+    dim(P, (OW/2, -OH/2, 0), (OW/2, OH/2, 0), f"{OH:.1f}", off=56, flip=-1) +
+    dim(P, (DCX-APW/2, H["APER_Y"]+APH/2, 0), (DCX+APW/2, H["APER_Y"]+APH/2, 0),
+        f"{APW:.1f}", off=44, flip=1) +
+    dim(P, (DCX+APW/2, H["APER_Y"]-APH/2, 0), (DCX+APW/2, H["APER_Y"]+APH/2, 0),
+        f"{APH:.1f}", off=-44, flip=1, fs=16) +
+    # The row, dimensioned AS a row - which is the whole point of rev C. A
+    # builder drilling this face needs the pitch, the span it makes, where the
+    # encoder hangs off the end of it, and how high the line sits off the
+    # bottom edge. rev B's "21.0" was a pitch DOWN a column that is gone.
+    dim(P, (BTN_X[0], ROW_CY, 0), (BTN_X[1], ROW_CY, 0), f"{BTN_PITCH:.1f}", off=40, flip=1, fs=15) +
+    dim(P, (BTN_X[-1], ROW_CY, 0), (ENC_X, ROW_CY, 0), f"{BTN_X[-1]-ENC_X:.1f}", off=40, flip=1, fs=15) +
+    dim(P, (BTN_X[0], ROW_CY, 0), (BTN_X[-1], ROW_CY, 0),
+        f"{BTN_X[0]-BTN_X[-1]:.1f} = 3 x {BTN_PITCH:.1f}", off=86, flip=1, fs=16) +
+    dim(P, (ENC_X, -OH/2, 0), (ENC_X, ROW_CY, 0), f"{ROW_CY+OH/2:.1f}", off=48, flip=1, fs=15) +
+    note(P, (BTN_X[2], ROW_CY, 0), f"4x &#216;{BTN_D} BUTTON", -90, 120, "end") +
+    note(P, (ENC_X, ROW_CY, 0), f"&#216;{ENC_D} ENCODER", -50, 130, "end") +
+    note(P, (DCX, DCY, 0), "PANEL SEATED ON THE BOND LAND", -40, 104, "end"))),
  ("dimasm_side", "SIDE ELEVATION", Rot(0, 90, 0), 1240, 700, lambda P: (
-    dim(P, (0, -OH/2, 0), (0, -OH/2, DEPTH + CT), "30.0", off=70, flip=-1) +
-    dim(P, (0, -OH/2, 0), (0, -OH/2, DEPTH + CT + BUMP_H), "48.0", off=95, flip=-1) +
-    dim(P, (0, OH/2, 0), (0, OH/2, DEPTH), "24.0", off=64, flip=1, fs=16) +
-    note(P, (0, 87, -30), "VISOR, 58 mm HOOD", -60, -80, "end") +
-    note(P, (0, 6, DEPTH + CT + BUMP_H), "Pi BUMP-OUT +18", 90, 60))),
- ("dimasm_rear", "REAR VIEW", Rot(0, 180, 0), 1240, 760, lambda P: (
-    dim(P, (-50, -50, DEPTH+CT), (50, -50, DEPTH+CT), "100.0 VESA", off=70, flip=1) +
-    dim(P, (76, -42, DEPTH+CT), (160, -42, DEPTH+CT), "84.0", off=48, flip=1, fs=16) +
-    note(P, (-150, -48, DEPTH+CT), "NPT 3/4 GLAND", -80, 120, "end") +
-    note(P, (-95, -50, DEPTH+CT), "M12 GORE VENT", 40, 150) +
-    note(P, (118, 0, DEPTH+CT), "HEATSINK APERTURE", 110, -110))),
+    # The part is a thin slice in this projection - 250 px of a 1240 canvas -
+    # so the depth stack nests along the bottom edge and the notes live in the
+    # dead space either side rather than on top of the section.
+    dim(P, (0, -OH/2, 0), (0, -OH/2, DEPTH), f"{DEPTH:.1f}", off=24, flip=-1, fs=16) +
+    dim(P, (0, -OH/2, 0), (0, -OH/2, DEPTH + CT + GASKET_C),
+        f"{DEPTH+CT+GASKET_C:.1f}", off=64, flip=-1, fs=16) +
+    dim(P, (0, -OH/2, 0), (0, -OH/2, DEPTH + CT + GASKET_C + BUMP_H),
+        f"{DEPTH+CT+GASKET_C+BUMP_H:.1f}", off=104, flip=-1) +
+    note(P, (0, PIV_Y, PIV_Z), f"VISOR PIVOT - {360.0/N_TEETH:.1f} deg DETENT", -200, -20, "end") +
+    note(P, (0, 6, DEPTH + CT + GASKET_C + BUMP_H), f"Pi BUMP-OUT +{BUMP_H:.0f}", -160, -60, "end") +
+    note(P, (0, -OH/2, DEPTH), f"BRIM {RIM:.1f} - FOAM BAND {GASKET_W:.2f}", 200, 30))),
+ ("dimasm_rear", "REAR VIEW", Rot(0, 180, 0), 1240, 820, lambda P: (
+    # rev B dimensioned a 100 mm VESA pattern here. VESA is deleted in rev C -
+    # the unit hinges off a bracket on its bottom edge - so what this face is
+    # for now is the seal and the service openings. The 7.3 mm gasket band is
+    # 23 px at this scale and will not carry a dimension line, so it is a note.
+    dim(P, (-OW/2, -OH/2, COVER_Z), (OW/2, -OH/2, COVER_Z), f"{OW:.1f}", off=96, flip=1) +
+    note(P, (OW/2 - GASKET_W/2, 0, DEPTH), f"FOAM GASKET BAND {GASKET_W:.2f} WIDE", -90, -150, "end") +
+    note(P, (*HEAT_XY, COVER_Z), "HEAT-PLATE APERTURE", -260, -150, "end") +
+    note(P, (ANT_X, ANT_Y, COVER_Z), f"SMA BULKHEAD &#216;{SMA_D}", 70, -130) +
+    note(P, (*GL_XY, COVER_Z), "CABLE GLAND - 90 deg ELBOW", 60, 150) +
+    note(P, (*VENT_XY, COVER_Z), "GORE VENT", 200, 90))),
  ("dimasm_top", "TOP VIEW", Rot(-90, 0, 0), 1240, 700, lambda P: (
-    dim(P, (-OW/2, OH/2, 0), (OW/2, OH/2, 0), "384.0", off=80, flip=1) +
-    note(P, (ANT_X, OH/2, 10), "SMA BULKHEAD &#216;16.5", -50, -72, "end") +
-    note(P, (GPS_X, OH/2, 12), "GPS, PATCH UP", 55, -72) +
-    dim(P, (ANT_X, OH/2, 10), (GPS_X, OH/2, 12), "315.0 RF SEPARATION", off=-44, flip=1, fs=16))),
+    dim(P, (-OW/2, 0, 0), (OW/2, 0, 0), f"{OW:.1f}", off=200, flip=-1) +
+    dim(P, (PIV_X[0], PIV_Y, PIV_Z), (PIV_X[1], PIV_Y, PIV_Z),
+        f"{PIV_X[1]-PIV_X[0]:.1f} PIVOT SPAN", off=150, flip=1, fs=16) +
+    note(P, (0, 0, DEPTH + CT + GASKET_C + BUMP_H),
+         f"{DEPTH+CT+GASKET_C+BUMP_H:.1f} OVER THE Pi BUMP", -330, -80, "end"))),
 ]
 
 out = []
@@ -94,7 +176,13 @@ for name, title, yaw, W, Hh, dims in VIEWS:
     parts = [(yaw * p, (0.93, 0.93, 0.93)) for p in ASM[:3]] + [(yaw * ASM[3], (0.62, 0.64, 0.66))]
     rgba, proj = render_multi(parts, AZ, EL, W=W, H=Hh, style="line")
     png(f"cad/out/{name}.png", rgba)
-    P = lambda pt: proj(tuple(yaw * Vertex(*pt)))
+    # tuple(yaw * Vertex(...)) hands back the UN-YAWED point: the rotation goes
+    # on the wrapper's Location and tuple() reads the raw geometry under it -
+    # the same trap assembly.py's _solid() documents for booleans. Every note in
+    # the side, rear and top views was therefore being placed with the FRONT
+    # camera, and rev B hid it by nudging the leaders until they looked right.
+    # .center() evaluates the located vertex, so the yaw actually lands.
+    P = lambda pt: proj(tuple((yaw * Vertex(*pt)).center()))
     svg = (f'<svg viewBox="0 0 {W} {Hh}" xmlns="http://www.w3.org/2000/svg" '
            f'style="width:100%;height:auto;display:block">'
            f'<image href="data:image/png;base64,'

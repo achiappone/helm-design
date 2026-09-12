@@ -32,9 +32,13 @@ N_TEETH, TOOTH_H = H["N_TEETH"], H["TOOTH_H"]
 R_T0, R_T1 = H["R_T0"], H["R_T1"]
 EAR_R = H["BP_R"] + 1.5          # a touch proud of the shell's ear
 EAR_T = 6.0                      # this part's own thickness, not a mating dim
-BOLT_D = 5.4                     # M5 clearance; the shell takes the 4.3 pilot
+BOLT_D = 5.4                     # M5 clearance - and so is the shell's now
 assert R_T1 < EAR_R, "teeth would run off the edge of the ear"
-assert BOLT_D > H["BP_BOLT"], "bracket bolt hole must clear, not thread"
+# Neither ear threads any more: the shell carries a captive 316 nut and both
+# holes are clearance. What still has to hold is that this one is not the
+# tighter of the two, or the bolt binds here and the clamp reads as preload it
+# is not actually delivering to the crown.
+assert BOLT_D >= H["BP_BOLT"], "bracket bolt hole must not be tighter than the shell's"
 
 PLATE_L, PLATE_W, PLATE_T = 276.0, 84.0, 5.5
 PIVOT_ABOVE = 15.0               # pivot axis above the plate top
