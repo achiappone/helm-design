@@ -147,13 +147,17 @@ def _asm(shape):
 def fit_parts(crop):
     plate = _asm(COVER & crop)
     out_ = [(plate, DEEP)]
-    _y = -(BLK_Y0 + BLK_Y1)/2                   # cover-local y of the block
+    # The block's OUTER face is shell y = BLK_Y0 (-76), i.e. cover-local +76.
+    # Rot(90,0,0) sends a cylinder's +z along -y, so each body is positioned
+    # beyond the face and grows back toward it. The first cut of this put them
+    # at the block's mid-plane growing inward, i.e. inside the bay.
+    _y0 = -BLK_Y0
     for _x, _bore, _fl, _col in ((GL_X, 14.5, 22.0, STEEL),
                                  (SMA_X, 8.2, 12.7, BRASS),
                                  (VENT_X, 10.5, 19.0, STEEL)):
-        body = (Pos(_x, _y - 6.0, BORE_Z) * Rot(90, 0, 0)
+        body = (Pos(_x, _y0 + 6.0, BORE_Z) * Rot(90, 0, 0)
                 * Cylinder(_fl/2, 6.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
-        tail = (Pos(_x, _y - 30.0, BORE_Z) * Rot(90, 0, 0)
+        tail = (Pos(_x, _y0 + 30.0, BORE_Z) * Rot(90, 0, 0)
                 * Cylinder(_bore/2 - 1.0, 24.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
         out_ += [(_asm(body), _col), (_asm(tail), DARK)]
     return out_
@@ -169,7 +173,7 @@ out.append({"name": "sub_fittings_context",
                     f"and the three fittings used to be placed in that void with nothing "
                     f"under them."})
 
-NEAR = Pos(GL_X + 10, -(BLK_Y0 + BLK_Y1)/2, -BUMP_H/2) * Box(120, 120, 110, align=(Align.CENTER,)*3)
+NEAR = Pos(GL_X + 10, -BLK_Y0 - 10, -BUMP_H/2) * Box(120, 130, 110, align=(Align.CENTER,)*3)
 rgba, _ = render_multi(fit_parts(NEAR), az=200, el=145, W=1050, H=760)
 png("cad/out/sub_fittings_detail.png", rgba)
 out.append({"name": "sub_fittings_detail",
