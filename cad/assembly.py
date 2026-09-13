@@ -23,31 +23,30 @@ DISP_CX = H["DISP_CX"]
 SHELL  = _solid("cad/out/helm_shell_revC.stp")
 COVER  = _solid("cad/out/helm_cover_revC.stp")
 VISOR  = _solid("cad/out/helm_visor_revC.stp")
-BRACKET = _solid("cad/out/tilt_bracket_revC.stp")
+BAIL_B  = _solid("cad/out/bail_base_revA.stp")
+BAIL_A  = _solid("cad/out/bail_arm_revA.stp")
 SHROUD_F = _solid("cad/out/heatsink_shroud_revD.stp")
-_fan_raw = import_step("NF-F12_iPPC_Public-CAD.stp")
-# ALL 11 solids now. This used to drop any solid whose tessellate() raised,
-# which sounds conservative and was not: the one it dropped was solid 0, the
-# 119 x 25 x 119 FRAME - 55 cm3, more than half the fan. Every assembly render
-# showed the impeller and eight corner bumpers hanging in mid air, and nothing
-# said so, because the filter swallowed the exception and printed a count that
-# looked healthy at 10/11.
-#
-# The frame is not broken. It is 583 faces and exactly ONE of them fails to
-# mesh, so render.safe_tessellate now keeps the other 582 instead of discarding
-# the solid. See the note there.
-# DO NOT boolean-union these. Fusing Noctua's 11 solids one by one collapses
-# them: 96.0 cm3 of parts comes out as 5.6 cm3 in 6 solids, because OCC's fuse
-# cannot cope with the overlapping, self-intersecting geometry a vendor ships
-# for visualisation. The union destroyed the frame and the impeller and left the
-# corner bumpers, which is exactly what the assembly renders have been showing.
-# A Compound just holds them together with no boolean at all - same 96.0 cm3,
-# same 1180 faces, and the renderer meshes each face on its own anyway.
-FAN = Compound(_fan_raw.solids())
-_fv = FAN.volume/1000
-assert _fv > 90.0, (
-    f"fan compound is {_fv:.1f} cm3, expected ~96 - something fused it again")
-print(f"  fan: {len(_fan_raw.solids())} solids as a compound, {_fv:.1f} cm3")
+# TWO 80 x 80 x 25 fans, drawn as envelopes at the positions the shroud was
+# built for. The NF-F12 STEP import that used to live here was the single 120 mm
+# fan; the shroud was rebuilt for two 80s and this file kept drawing the old one
+# inside it, so every assembly render showed a fan the shroud no longer fits.
+# Read the positions from the shroud script's own numbers rather than retyping.
+import re as _re
+_sh_src = open("cad/heatsink_shroud.py").read()
+FAN_W  = float(_re.search(r"^FAN_W, FAN_T, FAN_PITCH, FAN_BORE = ([\d.]+)", _sh_src, _re.M).group(1))
+FAN_T  = float(_re.search(r"^FAN_W, FAN_T, FAN_PITCH, FAN_BORE = [\d.]+, ([\d.]+)", _sh_src, _re.M).group(1))
+FAN_N  = int(_re.search(r"^FAN_N = (\d+)", _sh_src, _re.M).group(1))
+FAN_CY = [(-FAN_N/2 + 0.5 + i) * FAN_W for i in range(FAN_N)]
+_SH_WALL = 3.0
+def _fans():
+    """Both fans, in the SHROUD's local frame: on the inside of its outer wall."""
+    out = None
+    for _fy in FAN_CY:
+        f = Pos(0, _fy, _SH_WALL) * Box(FAN_W, FAN_W, FAN_T, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        out = f if out is None else out + f
+    return out
+FAN = _fans()
+print(f"  fan: {FAN_N}x {FAN_W:.0f}x{FAN_W:.0f}x{FAN_T:.0f} at y {FAN_CY}")
 SHROUD = _solid("cad/out/lp24_shroud_revD.stp")
 CLAMP  = _solid("cad/out/lp24_clamp_revD.stp")
 
@@ -75,19 +74,101 @@ PX, PY, PZ = PIVOT
 def tilt(deg):
     """Swing the visor about its real pivot axis."""
     return Pos(0, PY, PZ) * Rot(deg, 0, 0) * Pos(0, -PY, -PZ) * VISOR
-# bracket: its pivot origin maps onto the housing bottom pivots
-BRK = Pos(0, H["BP_Y"], H["BP_Z"]) * BRACKET
+# THE BAIL pivots on the COVER'S TRUNNIONS, which sit behind the unit at
+# z = BACK + TRUN_STAND and x = +/-(TRUN_X + TRUN_LAND). This placement used to
+# aim at TILT_Z on the SHELL wall - a pivot deleted earlier the same day - and
+# read PIV2_PROUD for the arm face, so the arms sat 32 mm in front of the real
+# trunnions and could not have been bolted to anything. Every number here is
+# now the cover's, read from housing.json, plus the bail's own geometry read
+# from cad/out/bail.json which bail.py writes.
+_BJ = json.load(open("cad/out/bail.json"))
+_SJ = json.load(open("cad/out/shroud.json"))
+_BACK = H["DEPTH"] + H["GASKET_C"] + H["COVER_T"]
+_AXIS_Z = _BACK + H["TRUN_STAND"]
+_ARM_FACE, _ARM_T, _RISE = _BJ["ARM_FACE"], _BJ["ARM_T"], _BJ["RISE"]
+_ORG = _BJ["ARM_ORIGIN"]
+def _arm(sx):
+    # The recipe is bail.py's, read from bail.json, NOT re-derived here. This
+    # file used to build the transform itself with origin x = sx*ARM_FACE, and
+    # the part's thickness always runs toward +x from that origin - so the -x
+    # arm came out pointing INBOARD and sat inside the trunnion it clamps.
+    org = _ORG["pos"] if sx > 0 else _ORG["neg"]
+    return Plane(origin=tuple(org), x_dir=tuple(_ORG["x_dir"]),
+                 z_dir=tuple(_ORG["z_dir"])) * BAIL_A
+# The base plate lies FLAT ON THE DASH, below the unit - the arms stand on it.
+# It used to be placed with its thickness along z, i.e. on edge like a fence,
+# with the arms' feet touching nothing.
+_DASH_Y = H["TILT_Y"] - _RISE
+BRK = (Plane(origin=(0, _DASH_Y - _BJ["BASE_T"], _AXIS_Z),
+             x_dir=(1, 0, 0), z_dir=(0, 1, 0)) * BAIL_B
+       + _arm(-1) + _arm(1))
+# THE WHOLE BOM, not just the printed shell. These two renders are what the build
+# page calls "Assembled", and until now they drew shell, cover, visor and bail
+# and stopped - no shroud, no fans, no heatsink, no boards. A reader could not
+# tell from them that the fan had changed, which is exactly what happened.
+from parts_lib import finned, pi4, armor_lite, pcb
+_BACK = H["DEPTH"] + H["COVER_T"] + H["GASKET_C"]
+# The LANDING FACE is shroud-local z = OD, not the part's bounding box: the
+# louvres stand LOUV_H proud on the other side, so using the bbox floated the
+# whole shroud 6 mm off the cover in every assembled render.
+_OD = _SJ["SHROUD_OD"]
+_SHROUD_ASM = Pos(H["AP_CX"], 0, _BACK + _OD) * Rot(180, 0, 0) * SHROUD_F
+# fans sit on the mesh, on the bosses: shroud-local FILT_Z + FILT_MESH upward
+_FAN_Z0 = _SJ["FILT_Z"] + _SJ["FILT_MESH"]
+_FANS_ASM = Pos(H["AP_CX"], 0, _BACK + _OD - _FAN_Z0 - FAN_T) * Compound([
+    Pos(0, fy, 0) * Box(FAN_W, FAN_W, FAN_T, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    for fy in FAN_CY])
+# heatsink: base flush in the cover's INNER-face seat (assembled z 22..25), fins
+# through the 58x134 aperture standing proud out the back. Drawn already trimmed
+# to the aperture, which is how it has to be fitted.
+_HS_Z0 = H["DEPTH"] + H["GASKET_C"]                       # cover inner face
+_HS = (Pos(H["AP_CX"], 0, _HS_Z0) * Box(H["HS_L"], H["HS_W"], 3.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
+       + Pos(H["AP_CX"], 0, _HS_Z0 + 3.0) * finned(H["AP_L"], H["AP_W"], H["HS_H"] - 3.0 + 0.01,
+                                                   base=0.01, fin_t=1.4, gap=2.6, along_x=False))
+# boards in their bays: the bays are hollow from the cover's inner face out to the
+# bump skin, so the boards sit on the bump floor with components facing INTO the
+# box. Pi is on its side (portrait); driver is portrait natively.
+_BAY_FLOOR = _BACK + H["PI_BUMP_H"] - 3.0                 # inside face of the bump skin
+_PI  = Pos(H["PI_BUMP_CX"], 0, _BAY_FLOOR - 1.6) * Rot(180, 0, 0) * Rot(0, 0, 90) * pi4()
+_ARM = Pos(H["PI_BUMP_CX"], 0, _BAY_FLOOR - 1.6 - 2.4) * Rot(180, 0, 0) * Rot(0, 0, 90) * armor_lite()
+_DRV = Pos(H["DRV_CX"], 0, _BAY_FLOOR - 1.6) * Rot(180, 0, 0) * pcb(55.25, 113.25)
+# The three bulkhead fittings, drawn as bodies hanging BELOW their blocks. The
+# whip that used to be drawn here has come off the housing (see helm_housing.py
+# at SMA_X) - what the housing has is a coax entry.
+_FIT_Z = _BACK - H["BORE_Z"]                     # BORE_Z is cover-local
+_FITS = None
+for _fx, _fd, _fl in ((H["GL_X"], H["GL_TAP"], 22.0), (H["VENT_X"], H["VENT_TAP"], 19.0),
+                      (H["SMA_X"], H["SMA_D"], 12.7)):
+    _body = (Pos(_fx, H["BLK_Y0"], _FIT_Z) * Rot(90, 0, 0)
+             * Cylinder(_fl/2, 8.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
+             + Pos(_fx, H["BLK_Y0"] - 8.0, _FIT_Z) * Rot(90, 0, 0)
+             * Cylinder(_fd/2 - 1.0, 18.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+    _FITS = _body if _FITS is None else _FITS + _body
+ALLOY, PI_G, DARK = (0.66, 0.68, 0.72), (0.11, 0.46, 0.26), (0.20, 0.20, 0.22)
+# The display itself. Without it the front view looks straight through the
+# aperture at the cover's inner face, and every reader took the bays for the
+# front of the unit.
+_DISP = Pos(H["APER_X"], H["APER_Y"], H["FACE_T"] + H["GLUE_T"]) * Box(
+    H["MOD_W"], H["MOD_H"], H["MOD_D"], align=(Align.CENTER, Align.CENTER, Align.MIN))
 asm = [
     (BRK, (0.10, 0.26, 0.52)),
     (Pos(0, 0, 0) * SHELL, BLUE),
-    (Pos(0, 0, H["DEPTH"] + H["COVER_T"] + H["GASKET_C"]) * Rot(180, 0, 0) * COVER, BLUE2),
+    (_DISP, (0.08, 0.09, 0.11)),
+    (Pos(0, 0, _BACK) * Rot(180, 0, 0) * COVER, BLUE2),
     (tilt(0), BLUE),
+    (_SHROUD_ASM, (0.10, 0.26, 0.52)),
+    (_FANS_ASM, DARK),
+    (_HS, ALLOY),
+    (_PI, PI_G), (_ARM, ALLOY), (_DRV, (0.12, 0.43, 0.47)),
+    (_FITS, (0.55, 0.56, 0.58)),
 ]
 # Camera solved rather than guessed: az=198, el=-112 gives depth.z>0 (front
 # face nearest), up.y>0 (+Y up) and explode.z<0 (front of the stack on top).
 png("cad/out/asm_housing.png", render_multi(asm, 198, -112, W=1200, H=850)[0])
 print("  asm_housing (front)")
-png("cad/out/asm_housing_rear.png", render_multi(asm, 34, 20, W=1200, H=850)[0])
+# from behind and a little below, so the bail base reads as what it is - a
+# plate on the dash under the unit - and the shroud drain is in view
+png("cad/out/asm_housing_rear.png", render_multi(asm, 150, -20, W=1200, H=850)[0])
 print("  asm_housing_rear")
 # rot(az,el) rotates about the model Z and X only - it cannot orbit
 # horizontally. Yawing the assembly about Y is the same viewpoint change and
@@ -174,11 +255,9 @@ png("cad/out/asm_shroud_mated.png", render_multi([
 print("  asm_shroud_mated")
 
 
-# ══════════════════════════════════════════════ 4. FAN SHROUD + NF-F12
-# Fan axis is Y in Noctua's file; the shroud's is Z. 27 mm thick including the
-# anti-vibration pads, not the 25 mm on the spec sheet.
+# ══════════════════════════════════════════════ 4. FAN SHROUD + 2x 80 mm
 BIG2 = 500
-fan_in_shroud = Pos(0, 0, 3.5) * Rot(90, 0, 0) * FAN
+fan_in_shroud = FAN                       # already in the shroud's frame
 half2 = Pos(0, -BIG2/2, 0) * Box(BIG2, BIG2, BIG2)
 png("cad/out/asm_shroud_fan.png", render_multi([
     (SHROUD_F, BLUE),

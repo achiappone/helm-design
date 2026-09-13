@@ -32,14 +32,19 @@ LINEAR, ANGULAR = 0.01, 5.0          # mm, degrees
 #   bracket same: the plate is vertical in the file.
 PARTS = [("helm_shell_revC",   None,            "front A-surface down"),
          ("helm_cover_revC",   None,            "bumps down"),
-         # The visor CANNOT lie flat: its ears are centred on the hood's own
-         # mid-plane, so they stand R_EAR - VIS_T/2 = 12.5 proud of both faces
-         # and the hood floats on two ear rims. No rotation beats ~59 mm2 of
-         # bed contact. It needs supports, or the hood offset down the pivot
-         # until its underside is tangent to the ear - a design change. Left
-         # unrotated and flagged rather than silently exported unprintable.
-         ("helm_visor_revC",   None,            "WILL NOT LIE FLAT - see note"),
-         ("tilt_bracket_revC", Rot(90, 0, 0),   "plate flat, ears up")]
+         # The visor lies flat now: its hood hangs below the pivot axis by
+         # R_EAR - VIS_T/2, so the underside is tangent to the ears. Hood normal
+         # is +Y in the file, so roll it down.
+         ("helm_visor_revC",   Rot(-90, 0, 0),  "hood underside down, ears up"),
+         # Louvre tips and the 3 mm rim round them are the first layer - a
+         # continuous perimeter loop plus the four boss ends. The ribs and fan
+         # pads then land on the slat tops at 6 mm pitch, the walls go up, the
+         # side awnings are 45 deg and the screw-head reliefs are pockets in the
+         # top face. Nothing needs support. Open-end-down would be worse: the
+         # two ribs become 162 mm bridges over the cavity.
+         ("heatsink_shroud_revD", None,          "louvre tips + rim on the bed, walls up"),
+         ("bail_base_revA",   Rot(0, 0, 0),    "plate flat on the bed"),
+         ("bail_arm_revA",    Rot(-90, 0, 0),  "blade flat, x2")]
 
 def lay_down(part, rot):
     """Apply the print orientation, then drop the part onto z=0."""

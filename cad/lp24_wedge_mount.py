@@ -50,7 +50,8 @@ GW, GD     = CORD_D * 1.15, CORD_D * 0.77
 GL, GH, GR = 92.0, 58.0, 10.0
 
 # cable / strain relief
-CABLE_D    = 14.0        # <-- SET TO YOUR ACTUAL CABLE OD (gland takes 12.5-18)
+import json as _j
+CABLE_D = _j.load(open("cad/out/housing.json"))["CABLE_D"]   # set by the housing's M16 gland - do not retype
 OPEN_L, OPEN_W = 46.0, 34.0
 LIP_H      = 5.0
 SR_PITCH   = 24.0        # strain relief screw spacing

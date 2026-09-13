@@ -11,7 +11,7 @@ downstream and the build fails loudly when something no longer fits.
 |---|---|
 | `cad/helm_housing.py` | front shell + rear cover (the main part) |
 | `cad/helm_visor.py` | hinged sun visor on detent pivots |
-| `cad/tilt_bracket.py` | dash bracket, same detent |
+| `cad/bail.py` | dash bail mount: base plate + two arms on the cover's trunnions |
 | `cad/heatsink_shroud.py`, `cad/lp24_*.py` | fan shroud, connector shroud and clamp |
 | `cad/render.py`, `assembly.py`, `exploded.py` | renders straight from the solids |
 | `cad/export_mesh.py` | 3MF/STL for the slicer, already print-oriented |
@@ -22,7 +22,8 @@ downstream and the build fails loudly when something no longer fits.
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python cad/helm_housing.py     # shell + cover, writes cad/out/
 .venv/bin/python cad/helm_visor.py       # reads housing.json
-.venv/bin/python cad/tilt_bracket.py     #   "
+.venv/bin/python cad/heatsink_shroud.py  # reads housing.json, writes shroud.json
+.venv/bin/python cad/bail.py             #   "
 .venv/bin/python cad/export_mesh.py      # -> 3MF + STL
 ```
 

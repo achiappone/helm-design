@@ -16,19 +16,16 @@ DISP_CX = H["DISP_CX"]
 SHELL = _solid("cad/out/helm_shell_revC.stp")
 COVER = _solid("cad/out/helm_cover_revC.stp")
 VISOR = _solid("cad/out/helm_visor_revC.stp")
-BRACKET = _solid("cad/out/tilt_bracket_revC.stp")
+BAIL_B  = _solid("cad/out/bail_base_revA.stp")
+BAIL_A  = _solid("cad/out/bail_arm_revA.stp")
 SHROUD_F = _solid("cad/out/heatsink_shroud_revD.stp")
 LP24_SH = _solid("cad/out/lp24_shroud_revD.stp")
 LP24_CL = _solid("cad/out/lp24_clamp_revD.stp")
-# Same fix as cad/assembly.py - see the long note there. Two bugs stacked:
-# fusing Noctua's 11 solids collapsed 96.0 cm3 into 5.6 and destroyed the frame
-# and impeller, and separately one unmeshable face out of 583 made the frame
-# raise on tessellate so the old filter silently dropped it. A Compound does no
-# boolean, and render.safe_tessellate keeps the 582 good faces.
-_fan_raw = import_step("NF-F12_iPPC_Public-CAD.stp")
-FAN = Compound(_fan_raw.solids())
-assert FAN.volume/1000 > 90.0, (
-    f"fan compound is {FAN.volume/1000:.1f} cm3, expected ~96 - something fused it")
+# Two 80 x 80 x 25 fans as envelopes - the NF-F12 STEP that used to be imported
+# here was the single 120 mm fan the shroud no longer takes.
+FAN = (Box(80, 80, 25, align=(Align.CENTER, Align.CENTER, Align.MIN))
+       + Pos(0, 80, 0) * Box(80, 80, 25, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+FAN = Pos(0, -40, 0) * FAN
 
 BLUE=(0.16,0.42,0.78); BLUE2=(0.13,0.34,0.64); GLASS=(0.10,0.12,0.16)
 GREEN=(0.10,0.42,0.24); DGREEN=(0.07,0.30,0.18); ALLOY=(0.62,0.65,0.69)
@@ -53,10 +50,15 @@ NAMES = {
     8: "Rear cover",       9: "LP-24 shroud",    10: "Strain clamp",
     12: "MCP23017",       13: "Sensor breakout", 15: "RTL-SDR",
     16: "Encoder",        17: "Push button",     28: "SMA bulkhead",
-    31: "Tilt bracket",   32: "Fan shroud",      33: "Alloy plate",
-    34: "Heatsink",       35: "NF-F12 fan",      36: "Whip antenna",
+    31: "Bail base",      32: "Fan shroud",     34: "Heatsink 150x74x10",
+    35: "80 mm IP67 fan x2", 36: "Whip antenna",
     38: "RG316 pigtail",
 }
+# 33 IS GONE. It was the 114 alloy heat plate, and the BOM on the build page has
+# no row for it any more - the heatsink's own base closes the aperture. ITEMS
+# below still LAYS OUT that plate and a pair of 100x40 strip heatsinks at 34, so
+# the drawing is one revision behind this dict; cad/build_review.py says so on
+# the page rather than letting a reader chase balloon 33 through the BOM.
 
 disp = Box(305, 125, 10, align=(Align.CENTER, Align.CENTER, Align.MIN))
 
@@ -95,11 +97,15 @@ ITEMS = [
     (6, Pos(80, -25, 496) * armor,            ALLOY,  None),
     (7, Pos(80, -25, 560) * hat,             HAT_R, (120, -25, 532)),
     (8, Pos(0, 0, 700) * COVER,              BLUE2,  (165, 0, 706)),
-    (31, Pos(0, -260, 620) * BRACKET,        (0.10,0.26,0.52), (-190, -260, 616)),
-    (33, Pos(118, 0, 830) * Box(114, 114, 6, align=(Align.CENTER,)*3), ALLOY, (200, 0, 826)),
-    (34, Pos(118, 30, 890) * Pos(0, 0, -10) * finned(100, 40, 20), ALLOY, None),
-    (34, Pos(118, -30, 890) * Pos(0, 0, -10) * finned(100, 40, 20), ALLOY, (200, -30, 886)),
-    (35, Pos(118, 0, 1000) * Rot(90, 0, 0) * FAN, (0.42,0.30,0.26), (200, 0, 1010)),
+    (31, Pos(0, -300, 760) * BAIL_B,         (0.10,0.26,0.52), (-190, -300, 756)),
+    (31, Pos(-250, -120, 700) * BAIL_A,      (0.10,0.26,0.52), None),
+    (31, Pos( 250, -120, 700) * Rot(0, 180, 0) * BAIL_A, (0.10,0.26,0.52), None),
+    # ONE 150 x 74 x 10 heatsink, base-out, where a 114 alloy plate and two
+    # 100 x 40 x 20 strips used to be ballooned - parts that left the design
+    # two revisions before this view stopped drawing them.
+    (34, Pos(0, 0, 860) * Rot(180, 0, 0) * finned(H["HS_L"], H["HS_W"], H["HS_H"], base=3.0,
+                                                  fin_t=1.4, gap=2.6, along_x=False), ALLOY, (80, 0, 856)),
+    (35, Pos(0, 0, 1000) * FAN, (0.42,0.30,0.26), (100, 0, 1010)),
     (17, Pos(-159.5, 45, -250) * Rot(0, 0, 0) * Cylinder(7.5, 21), BLACK, (-215, 45, -254)),
     (17, Pos(-159.5, 21, -250) * Cylinder(7.5, 21), BLACK, None),
     (17, Pos(-159.5, -3, -250) * Cylinder(7.5, 21), BLACK, None),

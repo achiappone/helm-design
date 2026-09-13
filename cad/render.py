@@ -167,7 +167,8 @@ if __name__ == "__main__":
         
         # still on rev B pivots - these need rebuilding for rev C
         ("helm_visor_revC",  "Visor - hinged, 16-tooth detent", 28, 30),
-        ("tilt_bracket_revC","Dash tilt bracket",           200,-25),
+        ("bail_base_revA",  "Bail base plate",             200,-25),
+        ("bail_arm_revA",   "Bail arm - x2",                25, 18),
         ("lp24_shroud_revD", "LP-24 shroud",                 35, 22),
         ("lp24_clamp_revD",  "Strain relief clamp",          32, 34),
         ("heatsink_shroud_revD", "Fan shroud - NF-F12",     200, 28),
@@ -181,11 +182,14 @@ if __name__ == "__main__":
     _H = _json.load(open("cad/out/housing.json"))
     _shell = _imp("cad/out/helm_shell_revC.stp")
     _cover = _imp("cad/out/helm_cover_revC.stp")
-    _crop = _cover & (Pos(_H["ANT_X"], -_H["ANT_Y"], 0) * Box(70, 70, 40, align=(Align.CENTER,)*3))
-    export_step(_crop, "cad/out/detail_antenna.stp")
-    # Shallow elevation on purpose: the pocket is 4 deep, so a raking light is
-    # the only thing that makes it read as depth.
-    jobs += [("detail_antenna", "DETAIL - antenna bulkhead on the cover", 20, 40)]
+    _bx = (_H["BLK_X0"] + _H["BLK_X1"]) / 2
+    _by = -(_H["BLK_Y0"] + _H["BLK_Y1"]) / 2
+    _crop = _cover & (Pos(-_bx, _by, -_H["PI_BUMP_H"]/2)
+                      * Box(90, 60, _H["PI_BUMP_H"] + 20, align=(Align.CENTER,)*3))
+    export_step(_crop, "cad/out/detail_fittings.stp")
+    # Looking UP at it: the three bores face down, and an elevation from above
+    # shows three dots on a flat face and nothing else.
+    jobs += [("detail_fittings", "DETAIL - cable entry, vent and coax block", 30, 35)]
 
     out = []
     for i, (f, title, az, el) in enumerate(jobs):

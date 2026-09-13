@@ -1,4 +1,4 @@
-import base64, json, pathlib, datetime
+import base64, json, math, pathlib, datetime
 R = json.load(open("cad/out/renders.json"))
 D = json.load(open("cad/out/dims.json"))
 # The assembly elevations are ONE of this page's many inputs, and for several revs a
@@ -10,26 +10,62 @@ try:
     AD = json.load(open("cad/out/asmdims.json"))
 except FileNotFoundError:
     AD = []
-# Detent counts and fastener sizes are quoted in the prose below. They are read
-# from the model, not retyped - the page said "20 teeth = 18 deg" for two revs
-# after the shell dropped to 16, which is exactly the drift the JSON exists to stop.
+# EVERY DIMENSION ON THIS PAGE COMES FROM THE JSON THE GEOMETRY WRITES.
+# This page went badly stale because it kept its own copies: it described an
+# alloy plate, a conduction block, a 120 mm Noctua, a gluing jig, a foam band
+# and a dash tilt bracket for revisions after every one of them was deleted,
+# and quoted "11 x M4" while the shell was building 16 x M3. A number typed
+# here is a number that will be wrong. If the page needs a dimension the JSON
+# does not carry, the fix is a key in the exporting script - not a literal here.
 H = json.load(open("cad/out/housing.json"))
-CLICK = 360/H["N_TEETH"]
+S = json.load(open("cad/out/shroud.json"))     # cad/heatsink_shroud.py
+B = json.load(open("cad/out/bail.json"))       # cad/bail.py
+V = json.load(open("cad/out/pivot.json"))      # cad/helm_visor.py
+try:
+    LP = json.load(open("cad/out/lp24.json"))  # cad/lp24_shroud.py
+except FileNotFoundError:
+    LP = {}
+FRIC_T = H["FRIC_T"]
 RIM, GASKET_T, GASKET_W = H["RIM"], H["GASKET_T"], H["GASKET_W"]
+OUT_W, OUT_H, DEPTH, COVER_T = H["OUT_W"], H["OUT_H"], H["DEPTH"], H["COVER_T"]
 try:
     SD = json.load(open("cad/out/subdims.json"))
 except FileNotFoundError:
     SD = []
-def subpic(name):
+def subpic(name, note=None):
+    """note= overrides the caption subassemblies.py wrote - used only where a
+    feature is mid-move and the page must not quote a coordinate for it."""
     for v in SD:
         if v["name"] == name:
-            return pic(f"cad/out/{v['name']}.png", v["title"], v.get("note", ""))
+            return pic(f"cad/out/{v['name']}.png", v["title"],
+                       v.get("note", "") if note is None else note)
     return _missing(name, f"cad/out/{name}.png")
 # Counted off the geometry, not retyped - the page has quoted a wrong
 # fastener count and a wrong bezel through two revisions already.
 NBOLT = H["N_BRIM_BOLTS"]
-BEZEL = (H["OUT_W"] - H["APER_W"])/2
-NUT_AF, NUT_DEEP = H["NUT_AF"], H["NUT_DEEP"]
+BEZEL = (OUT_W - H["APER_W"])/2
+BEZEL_T = OUT_H/2 - (H["APER_Y"] + H["APER_H"]/2)
+
+# -- derived, so nothing below is typed twice ------------------------------
+ASA = 1.07                                   # g/cm3, ASA solid
+def g(cm3):
+    return f"{cm3*ASA:.0f} g" if cm3 else "&mdash;"
+UNIT_D  = DEPTH + COVER_T + S["REAR_PROUD"]  # front face to the louvre tips
+BAY_D   = DEPTH + COVER_T + H["PI_BUMP_H"]   # ...and over a board bay
+SH_BOX  = f'{S["OW"]:.0f} &times; {S["OH"]:.0f} &times; {S["SHROUD_OD"]:.0f}'
+# Cord length: the groove's CENTRELINE, not the shell's outline.
+_gc = H["GASKET_OUT"] + GASKET_W/2
+_cw, _ch, _cr = OUT_W - 2*_gc, OUT_H - 2*_gc, max(H["R_OUT"] - _gc, 0.5)
+CORD_L = 2*(_cw - 2*_cr) + 2*(_ch - 2*_cr) + 2*math.pi*_cr
+PRINTED = [("Front shell", H["SHELL_CM3"], 1), ("Rear cover", H["COVER_CM3"], 1),
+           ("Visor", V["VOL_CM3"], 1), ("Fan shroud", S.get("SHROUD_CM3"), 1),
+           ("Bail base", B.get("BASE_CM3"), 1), ("Bail arm", B.get("ARM_CM3"), 2),
+           ("LP-24 shroud", LP.get("SHROUD_CM3"), 1),
+           ("Strain clamp", LP.get("CLAMP_CM3"), 1)]
+FILAMENT = sum(v*n for _n, v, n in PRINTED if v)/1000.0*ASA   # kg, fit coupon aside
+NPARTS = len(PRINTED)
+def mm(v):
+    return f"{v:.0f}" if abs(v - round(v)) < 0.05 else f"{v:.1f}"
 MD = json.load(open("cad/out/measdims.json"))
 def mdwg(i):
     v = MD[i]
@@ -199,12 +235,14 @@ a{{color:var(--accent)}}
 <div class="wrap">
 <header>
   <h1>Helm Print Package</h1>
-  <p class="sub">Seven printed parts, rendered from the exported STEP solids. Components with no CAD of
-     their own are shown as envelope representations &mdash; correct size and position, no internal detail.</p>
+  <p class="sub">{NPARTS} printed parts, rendered from the exported STEP solids. Components with no CAD of
+     their own are shown as envelope representations &mdash; correct size and position, no internal detail.
+     Every dimension on this page is read from the geometry, not typed here.</p>
   <dl class="block">
     <div><dt>Project</dt><dd>SignalK glass helm</dd></div>
     <div><dt>Material</dt><dd>ASA &mdash; blue</dd></div>
-    <div><dt>Filament</dt><dd>~0.75 kg total</dd></div>
+    <div><dt>Filament</dt><dd>~{FILAMENT:.2f} kg</dd></div>
+    <div><dt>Unit</dt><dd>{OUT_W:.0f} &times; {OUT_H:.0f} &times; {UNIT_D:.0f}</dd></div>
     <div><dt>Threads</dt><dd>direct, 316 SS</dd></div>
     <div><dt>Kernel</dt><dd>OCCT 7.9</dd></div>
     <div><dt>Updated</dt><dd>{datetime.datetime.now().strftime("%d %b %Y, %H:%M")}</dd></div>
@@ -216,33 +254,46 @@ a{{color:var(--accent)}}
     <span class="file">front shell + rear cover</span></div>
   <div class="grid">
     {pic("cad/out/asm_housing.png","Assembled - front","Nothing on the face. Every fastener is either behind the unit or hidden under the visor.")}
-    {pic("cad/out/asm_housing_rear.png","Assembled - rear","{NBOLT} M3 through the cover into the shell&rsquo;s brim, plus the Gore vent and the heatsink aperture. Cable now exits the &minus;x short side.")}
+    {pic("cad/out/asm_housing_rear.png","Assembled - rear",f"{NBOLT} M3 through the cover into the shell&rsquo;s brim, the fan shroud over the heatsink, and the bail arms on trunnions grown from the cover itself.")}
   </div>
   <div class="grid dwgs">
-    {svgpic("cad/out/exp_cad.svg","Exploded - numbered","Balloons match the BOM. Sensor breakouts sit on the tray; the antenna bulkhead and whip mount through the rear cover.")}
+    {svgpic("cad/out/exp_cad.svg","Exploded - numbered","Balloons match the BOM numbers.")}
+  </div>
+  <div class="flag">
+    <h3>&#9888; The exploded drawing is one revision behind</h3>
+    <p>cad/exploded.py still lays out a <b>114 alloy plate at balloon 33</b> and a <b>pair of
+       100 &times; 40 strip heatsinks at 34</b>. Neither part exists: there is no alloy plate, and the
+       heatsink is one {H["HS_W"]:.0f} &times; {H["HS_L"]:.0f} &times; {H["HS_H"]:.0f} block. <b>Balloon 33
+       has no BOM row</b> &mdash; ignore it, and read 34 as the single block. Everything else in the view
+       is current. Listed under open items.</p>
   </div>
   <div class="grid">
     {pic("cad/out/exp_a.png","Exploded - three-quarter","")}
     {pic("cad/out/exp_b.png","Exploded - from the right","")}
   </div>
   <div class="flag w">
-    <h3>Slimming pass &mdash; and what it cost</h3>
-    <p>Body is <b>389 &times; 165 &times; 28</b>, with a local <b>18 mm bump-out</b> on the cover for the Pi stack.
-       Only the Pi needs depth, so only the Pi gets it: <b>46 mm at the bump, 28 mm everywhere else</b>.
-       Front face 6 &rarr; 2.5 mm. Filament <b>1.51 &rarr; 0.84 kg</b>.</p>
-    <p>Fasteners went <b>24 &rarr; 12</b>. The Gore vent equalises pressure, so the gasket only resists water.
-       At 12 &times; M4 each screw carries 261 N against 1175 N capacity &mdash; <b>SF 4.5</b> at 88 mm spacing.</p>
-    <p><b>The cost: nothing can be cooled inside at this depth.</b> The Pi stack leaves 4 mm of clearance,
-       which will not take an internal fan or an inner heatsink. All cooling now happens outside the cover.</p>
+    <h3>What the box actually is now</h3>
+    <p>Shell <b>{OUT_W:.0f} &times; {OUT_H:.0f} &times; {DEPTH:.0f}</b> with an <b>{RIM:.0f} mm brim</b>,
+       cover <b>{OUT_W:.0f} &times; {OUT_H:.0f} &times; {COVER_T:.0f}</b>. Two identical
+       <b>{H["PI_BUMP_L"]:.0f} &times; {H["PI_BUMP_W"]:.0f} &times; {H["PI_BUMP_H"]:.0f}</b> bays stand off the
+       cover &mdash; Pi stack at x{H["PI_BUMP_CX"]:+.0f}, buck at x{H["DRV_CX"]:+.0f} &mdash; so the unit is
+       <b>{BAY_D:.0f} deep over a bay</b> and <b>{UNIT_D:.0f} over the fan shroud</b>, which is the number
+       that matters when it swings.</p>
+    <p>The controls moved out of a column beside the screen into a <b>row under it</b>, at
+       {H["BTN_PITCH"]:.0f} mm pitch. That is the whole of rev C: the control strip became height instead of
+       width, the shell came inside the <b>{H["BED"]:.0f} mm bed</b>, and it prints as
+       <b>one piece, face down, no supports</b>. Bezel is {BEZEL:.0f} at the sides and {BEZEL_T:.0f} top.</p>
+    <p><b>Nothing is cooled inside.</b> There is {H["FIN_GAP"]:.1f} mm behind the panel and no room for a fan
+       or an inner sink in it. Everything thermal happens on the outside of the cover &mdash; see the thermal
+       path below, including the part of it that is honestly weak.</p>
   </div>
   <div class="flag w">
-    <h3>Why the split flipped</h3>
-    <p>rev A bolted the bezel on from the front &mdash; 25 screw heads across the face. rev B makes the
-       <b>front shell</b> one piece (face + walls) and the <b>rear cover</b> a flat plate whose holes thread
-       into the shell&rsquo;s rear brim.</p>
-    <p>It is better in four ways beyond looks: the front A-surface now prints face-down so it is bed-smooth,
-       the encoder&rsquo;s panel seal groove lands on a flat face, the gasket moves out of the weather, and every
-       precision feature sits on one part.</p>
+    <h3>Why the split is this way round</h3>
+    <p>The <b>front shell</b> is one piece (face + walls) and the <b>rear cover</b> is a flat plate whose
+       {NBOLT} screws thread into the shell&rsquo;s rear brim. Nothing is bolted on from the front.</p>
+    <p>It is better in four ways beyond looks: the front A-surface prints face-down so it is bed-smooth, the
+       seal groove lands on a flat brim rather than on a wall, the joint sits at the back out of the weather,
+       and every precision feature &mdash; aperture, bond land, control bores &mdash; sits on one part.</p>
   </div>
 </section>
 
@@ -250,150 +301,149 @@ a{{color:var(--accent)}}
   <div class="sheet-hd"><h2>Bill of materials</h2><span class="file">printed parts, hardware, electronics</span></div>
   <div class="scroll"><table class="cmp">
     <tr><th>#</th><th>Item</th><th>Qty</th><th>Spec / note</th></tr>
-    <tr><td class="m">1</td><td>Visor</td><td>1</td><td>ASA ~55 g. Hinged, 20 detent teeth</td></tr>
-    <tr><td class="m">2</td><td>Front shell</td><td>1</td><td>ASA ~200 g. 2.5 mm face, prints face-down</td></tr>
-    <tr><td class="m">3</td><td>12.3&Prime; 1920&times;720 LCD</td><td>1</td><td>active 292.5 &times; 109.7 derived; <b>outline assumed</b></td></tr>
-    
-    <tr><td class="m">5</td><td>DROK 9&ndash;36 V &rarr; 12 V 5 A</td><td>1</td><td>65 &times; 58 &times; 20</td></tr>
-    <tr><td class="m">6</td><td>Raspberry Pi 4</td><td>1</td><td>85 &times; 56, M2.5 on 58 &times; 49</td></tr>
-    <tr><td class="m">7</td><td>PiCAN-M HAT</td><td>1</td><td>footprint still needed</td></tr>
-    <tr><td class="m">8</td><td>Rear cover</td><td>1</td><td>ASA ~322 g. Pi bump-out, heatsink aperture, sensor standoffs</td></tr>
-    <tr><td class="m">9</td><td>LP-24 shroud</td><td>1</td><td>ASA ~98 g. Dash-mounted, far end of the cable</td></tr>
-    <tr><td class="m">10</td><td>Strain relief clamp</td><td>1</td><td>ASA ~11 g</td></tr>
-    <tr><td class="m">11</td><td>Fit coupon</td><td>1</td><td>ASA ~55 g. <b>Print this first</b></td></tr>
-    <tr><td class="m">12</td><td>MCP23017</td><td>1</td><td>43.18 &times; 17.78, holes 38.10 &times; 12.70</td></tr>
-    <tr><td class="m">13</td><td>MCP9808 / ADXL345 / ICM20948</td><td>3</td><td>25.40 &times; 17.78, holes 20.32 &times; 12.70</td></tr>
-    <tr><td class="m">13b</td><td><b>SEQURE M10-18 GPS module</b></td><td>1</td><td><b>GPS module</b> &mdash; 18 &times; 18 &times; 8, ceramic patch. In a cradle under the top wall at x=+150, <b>patch facing up</b> through the ASA. 315 mm from the VHF whip</td></tr>
+    <tr><td class="m">1</td><td>Visor</td><td>1</td><td>ASA {g(V["VOL_CM3"])}. Hood {V["HOOD_W"]:.0f} wide, <b>friction pivots, no detent</b></td></tr>
+    <tr><td class="m">2</td><td>Front shell</td><td>1</td><td>ASA {g(H["SHELL_CM3"])}. {OUT_W:.0f} &times; {OUT_H:.0f} &times; {DEPTH:.0f}, {H["FACE_T"]} mm face, prints face-down</td></tr>
+    <tr><td class="m">3</td><td>12.3&Prime; 1920&times;720 LCD</td><td>1</td><td>module {H["MOD_W"]:.0f} &times; {H["MOD_H"]:.0f} &times; {H["MOD_D"]:.0f}, active {H["ACT_W"]:.0f} &times; {H["ACT_H"]:.0f} &mdash; both measured</td></tr>
+    <tr><td class="m">5</td><td>DROK 9&ndash;36 V &rarr; 12 V 5 A</td><td>1</td><td>113.25 &times; 55.25 &times; 17, in the <b>+x bay</b> on {H["N_DRV_SCREWS"]} &times; M2.5. Hole pattern is <b>not rectangular</b></td></tr>
+    <tr><td class="m">6</td><td>Raspberry Pi 4</td><td>1</td><td>85 &times; 56, in the <b>&minus;x bay</b>, turned portrait so the HDMI/USB-C edge faces the open side</td></tr>
+    <tr><td class="m">6b</td><td>GeeekPi Armor Lite</td><td>1</td><td>Active cooler on the Pi. In a sealed box its fan exports nothing &mdash; it <b>stirs</b>, which is the point</td></tr>
+    <tr><td class="m">7</td><td>PiCAN-M HAT</td><td>1</td><td>On the Pi. N2K connector position still needed</td></tr>
+    <tr><td class="m">8</td><td>Rear cover</td><td>1</td><td>ASA {g(H["COVER_CM3"])}. Flat {COVER_T:.0f} mm plate: two bays, heatsink seat, trunnions, sensor standoffs</td></tr>
+    <tr><td class="m">9</td><td>LP-24 shroud</td><td>1</td><td>ASA {g(LP.get("SHROUD_CM3"))}. {" &times; ".join(mm(v) for v in LP.get("SHROUD_BBOX", []))}. Dash-mounted, far end of the cable</td></tr>
+    <tr><td class="m">10</td><td>Strain relief clamp</td><td>1</td><td>ASA {g(LP.get("CLAMP_CM3"))}. Jacket &Oslash;{LP.get("CABLE_D", 0):.1f} saddle</td></tr>
+    <tr><td class="m">11</td><td>Fit coupon</td><td>1</td><td>ASA. <b>Print this first</b> &mdash; it is the bore and thread fit check</td></tr>
+    <tr><td class="m">12</td><td>MCP23017</td><td>1</td><td>Holes {H["SENSORS"][0]["pitch_x"]:.2f} &times; {H["SENSORS"][0]["pitch_y"]:.2f}. Encoder + all four keys land on this one chip</td></tr>
+    <tr><td class="m">13</td><td>MCP9808 / ADXL345 / ICM20948</td><td>3</td><td>25.40 &times; 17.78, holes {H["SENSORS"][1]["pitch_x"]:.2f} &times; {H["SENSORS"][1]["pitch_y"]:.2f}</td></tr>
+    <tr><td class="m">13b</td><td>GPS &mdash; <b>external puck</b></td><td>1</td><td>On the hardtop, lead in through the gland. <b>No internal cradle</b>: a patch lying flat in {H["FIN_GAP"]:.1f} mm behind the panel sees no sky</td></tr>
     <tr><td class="m">14</td><td>PCM1808 + PCM5102A</td><td>1 + 2</td><td>Strap-down bays &mdash; no mounting holes</td></tr>
     <tr><td class="m">15</td><td>RTL-SDR</td><td>1</td><td>Shell exposed as its own heatsink</td></tr>
-    <tr><td class="m">16</td><td>Oak Grigsby 91Q128</td><td>1</td><td>3/8-32 bushing, &Oslash;6.299 shaft, 5 V TTL</td></tr>
-    <tr><td class="m">17</td><td>Twidec 12 mm buttons</td><td>4</td><td>&Oslash;12 bore, 13 mm barrel</td></tr>
-    <tr><td class="m">18</td><td>M4 &times; 16 316 SS</td><td>12</td><td>Cover into the shell brim</td></tr>
-    <tr><td class="m">19</td><td>M5 &times; 25 + wave washer + nyloc</td><td>2</td><td>Visor pivots</td></tr>
-    <tr><td class="m">20</td><td>M5 &times; 25 + wave washer + nyloc</td><td>2</td><td>Bottom tilt pivots</td></tr>
-    <tr><td class="m">20b</td><td>Dash screws</td><td>4</td><td>Tilt bracket into the dashboard</td></tr>
+    <tr><td class="m">16</td><td>Oak Grigsby 91Q128</td><td>1</td><td>3/8-32 bushing, &Oslash;6.299 shaft, 3 V TTL. Bore &Oslash;{H["ENC_D"]}, knob &Oslash;{H["KNOB_OD"]}</td></tr>
+    <tr><td class="m">17</td><td>Twidec 12 mm buttons</td><td>4</td><td>Bore &Oslash;{H["BTN_D"]}, dome &Oslash;{H["BTN_DOME"]}, at {H["BTN_PITCH"]:.0f} mm pitch</td></tr>
+    <tr><td class="m">18</td><td>M3 &times; {H["BRIM_SCREW_L"]:.0f} 316 SS</td><td>{NBOLT}</td><td><b>Brim screws.</b> Through the cover into blind pilots in the shell, <b>outboard of the cord</b>. Bonded sealing washer on every one</td></tr>
+    <tr><td class="m">19</td><td>M5 316 + {H["FRIC_SHIM"]:.1f} mm 316 shim + nyloc</td><td>2</td><td>Visor pivots. Friction, set by hand; nyloc pocketed in the visor ear</td></tr>
+    <tr><td class="m">20</td><td>M5 316 nyloc</td><td>2</td><td><b>Bail pivot</b>, one each side, into the trunnion&rsquo;s insert. Tef-Gel the threads</td></tr>
+    <tr><td class="m">20b</td><td>Dash screws</td><td>{B["N_DASH"]}</td><td>Bail base into the dash, through &Oslash;{B["DASH_D"]} &times; {B["DASH_SLOT"]:.0f} slots, rows {B["DASH_ROWS"]:.0f} apart</td></tr>
+    <tr><td class="m">20c</td><td>M5 316 + nyloc</td><td>{B["N_FOOT_BOLTS"]}</td><td>Arm feet down onto the base plate, two per arm, fore-and-aft</td></tr>
     <tr><td class="m">21</td><td>M3 &times; 20 316 SS</td><td>4</td><td>LP-24 into the shroud frame</td></tr>
     <tr><td class="m">22</td><td>M4 &times; 30 316 SS</td><td>2</td><td>Clamp up into the shroud beam</td></tr>
-    <tr><td class="m">23</td><td>M5 316 SS</td><td>8</td><td>Shroud to the dash</td></tr>
-    <tr><td class="m">24</td><td>M2.5 &times; 8</td><td>16</td><td>Breakouts to the sensor tray</td></tr>
+    <tr><td class="m">23</td><td>M5 316 SS</td><td>8</td><td>LP-24 shroud to the dash</td></tr>
+    <tr><td class="m">24</td><td>M2.5 &times; 8</td><td>{H["N_SENSOR_SCREWS"]}</td><td>Breakouts onto the cover&rsquo;s {H["STANDOFF_H"]} mm standoffs</td></tr>
     <tr><td class="m">25</td><td>CNLINKO LP-24</td><td>1</td><td>&Oslash;24.4 bore, 26.0 sq pattern</td></tr>
-    <tr><td class="m">26</td><td><b>M20&times;1.5 90&deg; elbow gland</b></td><td>1</td><td>Screws into a <b>perpendicular tapped boss</b> at (&minus;150, &minus;46), 10 mm proud. Tapping drill &Oslash;18.5. The elbow turns the cable parallel to the cover</td></tr>
-    <tr><td class="m">27</td><td>M12&times;1.5 Gore vent</td><td>1</td><td>Low on the back. Do not paint or block</td></tr>
-    <tr><td class="m">28</td><td>SMA female bulkhead, M16</td><td>1</td><td><b>Top wall</b> at x=&minus;165, z=10. Plain bore &mdash; the wall is already <b>7.7 mm</b>, inside the 1&ndash;8 mm grip</td></tr>
-    <tr><td class="m">29</td><td>{GASKET_T:.0f} mm rubber foam sheet</td><td>~2.3 m of {GASKET_W:.1f} mm band</td><td>Continuous, cut to the brim. NOT punched for the screws.</td></tr>
+    <tr><td class="m">26</td><td>M20&times;1.5 90&deg; elbow gland</td><td>1</td><td>Tapped boss in the cover, tapping drill &Oslash;18.5. <b>Position relocating</b> &mdash; see open items</td></tr>
+    <tr><td class="m">27</td><td>M12&times;1.5 Gore vent</td><td>1</td><td>&Oslash;{H["VENT_D"]} bore. Equalises pressure so the cord only has to stop water. <b>Position relocating.</b> Do not paint or block</td></tr>
+    <tr><td class="m">28</td><td>SMA female bulkhead, M16</td><td>1</td><td>&Oslash;{H["SMA_D"]} bore straight through the {COVER_T:.0f} mm cover, on a raised sealing pad. <b>Position relocating</b></td></tr>
+    <tr><td class="m">29</td><td><b>{GASKET_T:.0f} mm round rubber cord</b></td><td>~{CORD_L/1000:.2f} m</td><td>In a {GASKET_W:.2f} &times; {H["GASKET_D"]:.2f} groove in the brim. Cut long, scarf the splice with CA, keep the joint <b>off the bottom rail</b></td></tr>
     <tr><td class="m">30</td><td>Belden 1058A</td><td>as needed</td><td>12 pair 20 AWG PLTC</td></tr>
-    <tr><td class="m">31</td><td>Dash tilt bracket</td><td>1</td><td>ASA ~87 g. 276 &times; 99 &times; 32. Screws flat to the <b>dash face</b>, housing cantilevered off the top. Screw rows 65 mm apart</td></tr>
-    <tr><td class="m">32</td><td>Fan shroud</td><td>1</td><td>ASA ~82 g. 138 &times; 138 &times; <b>52</b>. Spoke guard, louvres, wire pass-through</td></tr>
-    <tr><td class="m">33</td><td>Alloy plate 114 &times; 114 &times; 6</td><td>1</td><td>Flat stock, cut square. <b>Tapped M3</b> &mdash; 8 at &plusmn;49 for the cover, 4 at &plusmn;48 for the shroud, 1 &times; &Oslash;8 grommet for fan wires</td></tr>
-    <tr><td class="m">34</td><td>Easycargo 100 &times; 40 &times; 20 heatsink</td><td>4</td><td>2 outside, 1 inside on the plate, 1 spare. Bolted with paste &mdash; the tape-backed variants are fine but the tape is redundant</td></tr>
-    <tr><td class="m">35</td><td><b>Noctua NF-F12 iPPC-2000 IP67 PWM</b></td><td>1</td><td>120 &times; 120 &times; <b>27</b> (pads included, not the 25 on the sheet). 105 mm pitch, &Oslash;114 bore. IP67 and PWM &mdash; throttle it off the MCP9808</td></tr>
-    <tr><td class="m">39</td><td>&Oslash;8 rubber grommet</td><td>1</td><td>Fan wires through the alloy plate</td></tr>
-    <tr><td class="m">40</td><td>Adhesive copper or alloy foil</td><td>1 sheet</td><td>Shield between the antenna feed and the display. <b>Bond to system ground</b> &mdash; ungrounded foil does almost nothing</td></tr>
+    <tr><td class="m">31</td><td>Bail base plate</td><td>1</td><td>ASA {g(B.get("BASE_CM3"))}. {B["BASE_L"]:.0f} &times; {B["BASE_W"]:.0f} &times; {B["BASE_T"]:.0f}, flat to the dash</td></tr>
+    <tr><td class="m">31b</td><td>Bail arm</td><td>2</td><td>ASA {g(B.get("ARM_CM3"))} each. Eye r{B["EYE_R"]:.0f} on the cover&rsquo;s trunnion; prints flat, blade in plane</td></tr>
+    <tr><td class="m">32</td><td>Fan shroud</td><td>1</td><td>ASA {g(S.get("SHROUD_CM3"))}. {SH_BOX} box, louvres {S["LOUV_H"]:.0f} proud &mdash; {S["REAR_PROUD"]:.0f} behind the cover</td></tr>
+    <tr><td class="m">34</td><td>Aluminium heatsink {H["HS_W"]:.0f} &times; {H["HS_L"]:.0f} &times; {H["HS_H"]:.0f}</td><td>1</td><td><b>Bonded base-out</b> into the {H["HS_BASE"]:.0f} mm seat in the cover&rsquo;s INNER face. Trim the fins back <b>{H["AP_SEAL"]:.0f} mm all round</b> to leave a sealing land</td></tr>
+    <tr><td class="m">35</td><td><b>Coolerguys CG8025H12-IP67</b></td><td>{S["FAN_N"]}</td><td>{S["FAN_W"]:.0f} &times; {S["FAN_W"]:.0f} &times; {S["FAN_T"]:.0f}, {S["FAN_PITCH"]} pitch, dual ball, &minus;40..+70 &deg;C. Every IP-rated 80 is {S["FAN_T"]:.0f} thick</td></tr>
     <tr><td class="m">36</td><td>HYS whip antenna</td><td>1</td><td>185 mm, <b>SMA male</b>, 136&ndash;174 / 400&ndash;470 MHz</td></tr>
     <tr><td class="m">38</td><td>SMA pigtail, RG316</td><td>1</td><td>150 mm, M16 bulkhead to SMA male &mdash; feeds the RTL-SDR</td></tr>
+    <tr><td class="m">40</td><td>Adhesive copper or alloy foil</td><td>1 sheet</td><td>Shield between the antenna feed and the display ribbon. <b>Bond to system ground</b> &mdash; ungrounded foil does almost nothing</td></tr>
+    <tr><td class="m">41</td><td>316 woven mesh sheet</td><td>1</td><td>{S["FILT_LX"]:.0f} &times; {S["FILT_LY"]:.0f} &times; {S["FILT_MESH"]}, ~20&ndash;40 mesh. In the recess on the shroud&rsquo;s <b>inner</b> face, clamped by the fans&rsquo; own screws. <b>Not foam</b> &mdash; foam holds salt against the fins</td></tr>
+    <tr><td class="m">42</td><td>M3 &times; {S["SCREW_L"]:.0f} 316 SS</td><td>4</td><td>Shroud corner bosses. Enter at the <b>louvred face</b>, stop in blind pilots {H["SHROUD_PILOT_DEEP"]} deep &mdash; they never pass through the cover</td></tr>
+    <tr><td class="m">43</td><td>316 serrated washer pair, M5</td><td>2 pairs</td><td>One pair per bail joint, {H["FRIC_SHIM"]:.1f} mm. Teeth, not friction &mdash; they hold mechanically instead of on an unmeasured &mu;</td></tr>
+    <tr><td class="m">44</td><td>Marine potting compound</td><td>1 tube</td><td>Fills the dam over the &Oslash;{H["WIRE_D"]:.0f} fan-lead pass. The <b>only</b> penetration that is not a screw</td></tr>
+    <tr><td class="m">45</td><td>M3 &times; {int(math.ceil(H["DSP_SCREW_L"]/2)*2)} 316 SS</td><td>{H["N_DSP_POSTS"]}</td><td>Through the cover&rsquo;s bearing posts into the panel&rsquo;s own standoffs, so the silicone only seals. Bonded washer each</td></tr>
+    <tr><td class="m">46</td><td>M3 bonded sealing washers</td><td>{NBOLT + H["N_DSP_POSTS"]}</td><td>Every through-hole in the weather face: {NBOLT} brim + {H["N_DSP_POSTS"]} panel screws</td></tr>
   </table></div>
-  <div class="flag w">
-    <h3>The 8 holes around the aperture &mdash; and where the fan goes</h3>
-    <p>Those <b>8 &times; M3</b> are not the fan. They clamp the <b>alloy heat plate</b> over the 84 &times; 84
-       aperture, at 49 mm spacing. That count comes from the ASA side, not the metal: the 6 mm plate is
-       <b>35&times; stiffer</b> than the cover and barely bends, but the printed land around the aperture can bow
-       between fasteners. 49 mm meets the &le;50 mm rule this project has been using for ASA flanges. Four corner
-       bolts would sit 98 mm apart and break it.</p>
-    <p><b>The fan mounts in the shroud</b>, not the cover: a bay at one end with a &Oslash;32.5 outlet and
-       <b>4 slotted fixings</b>. Slots because the WINSINN drawing gives 2 &times; &Oslash;4.3 without a clear datum
-       &mdash; slots swallow the real pattern whichever way it reads. Its inlet faces the sheltered underside
-       behind an awning.</p>
-    <p><b>Fan wires reach the Pi through the alloy plate</b>, not the ASA. A &Oslash;8 grommet in 6 mm aluminium
-       seals far better than a hole in a printed wall, and it sits under the shroud where spray cannot reach it.
-       The shroud carries only a plain &Oslash;7 pass-through to guide the wires.</p>
-    <p>Caught while fitting the fan: the plate was <b>14 mm taller than the old shroud</b> and stuck out
-       uncovered. Shroud grew to 128 sq so it covers the plate with 7 mm all round.</p>
+  <div class="flag">
+    <h3>The 8 M3 holes around the aperture are DELETED &mdash; do not drill them</h3>
+    <p>They clamped the alloy heat plate to the outside of the cover. <b>There is no alloy plate.</b> The
+       heatsink&rsquo;s own base closes the aperture from the inside, so every one of those eight would now be a
+       through-hole in the weather face into the sealed cavity, held shut by nothing.</p>
+    <p>Two of them were worse than redundant: at {H["AP_PITCH"]:.0f} mm pitch the pair at x &plusmn;{H["AP_PITCH"]:.0f}
+       had their bores crossing the aperture edge at {H["AP_L"]/2:.0f}, cutting into the
+       <b>{H["AP_SEAL"]:.0f} mm sealing land the heatsink is bonded to</b> &mdash; the one surface the whole
+       thermal joint depends on. The other pair was cut entirely inside the aperture, i.e. in air, which is why
+       the ring looked harmless in every render.</p>
+    <p><b>The fans mount in the shroud</b>, not in the cover: {S["FAN_N"]} &times; {S["FAN_W"]:.0f} mm IP67 on
+       eight pads behind the louvred face, their four screws each also clamping the mesh. The only fixings that
+       reach the cover are the <b>4 shroud bosses</b>, and those stop in <b>blind pilots
+       {H["SHROUD_PILOT_DEEP"]} mm deep</b>. Nothing new goes through the plate.</p>
   </div>
   <div class="flag w">
-    <h3>Sensor positions &mdash; and what boat-config changed</h3>
-    <p>Reading <code>apps/stereo-service/encoder.py</code> moved a board and corrected two things I had told you.</p>
-    <p><b>The encoder does run through the MCP23017</b> &mdash; 0x20, GPA0/GPA1, with all four buttons on GPA2&ndash;5.
-       I had said not to do that because I&sup2;C polling drops quadrature counts. Your code already solves it with a
-       <b>dedicated fast poller</b> separate from the 1 Hz sampler that reads the buttons. And you run the encoder at
-       <b>3 V, not 5 V</b>, so the level-shifting warning I gave does not apply either.</p>
-    <p>Consequence: all six control signals land on that one chip, so it belongs <b>beside the control column</b>,
-       not across the box. It sits 7 mm from the buttons. The three environmental sensors do not care, so they moved
-       to +x, ~290 mm clear of the 24-wire entry.</p>
+    <h3>Sensor positions &mdash; all four, on the cover&rsquo;s inner face</h3>
+    <p>They used to stand inside the two board bays, and those bays are now <b>hollowed right through to the
+       inner face</b> &mdash; so every one of them was standing on a floor that no longer exists. They sit in the
+       top and bottom bands instead, which is the only inner face that is neither a bay nor the heatsink seat.
+       Coordinates are <b>shell</b> coordinates; the cover mirrors in y.</p>
     <div class="scroll"><table class="cmp">
-      <tr><th>Board</th><th>Centre</th><th>4 &times; M2.5 &Oslash;2.2 at</th><th>Why there</th></tr>
-      <tr><td>MCP23017</td><td class="m">(&minus;150, 10)</td><td class="m">&plusmn;19.05 x, &plusmn;6.35 y</td><td>7 mm from the buttons and encoder</td></tr>
-      <tr><td>MCP9808</td><td class="m">(95, &minus;54)</td><td class="m">&plusmn;10.16 x, &plusmn;6.35 y</td><td>bottom band, clear of the harness</td></tr>
-      <tr><td>ADXL345</td><td class="m">(125, &minus;54)</td><td class="m">&plusmn;10.16 x, &plusmn;6.35 y</td><td>bottom band</td></tr>
-      <tr><td>ICM20948</td><td class="m">(155, &minus;54)</td><td class="m">&plusmn;10.16 x, &plusmn;6.35 y</td><td>bottom band, far from the antenna</td></tr>
+      <tr><th>Board</th><th>Centre</th><th>4 &times; M2.5 &Oslash;2.2 at</th></tr>
+      {"".join(f'<tr><td>{s["name"]}</td><td class="m">({s["x"]:+.0f}, {s["y"]:+.0f})</td><td class="m">&plusmn;{s["pitch_x"]/2:.2f} x, &plusmn;{s["pitch_y"]/2:.2f} y</td></tr>' for s in H["SENSORS"])}
     </table></div>
-    <p>Standoffs are <b>1.5 mm</b>, so board + standoff is 3.1 mm and fits the 4 mm gap behind the display.
-       Checked against the heatsink aperture, GPS cradle, gland boss, Pi bump and gasket &mdash; <b>0 clashes</b>.</p>
+    <p>Standoffs are <b>{H["STANDOFF_H"]} mm</b>, so board + standoff is {H["STANDOFF_H"]+1.6:.1f} mm against the
+       {H["FIN_GAP"]:.1f} mm behind the panel. Every one is checked against the cover&rsquo;s sealing face, and the
+       whole inner face is checked against the <b>panel envelope</b> rather than against a list of other cover
+       features &mdash; which is what finally caught the old GPS cradle driving 1047 mm&sup3; through the display.</p>
+    <p><b>The encoder and all four keys run through the MCP23017</b>, which is why it is the one board that has
+       to be near the control row. I&sup2;C polling dropping quadrature counts is not a problem here: your code
+       already uses a dedicated fast poller separate from the 1 Hz sampler, and the encoder runs at 3 V.</p>
   </div>
   <div class="flag">
-    <h3>Mounting, cable entry and tie-downs</h3>
-    <p><b>VESA is gone.</b> The unit hinges on <b>bottom pivots at x &plusmn;120</b>, detented like the visor at
-       <b>{CLICK:.1f}&deg; per click</b>, so it tilts back to read standing and forward when seated.</p>
-    <p>The bracket screws <b>flat to the vertical front face of the dash</b> with the housing cantilevered off its
-       top edge &mdash; the plate mounts backwards relative to how it was first drawn, which needs no change to the
-       part. It does change the load path: the housing now hangs off the face instead of sitting on it, so the screw
-       rows carry a peel moment rather than shear.</p>
-    <p>About <b>1.43 kg</b> hangs there with its CG ~60 mm off the face, giving <b>5.0 N&middot;m</b> at 6g.
-       The screw rows moved from <b>26 to 65 mm apart</b>, which cuts the per-screw load from 97 N to <b>39 N</b> and
-       stops the plate flexing between them. Free &mdash; the plate was already long enough.</p>
-    <p><b>That 5.0 N&middot;m has to be held shut, not just carried.</b> The detent flanks are at 45&deg;, so the
-       axial SEPARATING force equals the tangential one: <b>240 N per ear</b> at 6g, trying to push the crowns apart.
-       A wave washer on a thread formed in ASA is a ~50&ndash;100 N part and loses &mdash; the crown climbs its own
-       ramps, ratchets a click, and gives up preload the plastic never recovers.</p>
-    <p>So the shell ear no longer carries the thread. Its hole is <b>&Oslash;{H["BP_BOLT"]} clearance</b> and a
-       <b>captive 316 hex nut</b> sits in a {NUT_AF} A/F pocket {NUT_DEEP} deep in the OUTBOARD face, leaving
-       <b>{H["BP_NUT_WALL"]:.1f} mm</b> of ear behind the crown. Bolt, Bellevilles, sleeve and washers are
-       <b>all 316</b> &mdash; a brass insert against a 316 bolt is a ~0.25 V couple in salt water and the brass, as
-       the smaller part, dezincifies. <b>Tef-Gel the threads</b>: 316 galls on 316, and a nut in a plastic pocket is
-       a textbook crevice. Plain hex, not a nyloc &mdash; a nyloc is 5.0 thick and would leave only 3.7 mm under the
-       teeth, and its nylon relaxes under sustained Belleville load anyway. The Bellevilles are the locking element.</p>
-    <p><b>The cable now leaves at 45&deg; toward the right.</b> Bore axis is (&minus;1, 0, &minus;1)/&radic;2, so it
-       exits sideways rather than straight back, with a raised boss giving the O-ring a seat perpendicular to that
-       axis. At (&minus;150, &minus;50) it sits <b>37 mm from the tilt axis</b>: a 30&deg; swing moves the cable
-       <b>18.5 mm</b>, against 71 mm if it were centred on the back.</p>
-    <p>⚠ A 45&deg; bore through a 6 mm plate is <b>8.49 mm</b> of material before any boss, and the boss pushed it
-       past what an M20 gland will clamp. The cover is <b>thinned locally to 3 mm</b> on the inside, bringing the
-       clamped thickness to a measured <b>9.05 mm</b>.</p>
-    <p><b>A side-wall exit is still impossible</b>, and it is worth knowing why: the shell is 24 mm deep, the front
-       face takes z 0&ndash;2.5 and the brim face sits at 22, leaving 19.5 mm. A bore spans its own diameter
-       in z whatever direction it points, so &Oslash;20.5 will not go and angling it makes it worse.</p>
-    <p><b>8 tie-wrap anchors</b>, 4 top and 4 bottom at x &plusmn;30 and &plusmn;90.</p>
+    <h3>The mount is a bail, and it hangs on nothing but the cover</h3>
+    <p><b>No dash tilt bracket, no detent, no VESA.</b> It is a Simrad-style bail: a base plate flat on the
+       dash and <b>two arms</b> rising either side, pivoting at <b>mid-height</b> on
+       <b>trunnions grown from the rear cover</b>. Bail base {B["BASE_L"]:.0f} &times; {B["BASE_W"]:.0f} &times;
+       {B["BASE_T"]:.0f}; arm eyes r{B["EYE_R"]:.0f} on the trunnions&rsquo; r{H["TRUN_R"]:.0f} lands.</p>
+    <p><b>Grown from the cover, not bolted to it.</b> A separate bracket needs screws through that plate, and
+       every one of them is a hole in the pressure boundary the {GASKET_T:.0f} mm cord is there to seal. The
+       trunnions sit <b>inside the bezel width</b> at x &plusmn;{H["TRUN_X"]:.0f} against an edge at
+       {OUT_W/2:.0f}, with the arm faces at &plusmn;{B["ARM_FACE"]:.0f} and
+       <b>{B["ARM_T"]:.0f} mm</b> of arm outboard of that &mdash; exactly to the bezel line, no further.</p>
+    <p><b>Why mid-height.</b> The old bottom hinge put the assembled CG <b>114.7 mm above</b> the axis, which
+       made the unit a pendulum on it &mdash; 12.4 N&middot;m at 6g, and that is the number that forced a detent
+       crown. The axis now runs through the CG height at y{H["TILT_Y"]:+.1f}, so the moment falls with the lever
+       instead of being fought with hardware, and hand-set friction is enough.</p>
+    <p><b>The interface is a 316 serrated washer pair, not plain friction.</b> Inside the bezel width the disc
+       cannot grow, and plain friction tops out under <b>1.4&times;</b> for any size that fits &mdash; a bigger
+       disc grips harder but lengthens the lever by the same amount. Interlocking teeth hold mechanically,
+       roughly 10&times; a friction face, so holding no longer depends on a friction coefficient nobody has
+       measured. All <b>316</b> through the joint, and <b>Tef-Gel the threads</b>: 316 galls on 316, and a nut in
+       a plastic pocket is a textbook crevice.</p>
+    <p><b>How high it sits.</b> The base plate lies <b>flat on the dash under the unit</b> and the arms rise
+       from it vertically &mdash; that is what a bail is. The axis lands <b>{B["RISE"]:.0f} mm above the
+       plate</b>, and that height is solved, not chosen: tilt swings the unit&rsquo;s corners DOWN, and at
+       {B["TILT_MAX"]:.0f}&deg; the lowest corner of the real envelope &mdash; cover, bay bumps, and the fan
+       shroud {S["REAR_PROUD"]:.0f} mm behind the cover &mdash; reaches {B["DROP"]:.0f} mm below the axis, so the
+       arms carry that plus <b>{B["DASH_CLEAR"]:.0f} mm of air</b> under it. Top edge of the unit sits
+       {B["RISE"] + OUT_H/2 - H["TILT_Y"]:.0f} mm above the dash at rest; the axis is {B["AXIS_Z"]:.0f} mm behind the front face.</p>
+    <p><b>The arms do not lean.</b> Leaning them puts the plate behind the unit instead of under it and adds a
+       bending moment at every foot bolt, and it buys nothing &mdash; the clearance that matters is height.
+       Base fixes with {B["N_DASH"]} &Oslash;{B["DASH_D"]} &times; {B["DASH_SLOT"]:.0f} slots in two rows
+       {B["DASH_ROWS"]:.0f} apart, so the rows take the peel moment; the arm feet take
+       {B["N_FOOT_BOLTS"]} M5 fore-and-aft, which is what resists each arm rotating about its own foot.</p>
+    <p><b>Three parts, not a U</b>, and that is forced: assembled width is {2*(B["ARM_FACE"]+B["ARM_T"]):.0f} mm
+       against a {H["BED"]:.0f} bed. Split at the feet, each part prints flat in its strongest orientation.</p>
+    <p><b>Cable entry, vent and antenna are mid-move.</b> The gland, the Gore vent and the SMA bulkhead are being
+       relocated in a parallel pass, so this page states <b>no coordinates</b> for them &mdash; see open items.
+       What is settled: all three are on the rear <b>cover</b>, which is a flat plate whose {COVER_T:.0f} mm is
+       already inside an M16 bulkhead&rsquo;s grip, with both faces parallel by construction and a raised pad
+       under any nut so it does not bear on layer lines.</p>
+    <p><b>{H["TIE_N"]} tie-wrap anchors</b> on the cover&rsquo;s inner face, {H["TIE_SLOT"]} mm slots for a
+       standard 2.5 mm tie. They are on the cover because that is where the harness runs &mdash; the boards, the
+       sensors and the gland are all on this part, and you dress cables before closing it up.</p>
   </div>
   <div class="flag w">
     <h3>Still open</h3>
-    <p><b>Soft keys are at 24 mm pitch, not true quarter-heights.</b> Quarter-heights would be &plusmn;41.1 and
-       &plusmn;13.7, which needs the housing <b>27 mm taller</b> to clear the encoder <i>body</i> (25.4 sq &mdash; the
-       knob is not the constraint). Say the word if you want the height instead.</p>
-    <p><b>Touchscreen driver board is not placed.</b> Needs its outline, hole pattern, and which edge the display
-       ribbon and the HDMI/USB connectors leave from.</p>
-    <p><b>Tilt bracket is not designed.</b> Needs dash thickness and whether the unit sits on the face or recessed.</p>
-  </div>
-  <div class="flag">
-    <h3>RF separation</h3>
-    <p>The GPS was <b>26 mm from the VHF whip</b>. A transmit antenna that close desenses a GPS receiver badly.
-       It now sits in the <b>opposite top corner</b>: antenna at x=&minus;165, GPS at x=+150 &mdash;
-       <b>315 mm apart</b>.</p>
-    <p>The GPS cradle holds the board with its <b>ceramic patch facing up</b>, radiating through the ASA. Lying
-       flat on the old tray it pointed sideways into the housing, which is the difference between a working fix
-       and a mounting bracket.</p>
-    <p><b>Foil shield</b> between the antenna feed and the display: worth doing, and it must be
-       <b>bonded to system ground</b>. Ungrounded foil does almost nothing. The same sheet helps with the other
-       RF problem in this box &mdash; display ribbon noise at GPS L1.</p>
-    <p class="note">Bugs fixed this pass: the antenna bore ran through the whole housing; then its counterbore
-       and knockout each cut the 2.5 mm front face. The wall is already 7.7 mm there, inside the M16 grip, so a
-       plain bore was the answer all along. The GPS cradle was also cutting the front face.</p>
+    <p><b>Touchscreen driver board is not placed.</b> The DROK buck has the +x bay; the touch controller still
+       needs its outline, hole pattern, and which edge the display ribbon and the HDMI/USB connectors leave from.</p>
+    <p><b>PiCAN-M footprint and N2K connector position.</b> The Pi bay is sized for the stack, not for where the
+       N2K plug wants to come out of it.</p>
+    <p><b>The internal air-to-metal step is unproven.</b> See the thermal path &mdash; it is the one number on
+       this build nobody has measured, and the fallback is drawn but not bought.</p>
   </div>
   <div class="flag w">
     <h3>Antenna &mdash; still wants a ground plane</h3>
-    <p>🚨 The HYS is a handheld whip, designed to work against a radio body and your hand as a counterpoise. On a
-       plastic box it will show poor SWR and mediocre receive. For real AIS or VHF work, run the pigtail out to a
-       proper marine antenna &mdash; the bulkhead is the right interface either way.</p>
-    <p>⚠ The knockout face is a <b>vertical printed surface</b>, so its layer lines run across the O-ring seat.
-       Sand it flat and bed the O-ring in sealant.</p>
+    <p>&#128680; The HYS is a handheld whip, designed to work against a radio body and your hand as a
+       counterpoise. On a plastic box it will show poor SWR and mediocre receive. For real AIS or VHF work, run
+       the pigtail out to a proper marine antenna &mdash; the bulkhead is the right interface either way.</p>
+    <p>&#9888; <b>GPS is an external puck now</b>, so the old RF problem &mdash; a transmit whip 26 mm from a GPS
+       patch &mdash; is gone with it. What is left in the box is display-ribbon noise at L1 and into the SDR: the
+       foil shield is still worth doing, and it <b>must be bonded to system ground</b>. Ungrounded foil does
+       almost nothing.</p>
   </div>
 </section>
 
@@ -408,99 +458,50 @@ a{{color:var(--accent)}}
     <h3>Correction &mdash; I misread the display sketch</h3>
     <p>I read <b>133 mm as a hole pitch</b>. It is not: both 133 and 26.5 are measured to the
        <b>right edge</b>, so those two bottom bosses are <b>106.5 mm</b> apart. I then derived a 307.5 mm module
-       width from that mistake and called it corroboration for my 305 assumption. <b>Both retracted</b> &mdash;
-       the sketch does not give the module width at all, and 305 is still just the 8:3 active-area calculation.</p>
+       width from that mistake and called it corroboration for an assumed 305. <b>Both retracted</b> &mdash; the
+       sketch does not give the module width at all.</p>
     <p>The drawing above is redrawn with your datums: right edge for 133 and 26.5, bottom edge for 30 and 13,
-       top edge for 8.25. The outline is drawn at 305 &times; 125 and <b>labelled as assumed</b>.</p>
+       top edge for 8.25. It is settled now by measurement, not by that derivation: module
+       <b>{H["MOD_W"]:.0f} &times; {H["MOD_H"]:.0f} &times; {H["MOD_D"]:.0f}</b>.</p>
   </div>
   <div class="flag">
-    <h3>Cable entry is now a 90&deg; elbow on a square boss</h3>
-    <p>Your call, and it removes the whole problem. A <b>perpendicular tapped boss</b> 10 mm proud takes an
-       <b>M20&times;1.5 90&deg; elbow gland</b>, which turns the cable parallel to the cover. Nothing projects
-       straight back, so the case depth is untouched away from that corner.</p>
-    <p>It also drops every 45&deg; headache: the seat is square to the bore by definition. I had spent two passes
-       trying to make a clamp-through work at 45&deg; before establishing it is geometrically impossible on a thin
-       panel &mdash; a locknut clear of the sloping plate needs a 34 mm boss, and nothing clamps that.</p>
-    <p class="note">Tapping drill &Oslash;18.5 for M20&times;1.5, 16 mm of thread through boss and cover.</p>
+    <h3>The aperture is cut to the measured panel</h3>
+    <p>Active area measured <b>{H["ACT_W"]:.0f} &times; {H["ACT_H"]:.0f}</b>, against a derived 292.5 &times; 109.7
+       &mdash; 2.5 narrow and 2.3 short. Had that gone to print it would have masked a strip of pixels down two
+       edges.</p>
+    <p>The aperture is <b>{H["APER_W"]:.0f} &times; {H["APER_H"]:.0f}</b>, and it is set by the <b>bond band</b>
+       rather than by the active area: the module is {H["MOD_W"]:.0f} &times; {H["MOD_H"]:.0f} and the silicone
+       needs a flat land, so the aperture is that outline less {(H["MOD_W"]-H["APER_W"])/2:.0f} mm a side. What
+       shows in the extra is the module&rsquo;s own black border, not housing. It clears the active area by
+       {(H["APER_W"]-H["ACT_W"])/2:.1f} mm a side.</p>
+    <p>The panel is located, not just glued: a <b>rail across the bottom</b> it rests on and pads down each side,
+       with the <b>top left open</b> so it goes in bottom-edge-first and swings home. Tight on all four and you
+       would have to slide glass straight down through a wet bead. The seat is checked by pushing the panel past
+       its fit in each direction and requiring the shell to push back &mdash; a rail that merely clears at
+       nominal has located nothing.</p>
   </div>
   <div class="flag">
-    <h3>Aperture is now cut to a measured display</h3>
-    <p>Active area measured <b>295 &times; 112</b>. My derived figure was 292.5 &times; 109.7 &mdash; <b>2.5 mm
-       narrow and 2.3 mm short</b>. The aperture is now <b>296.0 &times; 113.0</b>, measured plus a 0.5 mm reveal.
-       Had that gone to print it would have masked a strip of pixels down two edges.</p>
-    <p><b>The module outline is still the gate.</b> Active area does not give it &mdash; the border width is
-       unknown, and the model still assumes 305 &times; 125. That outline sets the housing size, the interior
-       clearance, and all four display bearing posts, which are edge-referenced.</p>
-    <p>Two numbers: <b>overall W and H of the metal chassis, face on.</b></p>
-  </div>
-  <div class="flag">
-    <h3>Tie-wrap anchors moved to the cover</h3>
-    <p>They were on the front shell's inner walls. Wrong side &mdash; the harness runs on the cover, where the Pi,
-       the sensors and the gland all are, and you dress cables before closing it up.</p>
-    <p>One constraint came with the move: on the cover they sit <b>behind the display</b>, which leaves 4.5 mm, so
-       they had to drop from 7 mm tall to <b>3.5 mm with a 2.2 mm slot</b> &mdash; a standard 2.5 mm tie. Positions
-       are picked around everything else on that face rather than on a regular pitch: top row at
-       x &minus;150, &minus;60, 110, 145; bottom row at &minus;120, &minus;80, &minus;30, 68.</p>
-    <p>Verified: 8 bridges present, 8 slots open, <b>0 clashes</b> against the driver bay, Pi bump, gland boss,
-       vent, all four sensors, all four display posts and the gasket.</p>
-  </div>
-  <div class="flag w">
-    <h3>Shroud depth: 54 &rarr; 52, and why it is only 2 mm</h3>
-    <p>The stack is <b>3 mm wall + 27 fan + 20 fins = 50</b>, so 52 keeps a 2 mm plenum. Below that the fan face
-       crowds the fin tips and the flow has nowhere to turn before it hits them.</p>
-    <p>Worth being straight about one thing: the <b>NF-F12 is not thinner</b> than the 80 mm axial it replaced
-       &mdash; both are 25 mm nominal, and the Noctua measures <b>27 mm</b> with its anti-vibration pads. The 120
-       is wider, not slimmer. So this saving is me removing slack I had left, not a fan-thickness gain.</p>
-  </div>
-  <div class="flag">
-    <h3>🚨 The shell and cover do not fit a K2 Plus</h3>
-    <p>The K2 Plus bed is <b>350 &times; 350</b>. At the measured display size the front shell is
-       <b>389 &times; 193</b> and the rear cover <b>389 &times; 165</b>. Neither fits at <b>any</b> rotation
-       &mdash; a rectangle only clears a square bed if it satisfies both W&middot;cos&theta; + H&middot;sin&theta;
-       and W&middot;sin&theta; + H&middot;cos&theta; &le; 350, and 389 fails both across the whole sweep.</p>
-    <p>Everything else fits flat at 0&deg;:</p>
-    <ul class="chk">
-      <li>Visor 314 &times; 22, tilt bracket 276 &times; 99, fan shroud 138 &times; 138</li>
-      <li>LP-24 shroud 132 &times; 102, fit coupon 190 &times; 115</li>
-    </ul>
-    <p>So the two big parts need a <b>designed split</b> &mdash; a deliberate joint with alignment and a bonded or
-       bolted seam, not a slicer cut. On the shell the sensible line is beside the control column, where the
-       divider already breaks the face; on the cover, between the Pi bump and the driver bay. Say the word and
-       I will cut them properly.</p>
-  </div>
-  <div class="flag">
-    <h3>The housing is now fully measured &mdash; everything is printable</h3>
-    <p>Module outline <b>310 &times; 130</b>, active area <b>295 &times; 112</b>. Both were assumptions until now;
-       both are measured. My assumed outline was 305 &times; 125, so the housing grew to
-       <b>389 &times; 165 &times; 28</b> and every edge-referenced feature moved with it.</p>
-    <p>Two knock-on fixes the new size exposed:</p>
-    <ul class="chk">
-      <li>The four <b>display bearing posts</b> shifted automatically &mdash; they are edge-referenced &mdash; and
-        re-verified clear at their new positions</li>
-      <li>The <b>visor</b> was 300 mm across a 310 mm display, short 3 mm left and 7 mm right. Pivots moved to
-        &minus;135 / 175 so the hood now spans the panel. Antenna wrench clearance re-checked: 8 mm</li>
-    </ul>
-    <p>Full pairwise sweep of everything on the cover &mdash; driver bay, Pi bump, gland boss, vent, four sensors,
-       four display posts, eight tie anchors, heatsink aperture, gasket ring: <b>0 clashes</b>.</p>
+    <h3>Both big parts fit the bed now</h3>
+    <p>They did not: at the old layout the shell was 389 &times; 193 against a {H["BED"]:.0f} &times;
+       {H["BED"]:.0f} bed, which no rotation fixes, and it had to be printed in halves and bonded across the
+       front face. Moving the control strip from beside the screen to <b>under</b> it turned width into height,
+       where there was room to spare.</p>
+    <p>Shell {OUT_W:.0f} &times; {OUT_H:.0f} and cover {OUT_W:.0f} &times; {OUT_H:.0f}: <b>one piece each,
+       flat, {(H["BED"]-OUT_W)/2:.1f} mm a side to spare in x</b>. The bail base is the next biggest at
+       {B["BASE_L"]:.0f}, which is also why it is three parts rather than a U.</p>
   </div>
   <div class="flag w">
     <h3>Where the measurements landed</h3>
-    <p><b>Driver board is complete.</b> 113.25 &times; 55.25 &times; 17, four &Oslash;3.5 holes for M3 at
-       TL (9.00, 3.75), TR (109.25, 3.75), BL (9.00, 48.00), BR (109.25, 51.50), origin top-left. Worth noting the
-       pattern is <b>not rectangular</b> &mdash; the left pair is 44.25 apart, the right pair 47.75. A symmetric
-       standoff set would not have fitted.</p>
+    <p><b>Driver board is complete.</b> 113.25 &times; 55.25 &times; 17, four &Oslash;3.5 holes for M2.5 at
+       TL (9.00, 3.75), TR (109.25, 3.75), BL (9.00, 48.00), BR (109.25, 51.50), origin top-left. The pattern is
+       <b>not rectangular</b> &mdash; left pair 44.25 apart, right pair 47.75. A symmetric standoff set would
+       not have fitted. It stands in the <b>+x bay</b>, which is {H["PI_BUMP_H"]:.0f} mm deep for exactly this.</p>
     <p><b>Display rear is complete too.</b> Five standoffs, not six &mdash; no top-centre. All &Oslash;8 base,
-       M3 &times; 5 deep. Every position is fixed to an edge, so the pattern becomes exact the moment the outline
-       is known.</p>
-    <p><b>Display depth 15 mm</b> brought the shell from 24 to 22, so the body is <b>28 mm</b> at the perimeter
-       and <b>46 mm</b> at the Pi bump.</p>
-    <p>Two things left:</p>
-    <ul class="chk">
-      <li class="q"><b>Module face width and height.</b> The last big unknown &mdash; it sets the housing size and
-        turns all five standoff positions into absolute coordinates.</li>
-      <li class="q"><b>Where the driver board goes.</b> It is <b>17 mm tall</b> and there is 4.5 mm behind the
-        display, so it needs its own bump-out and the cover is already full. See below.</li>
-    </ul>
+       M3 &times; 5 deep. The cover picks up <b>{H["N_DSP_POSTS"]} of them</b>: the centre one is under a board
+       bay, and any post landing inside the heat aperture is dropped rather than printed as a loose island.</p>
+    <p><b>Panel depth {H["MOD_D"]:.0f} mm</b> is what sets the shell at {DEPTH:.0f}: face {H["FACE_T"]} + panel
+       {H["MOD_D"]:.0f} leaves the {H["FIN_GAP"]:.1f} mm that everything on the cover&rsquo;s inner face has to
+       live inside.</p>
   </div>
 </section>
 
@@ -525,35 +526,43 @@ a{{color:var(--accent)}}
   </div>
   <div class="cols">
     <div class="panel"><h3>As modelled</h3><table>
-      <tr><td>Gland</td><td>3.45 W &times; 2.31 D</td></tr>
-      <tr><td>Cord</td><td>3.0 mm round</td></tr>
-      <tr><td>Squeeze</td><td>~25%</td></tr>
-      <tr><td>Path</td><td>&plusmn;181 &times; &plusmn;69, R13.5</td></tr>
-      <tr><td>Perimeter</td><td>~980 mm</td></tr>
-      <tr><td>Groove to inner wall</td><td>3.3 mm</td></tr>
-      <tr><td>Groove to bolt edge</td><td>2.0 mm</td></tr>
-      <tr><td>Fasteners</td><td>11 &times; M4</td></tr>
+      <tr><td>Groove</td><td>{GASKET_W:.2f} W &times; {H["GASKET_D"]:.2f} D</td></tr>
+      <tr><td>Cord</td><td>{GASKET_T:.0f} mm round rubber</td></tr>
+      <tr><td>Squeeze</td><td>~{100*(GASKET_T-H["GASKET_D"])/GASKET_T:.0f}%</td></tr>
+      <tr><td>Path</td><td>&plusmn;{(OUT_W-2*(H["GASKET_OUT"]+GASKET_W/2))/2:.1f} &times; &plusmn;{(OUT_H-2*(H["GASKET_OUT"]+GASKET_W/2))/2:.1f}</td></tr>
+      <tr><td>Cord length</td><td>{CORD_L:.0f} mm</td></tr>
+      <tr><td>Brim face</td><td>{RIM:.0f} mm</td></tr>
+      <tr><td>Groove to inner lip</td><td>{H["LAND_IN"]:.2f} mm</td></tr>
+      <tr><td>Groove to bolt</td><td>{H["LAND_WEB"]:.2f} mm web</td></tr>
+      <tr><td>Bolt to outer edge</td><td>{H["LAND_OUT"]:.2f} mm</td></tr>
+      <tr><td>Fasteners</td><td>{NBOLT} &times; M3 &times; {H["BRIM_SCREW_L"]:.0f}</td></tr>
+      <tr><td>Assembled gap</td><td>{H["GASKET_C"]:.0f} &mdash; metal to metal</td></tr>
     </table></div>
     <div class="panel"><h3>How it works</h3><ul class="chk">
-      <li>Groove is in the <b>shell</b>; the cover is a plain flat land. Machining the groove into one part only is what keeps the joint self-aligning</li>
-      <li>Verified void <b>2.35 mm deep</b> on all four rails by point sampling, not by eye</li>
-      <li>Depth 0.77 &times; cord, width 1.15 &times; cord &mdash; fills ~78% of the groove, leaving room for the squeezed cord to spread</li>
+      <li><b>A cord in a groove closes metal-to-metal.</b> The cover lands flat on the brim face and the cord is squeezed into its groove &mdash; the assembled gap is <b>zero</b>, where the old foam band held the cover 1.5 mm off. The display posts derive their length from that, so they moved with it</li>
+      <li>Groove is in the <b>shell&rsquo;s brim</b>; the cover is a plain flat land. Cutting it into one part only is what keeps the joint self-aligning, and the brim face prints as a solid top surface &mdash; the best finish FDM gives</li>
+      <li><b>The screws sit OUTBOARD of the cord</b>, so nothing is punched through the seal. The shell&rsquo;s pilots are blind and never reach the cavity, which makes the leak path the <b>cover&rsquo;s</b> through-holes &mdash; hence a bonded sealing washer on every one</li>
+      <li>Depth {H["GASKET_D"]/GASKET_T:.2f} &times; cord, width {GASKET_W/GASKET_T:.2f} &times; cord &mdash; fills ~78% of the groove, leaving room for the squeezed cord to spread</li>
+      <li>The brim is {RIM:.0f} mm because five bands have to fit across it: land {H["LAND_OUT"]:.2f} + M3 {H["BRIM_BOLT"]} + web {H["LAND_WEB"]:.2f} + groove {GASKET_W:.2f} + lip {H["LAND_IN"]:.2f}. The build fails if that stops adding up</li>
       <li>The <b>Gore vent</b> removes the pressure term, so this seal only has to stop water, not hold a differential</li>
       <li class="q">Splice the cord with a scarf joint and CA, positioned <b>away from the bottom rail</b></li>
-      <li class="q">⚠ Confirm the cord is 3 mm and not 3/32&Prime; &mdash; the listing says both, and they are 0.6 mm apart</li>
+      <li class="q">&#9888; Confirm the cord is {GASKET_T:.0f} mm and not 3/32&Prime; &mdash; the listing says both, and they are 0.6 mm apart</li>
     </ul></div>
   </div>
-  <div class="flag">
-    <h3>Caught while drawing this</h3>
-    <p>The assembly render had the <b>cover 6 mm too deep</b> &mdash; placed at z=24 instead of z=30, which buried
-       it in the brim and closed the gasket gap to nothing. Geometry was right; the placement transform was wrong.
-       Fixed, and every assembled view is re-rendered.</p>
+  <div class="flag w">
+    <h3>Why a cord and not the foam band</h3>
+    <p>The foam band was the previous answer and it is <b>gone</b>. The reason is plain: the cord is what is in
+       the box on the bench, and flat closed-cell foam sheet in the right thickness is something you have to go
+       and source. A seal you own beats a seal you have to find.</p>
+    <p>It is also the easier of the two here. The cord is narrower than the {GASKET_W:.2f} band it replaces, so
+       the brim gets <b>more</b> lip, not less &mdash; and a cord captured in a groove cannot roll out of the
+       joint as the cover goes down, which a loose band can.</p>
   </div>
 </section>
 
 <section>
   <div class="sheet-hd"><h2>Hinged visor</h2><span class="rev">REV {H["REV"]}</span>
-    <span class="file">helm_visor_revB.stp</span></div>
+    <span class="file">helm_visor_revC.stp</span></div>
   <div class="grid">
     {pic("cad/out/asm_tilt_up.png","Tilted up","+15&deg;. Clears a standing eye looking down at the screen.")}
     {pic("cad/out/asm_tilt_flat.png","Flat","0&deg;. Neutral, and the most shade for a seated helm.")}
@@ -561,16 +570,17 @@ a{{color:var(--accent)}}
   </div>
   <div class="cols">
     <div class="panel"><h3>As modelled</h3><table>
-      <tr><td>Hood</td><td>58 mm deep, 4 mm</td></tr>
-      <tr><td>Leading edge</td><td>45&deg; bevel, 6 mm</td></tr>
-      <tr><td>Pivot span</td><td>300 mm</td></tr>
-      <tr><td>Detent teeth</td><td>{H["N_TEETH"]} &mdash; {CLICK:.1f}&deg; per click</td></tr>
-      <tr><td>Pivot bolt</td><td>M5 316 SS + wave washer</td></tr>
-      <tr><td>Mass in ASA</td><td>~55 g</td></tr>
+      <tr><td>Hood</td><td>{V["HOOD_W"]:.0f} wide, {V["BBOX"][1]:.0f} deep</td></tr>
+      <tr><td>Pivot span</td><td>{V["SPAN"]:.0f} mm, x &plusmn;{H["PIV_X"][1]:.0f}</td></tr>
+      <tr><td>Pivot land</td><td>r{H["FRIC_R0"]}&ndash;{H["FRIC_R1"]} annulus</td></tr>
+      <tr><td>Pivot</td><td>friction on a {H["FRIC_SHIM"]} mm 316 shim, {2*FRIC_T:.2f} N&middot;m the pair</td></tr>
+      <tr><td>Pivot bolt</td><td>M5 316 + nyloc, in the visor ear</td></tr>
+      <tr><td>Mass in ASA</td><td>{g(V["VOL_CM3"])}</td></tr>
     </table></div>
     <div class="panel"><h3>Two decisions worth knowing</h3><ul class="chk">
-      <li><b>Detent teeth, not friction.</b> ASA creeps under sustained clamp load and a boat vibrates constantly &mdash; a friction pivot flops within a season. Teeth give a position vibration cannot walk out of, and the wave washer holds preload as the plastic relaxes. Same principle as an MFD bail mount.</li>
-      <li><b>No side wings, and the bevel is structural.</b> On two pivots the hood is a 300 mm cantilever. A bare flat plate has I = 373 mm&sup4; and flexes 15 mm under a 20 N push; the 45&deg; turned-down bevel lifts that to 953 mm&sup4; and 6 mm. Stress is SF 5 either way &mdash; the bevel is about how floppy it feels.</li>
+      <li><b>Friction, not detent teeth &mdash; the crown is gone from both joints.</b> Teeth were the honest answer to a 6.19 N&middot;m moment on the old bottom hinge. Nothing on this part carries that: it is set by hand, it has no steps to land between, and its failure mode is slipping rather than splitting an ear</li>
+      <li><b>What makes the friction hold is the 316 shim, not ASA on ASA.</b> Like-on-like stick-slips and polishes as it works, so the setting drifts. The shim runs free between the two printed lands, giving ASA/316 on both faces &mdash; and the two faces are in <b>series</b>, so the stack slips at whichever is weaker and only one face carries the torque. Counting both is how this calculation gets inflated 2&times;</li>
+      <li><b>No side wings, and the bevel is structural.</b> On two pivots the hood is a {V["SPAN"]:.0f} mm cantilever. A bare flat plate has I = 373 mm&sup4; and flexes 15 mm under a 20 N push; the 45&deg; turned-down bevel lifts that to 953 mm&sup4; and 6 mm. Stress is SF 5 either way &mdash; the bevel is about how floppy it feels</li>
       <li>Pivot faces mesh at <b>0.00 mm</b> &mdash; upstands and ears verified coincident</li>
       <li class="q">Range is set by the housing; say if you want it to fold flat to the screen at rest</li>
     </ul></div>
@@ -579,36 +589,40 @@ a{{color:var(--accent)}}
 
 <section>
   <div class="sheet-hd"><h2>Housing parts</h2><span class="rev">REV {H["REV"]}</span>
-    <span class="file">helm_shell_revB.stp &middot; helm_cover_revB.stp &middot; helm_visor_revA.stp</span></div>
+    <span class="file">helm_shell_revC.stp &middot; helm_cover_revC.stp &middot; helm_visor_revC.stp</span></div>
   <div class="grid">
-    {tile(0,"Front shell - face","Four buttons at 26 mm pitch with the encoder below, on the right. Visor pivots at the top. Nothing else on the face.")}
-    {tile(1,"Front shell - inside","Straight wall, {RIM:.0f} mm thick from the back of the bezel to the rear brim. No taper, so the brim face is exactly {RIM:.0f} mm.")}
-    {tile(2,"Rear cover","Gore vent, heatsink aperture and the sensor standoffs. VESA deleted; the unit hinges on bottom pivots now.")}
-    {tile(3,"Visor - hinged","Pivots on detent teeth at 15&deg; per click. Adjust by hand; the teeth stop vibration walking it out of position.")}
+    {tile(0,"Front shell - face",f"Four soft keys at {H['BTN_PITCH']:.0f} mm pitch in a row UNDER the screen, encoder at the viewer&rsquo;s-right end. Visor pivots at the top. Nothing else on the face.")}
+    {tile(2,"Front shell - three-quarter","The brim and the cord groove run all the way round the back of this part. Straight walls, no taper.")}
+    {tile(3,"Front shell - inside",f"Straight wall, {RIM:.0f} mm from the back of the bezel to the rear brim, so the brim face is exactly {RIM:.0f} mm.")}
+    {tile(4,"Rear cover",f"Two identical {H['PI_BUMP_L']:.0f} x {H['PI_BUMP_W']:.0f} bays, the heatsink aperture between them, and the tilt trunnions grown from the plate at x +/-{H['TRUN_X']:.0f}.")}
+    {tile(5,"Visor - hinged","Friction pivots, set by hand. No detent crown on either joint.")}
+    {tile(10,"Fan shroud",f"One louvred face - {S['LOUV_N']} slats at {S['LOUV_ANG']:.0f} deg, no round bores. Side louvres and a {S['DRAIN_BAYS']}-bay drain along the low edge.")}
   </div>
   <div class="cols">
     <div class="panel"><h3>As modelled</h3><table>
-      <tr><td>Envelope</td><td>389 &times; 165 &times; 28</td></tr>
-      <tr><td>Interior</td><td>357 &times; 133</td></tr>
-      <tr><td>Front face</td><td>2.5 mm</td></tr>
-      <tr><td>Aperture</td><td>296.0 &times; 113.0</td></tr>
-      <tr><td>Glue channel</td><td>5.0 W, raised 2.0</td></tr>
-      <tr><td>Brim bolts</td><td>11 &times; M4</td></tr>
-      <tr><td>Controls</td><td>4 buttons + encoder, right</td></tr>
-      <tr><td>Bottom pivots</td><td>x &plusmn;120, M5</td></tr>
-      <tr><td>Tie-wrap anchors</td><td>8, on the cover</td></tr>
-      <tr><td>Depth at the Pi</td><td>46 mm</td></tr>
-      <tr><td>Button pitch</td><td>24.0 mm</td></tr>
-      <tr><td>Encoder</td><td>y &minus;49, 22 below</td></tr>
-      <tr><td>Mass in ASA</td><td>215 + 230 + 55 g</td></tr>
+      <tr><td>Shell</td><td>{OUT_W:.0f} &times; {OUT_H:.0f} &times; {DEPTH:.0f}</td></tr>
+      <tr><td>Cover</td><td>{OUT_W:.0f} &times; {OUT_H:.0f} &times; {COVER_T:.0f}</td></tr>
+      <tr><td>Interior</td><td>{H["INT_W"]:.0f} &times; {H["INT_H"]:.0f}</td></tr>
+      <tr><td>Front face</td><td>{H["FACE_T"]} mm</td></tr>
+      <tr><td>Aperture</td><td>{H["APER_W"]:.0f} &times; {H["APER_H"]:.0f}</td></tr>
+      <tr><td>Bezel</td><td>{BEZEL:.0f} side / {BEZEL_T:.0f} top</td></tr>
+      <tr><td>Brim screws</td><td>{NBOLT} &times; M3 &times; {H["BRIM_SCREW_L"]:.0f}</td></tr>
+      <tr><td>Controls</td><td>4 keys + encoder, {H["BTN_PITCH"]:.0f} mm pitch, y {H["ROW_CY"]:.1f}</td></tr>
+      <tr><td>Board bays</td><td>2 &times; {H["PI_BUMP_L"]:.0f} &times; {H["PI_BUMP_W"]:.0f} &times; {H["PI_BUMP_H"]:.0f}</td></tr>
+      <tr><td>Depth over a bay</td><td>{BAY_D:.0f} mm</td></tr>
+      <tr><td>Depth over the shroud</td><td>{UNIT_D:.0f} mm</td></tr>
+      <tr><td>Tilt trunnions</td><td>x &plusmn;{H["TRUN_X"]:.0f}, r{H["TRUN_R"]:.0f}, {H["TRUN_STAND"]:.0f} proud</td></tr>
+      <tr><td>Tie-wrap anchors</td><td>{H["TIE_N"]}, on the cover</td></tr>
+      <tr><td>Mass in ASA</td><td>{g(H["SHELL_CM3"])} + {g(H["COVER_CM3"])} + {g(V["VOL_CM3"])}</td></tr>
     </table></div>
     <div class="panel"><h3>Verified in geometry</h3><ul class="chk">
-      <li>All parts single closed solids, <b>OCCT valid</b></li>
-      <li>Glue channel now <b>raised</b>, not cut &mdash; a 2.0 mm cut in a 2.5 mm face left nothing</li>
-      <li>Depth <b>30 mm perimeter, 48 mm at the Pi bump</b> &mdash; under the 50 mm limit</li>
-      <li>Bottom pivots, tie anchors and gland boss all verified present</li>
-      <li class="q">Module outline is <b>assumed</b> &mdash; measure it</li>
-      <li class="q">Needs a <b>&ge;400 mm bed</b> or a designed split</li>
+      <li>All parts single closed solids, <b>OCCT valid</b> &mdash; and the cover is checked for <b>floating features</b>, not just for solid count</li>
+      <li><b>One piece each on a {H["BED"]:.0f} mm bed</b>, {(H["BED"]-OUT_W)/2:.1f} mm a side to spare</li>
+      <li>The front face is flattened <b>globally</b> at z=0, so no ear, bore or pad can leave the A-surface standing on pads</li>
+      <li>The assembled cover is intersected with the <b>panel envelope</b>: {H["N_DSP_POSTS"]} bearing posts touch it and nothing else may</li>
+      <li>Both bays mirror exactly, and both are checked clear of the shroud envelope and the trunnion webs</li>
+      <li>{H["N_DSP_POSTS"]} panel posts, {H["N_SENSOR_SCREWS"]//4} sensor pads, {H["TIE_N"]} tie anchors and the heatsink seat all verified <b>inboard of the sealing face</b></li>
+      <li class="q">Bond the panel in and let it cure <b>before</b> the cover goes on &mdash; the glued position is the tolerance the {H["N_DSP_POSTS"]} screws inherit</li>
     </ul></div>
   </div>
 </section>
@@ -622,65 +636,97 @@ a{{color:var(--accent)}}
   </div>
   <div class="cols">
     <div class="panel"><h3>As modelled</h3><table>
-      <tr><td>Shroud</td><td>132 &times; 102 &times; 63</td></tr>
-      <tr><td>Clamp</td><td>28 &times; 58 &times; 13</td></tr>
+      <tr><td>Shroud</td><td>{" &times; ".join(mm(v) for v in LP.get("SHROUD_BBOX", []))}</td></tr>
+      <tr><td>Clamp</td><td>{" &times; ".join(mm(v) for v in LP.get("CLAMP_BBOX", []))}</td></tr>
       <tr><td>LP-24 bore</td><td>&Oslash;24.4 teardrop</td></tr>
       <tr><td>Connector frame</td><td>46 &times; 46 &times; 12</td></tr>
-      <tr><td>Jacket saddle</td><td>&Oslash;11.0</td></tr>
+      <tr><td>Jacket saddle</td><td>&Oslash;{LP.get("CABLE_D", 0):.1f}</td></tr>
       <tr><td>SR pilots</td><td>2 &times; &Oslash;3.5, opening down</td></tr>
+      <tr><td>Mass in ASA</td><td>{g(LP.get("SHROUD_CM3"))} + {g(LP.get("CLAMP_CM3"))}</td></tr>
     </table></div>
     <div class="panel"><h3>Verified</h3><ul class="chk">
       <li><b>Ray-tested driver access</b> &mdash; 9 mm corridor from each pilot to the open face</li>
       <li>Teardrop <b>15.00</b> up vs <b>12.00</b> down, 38.7&deg; overhang</li>
       <li>Frame gives SF <b>4.4</b> against a 300 N lever on the plug</li>
-      <li class="q">Confirm the 1058A jacket OD</li>
+      <li class="q">Confirm the 1058A jacket OD against the &Oslash;{LP.get("CABLE_D", 0):.1f} saddle</li>
     </ul></div>
   </div>
 </section>
 
 <section>
+  <div class="sheet-hd"><h2>Fan shroud</h2><span class="file">{SH_BOX} box &middot; {S["REAR_PROUD"]:.0f} behind the cover</span></div>
   <div class="grid">
-    {tile(4,"Dash tilt bracket","Plate runs rearward from the pivot only, so nothing juts out in front of the display. 4 slotted dash screws, two detent ears.")}
-    {pic("cad/out/asm_shroud_fan.png","Fan shroud + NF-F12","The Noctua seated in the shroud. 120 x 120 x 27 with its anti-vibration pads &mdash; 2 mm thicker than the spec sheet.")}
-    {tile(7,"Fan shroud","Blower bay at one end, louvred exhaust at the other. Covers the alloy plate with 7 mm margin.")}
+    {pic("cad/out/asm_shroud_fan.png","Shroud + both fans",f"{S['FAN_N']} x Coolerguys {S['FAN_W']:.0f}x{S['FAN_W']:.0f}x{S['FAN_T']:.0f} IP67, stacked at y {S['FAN_CY'][0]:+.0f} / {S['FAN_CY'][-1]:+.0f}, on eight pads behind the louvred face.")}
+    {pic("cad/out/asm_shroud_fan_cut.png","Sectioned",f"Depth is counted through the stack, not chosen: {S['WALL']:.0f} wall + {S['FAN_BOSS']:.0f} boss + {S['FILT_MESH']} mesh + {S['FAN_T']:.0f} fan + plenum + {H['HS_PROUD']:.0f} of fin.")}
+    {tile(6,"Bail base plate",f"{B['BASE_L']:.0f} x {B['BASE_W']:.0f} x {B['BASE_T']:.0f}, flat to the dash on {B['N_DASH']} slotted screws.")}
+    {tile(7,"Bail arm - x2",f"Prints flat, blade in plane, eye r{B['EYE_R']:.0f} as a through boss. Nothing is in cross-layer bending.")}
+  </div>
+  <div class="flag w">
+    <h3>Two 80s, not one 120 &mdash; and the louvres are the whole back</h3>
+    <p>The heatsink is {H["HS_W"]:.0f} &times; {H["HS_L"]:.0f}: narrow and tall. A single 120 round was covering
+       a square area over a strip and wasting most of its swept circle on shroud wall. Two 80s cover
+       {2*S["FAN_W"]:.0f} of the {H["HS_W"]:.0f}.</p>
+    <p>The outer face is <b>one louvred rectangle</b> &mdash; {S["LOUV_N"]} slats at {S["LOUV_ANG"]:.0f}&deg;, no
+       round bores, no divider between the fans. Each slat&rsquo;s <b>outboard edge is its low edge</b>, so water
+       that lands on it runs out and drips off; at {S["LOUV_ANG"]:.0f}&deg; with the pitch equal to the height
+       there is no straight line of sight through the stack at all. Get that sign wrong and the louvres become
+       gutters that funnel spray into the fan.</p>
+    <p><b>These louvres are the only opening in the back.</b> Air leaves through side louvres with 45&deg; awnings
+       over them and through a <b>{S["DRAIN_BAYS"]}-bay slot along the low edge</b> &mdash; which is the drain as
+       much as it is exhaust. Without it this part is a tray holding salt water against the heatsink&rsquo;s glue
+       line for the life of the boat.</p>
+    <p>&#9888; The shroud <b>lands over four brim screw heads</b> and that is deliberate: shrinking it to clear
+       them does not work, because two 80 mm fans span {2*S["FAN_W"]:.0f} exactly, and moving those four screws
+       leaves a 104 mm gap in the fastener ring across the middle of the long edge. The shroud is relieved for
+       the heads instead &mdash; a rain shield can afford four pockets; the pressure boundary cannot afford a
+       gap in its clamp.</p>
   </div>
 </section>
 
 <section>
-  <div class="sheet-hd"><h2>Drawings</h2><span class="file">shroud &middot; all dimensions mm</span></div>
+  <div class="sheet-hd"><h2>Drawings</h2><span class="file">LP-24 shroud &middot; all dimensions mm</span></div>
   <div class="grid dwgs">{dwg(0)}{dwg(1)}{dwg(2)}{dwg(3)}</div>
 </section>
 
 <section>
   <div class="sheet-hd"><h2>Subassemblies</h2><span class="file">the things a whole-unit render cannot show</span></div>
   <p>A render of the finished unit answers &ldquo;what does it look like&rdquo;. It does not answer
-     &ldquo;where does that go&rdquo; or &ldquo;how do I hold it while the glue sets&rdquo;, which are the
+     &ldquo;where does that go&rdquo; or &ldquo;which way round does it fit&rdquo;, which are the
      questions that come up with a part in your hand. Each view below exists because a specific question
      had no picture.</p>
   <div class="grid">
-    {subpic("sub_antenna_context")}
-    {subpic("sub_antenna_detail")}
+    {subpic("sub_thermal_exploded")}
+    {subpic("sub_shroud_fixing")}
   </div>
   <div class="grid">
-    {subpic("sub_thermal_exploded")}
-    {subpic("sub_heatsink_jig")}
+    {subpic("sub_wire_pass")}
+    {subpic("sub_antenna_context", "The bulkhead goes straight through the flat cover plate, on a raised sealing pad. Its POSITION is being relocated in a parallel pass - the view shows the detail, not the final coordinate.")}
+    {subpic("sub_antenna_detail", "Outside in: whip, outer nut, sealing washer, M16 bulkhead, inner nut. The raised pad gives the nut a flat face instead of layer lines. Position relocating - see open items.")}
   </div>
   <div class="flag">
-    <h3>The thermal path</h3>
-    <p><b>The display&rsquo;s back is metal</b>, and it is both the largest heat source and the largest
-       conductor in the box. Until this revision it faced <b>{H["TC_GAP"]:.1f} mm of dead air</b> across the
-       heat aperture to the alloy plate, so every watt the panel made had to cross that gap by convection
-       &mdash; in a <em>sealed</em> enclosure. That gap, not the fan, was the bottleneck.</p>
-    <p>An aluminium <b>conduction block {H["TC_L"]:.0f} &times; {H["TC_W"]:.0f} &times; {H["TC_T"]:.1f}</b>,
-       with a {H["TC_PAD"]} mm gap pad at each end, now bridges it: panel back &rarr; pad &rarr; block &rarr;
-       pad &rarr; alloy plate &rarr; fins &rarr; fan. Metal the whole way, nothing moving, nothing to seize.
-       Its thickness is <em>derived</em> from the assembled stack, so if the foam, the panel depth or the
-       cover thickness move again, the block moves with them.</p>
-    <p>The <b>Pi</b> is the other source and it is handled differently, because it is 178 mm from anything
-       metal and already carries its own heatsink and fan. In a sealed box that fan does not export heat
-       &mdash; but it <em>stirs</em>, which lifts internal convection from roughly 4 to 15&ndash;20 W/m&sup2;K,
-       and that term is the bottleneck. If it proves insufficient the fallback is a
-       <b>5 &times; 100 mm aluminium bar</b> to the plate (~12.5 K at 7 W), not a heat pipe.</p>
+    <h3>The thermal path &mdash; and the step that is honestly weak</h3>
+    <p>One heatsink, <b>{H["HS_W"]:.0f} &times; {H["HS_L"]:.0f} &times; {H["HS_H"]:.0f}</b>, bonded
+       <b>base-out</b> into a {H["HS_BASE"]:.0f} mm recess in the cover&rsquo;s <b>inner</b> face. Its base is
+       flush inside; {H["HS_PROUD"]:.0f} mm of fin stands proud <b>outside</b> through the
+       {H["AP_L"]:.0f} &times; {H["AP_W"]:.0f} aperture, under the shroud, in the fans&rsquo; airstream. There is
+       no alloy plate and no conduction block: the heatsink&rsquo;s own base closes the aperture, which takes a
+       part, an interface and 6 mm out of the stack.</p>
+    <p>The recess walls <b>index the block while the adhesive cures</b>, so the gluing jig is gone too. Trim the
+       fins back {H["AP_SEAL"]:.0f} mm all round first &mdash; a bought extrusion carries fins to the edge of its
+       base, and without that band there is no flange to seal or glue against.</p>
+    <p>&#9888; <b>The bottleneck is inside the box, not outside it.</b> With the fins pointing out, the interior
+       sees a <b>bare flat plate {H["HS_L"]*H["HS_W"]/100:.0f} cm&sup2;</b>, and getting watts out of the
+       internal air and into that plate is natural convection plus whatever the Pi&rsquo;s own fan stirs. The
+       fans, the fins and the shroud are all working on the easy half of the problem. This is the one number on
+       the build that nobody has measured.</p>
+    <p><b>The fallback, if it throttles:</b> a second finned block bonded to the <b>inside</b> of that same base.
+       The offcut from trimming this one&rsquo;s sealing land is very nearly the right part. The alternative
+       orientation &mdash; fins inward &mdash; is not available: there are {H["FIN_GAP"]:.1f} mm behind the panel
+       and the display screws need them.</p>
+    <p>The <b>Pi</b> is the other source and it is handled differently, because it is a long way from anything
+       metal and already carries its own cooler. In a sealed box that fan exports nothing &mdash; but it
+       <em>stirs</em>, which lifts internal convection from roughly 4 to 15&ndash;20 W/m&sup2;K, and that term is
+       exactly the one in the way.</p>
   </div>
 </section>
 
@@ -688,29 +734,33 @@ a{{color:var(--accent)}}
   <div class="sheet-hd"><h2>Open items</h2><span class="file">what moves next</span></div>
   <div class="cols">
     <div class="panel"><h3>Blocking</h3><ul class="chk">
-      <li class="q"><b>Printer bed size</b> &mdash; 384 mm needs &ge;400, or a designed split</li>
-      <li class="q"><b>12.3&Prime; module outline</b>, bezel offsets, ribbon exit, max operating temp</li>
-      <li class="q"><b>Heat path.</b> The thermal aperture is deleted, so 24 W is now sealed in ASA with no metal route out</li>
-      <li class="q"><b>Tilt bracket</b> &mdash; needs dash thickness and on-face vs recessed</li>
-      <li class="q"><b>Dash thickness</b> and whether the unit sits on the face or recessed &mdash; blocks the tilt bracket</li>
+      <li class="q"><b>Gland, Gore vent and SMA bulkhead are being relocated</b> in a parallel pass &mdash; no coordinates for those three are settled, and this page states none</li>
+      <li class="q"><b>Internal air-to-metal step unproven.</b> The inside of the heatsink base is a bare plate; if it throttles, bond a second finned block to it</li>
+      <li class="q"><b>Touchscreen driver board is not placed</b> &mdash; outline, hole pattern, and which edge the ribbon and HDMI/USB leave from</li>
+      <li class="q"><b>cad/exploded.py is a revision behind</b> &mdash; it still draws the alloy plate at balloon 33 and two strip heatsinks at 34</li>
+      <li class="q"><b>Fan drive.</b> Two IP67 fans on one potted pass: decide PWM off the MCP9808 vs straight 12 V before the leads are potted, because that is a one-shot joint</li>
     </ul></div>
     <div class="panel"><h3>Measure when convenient</h3><ul class="chk">
-      <li class="q">Encoder bushing length &mdash; caps the front face at 6.0 mm</li>
-      <li class="q">Belden 1058A jacket OD vs a 12.5&ndash;18 mm gland</li>
-      <li class="q">Rubber cord &mdash; 3 mm or 3/32&Prime;</li>
-      <li class="q">PCM1808 and PCM5102A outlines</li>
+      <li class="q">Rubber cord &mdash; {GASKET_T:.0f} mm or 3/32&Prime;</li>
+      <li class="q">Encoder bushing length &mdash; it has to reach through a {H["FACE_T"]} mm face and still take its nut</li>
+      <li class="q">Belden 1058A jacket OD vs the &Oslash;{LP.get("CABLE_D", 0):.1f} saddle and the gland</li>
       <li class="q">PiCAN-M footprint and N2K connector position</li>
+      <li class="q">PCM1808 and PCM5102A outlines</li>
+      <li class="q">Dash thickness, for the bail base screws</li>
     </ul></div>
   </div>
   <div class="flag w">
     <h3>Print notes</h3>
-    <p><b>ASA blue &middot; 0.2 mm &middot; 5 perimeters &middot; 30% gyroid &middot; enclosure on.</b> Every part prints
-       flat-face down with no supports. Slice from 3MF at High refinement. About <b>0.84 kg</b> of filament
-       across eight parts, down from 1.51 kg.</p>
+    <p><b>ASA blue &middot; 0.2 mm &middot; 5 perimeters &middot; 30% gyroid &middot; enclosure on.</b> Every part
+       prints flat-face down with no supports &mdash; the shell face-down on the bed, the cover bays up, the
+       shroud on its louvred face, both bail parts flat. Slice from 3MF at High refinement.</p>
+    <p>About <b>{FILAMENT:.2f} kg</b> across {NPARTS} parts, at {ASA} g/cm&sup3;:
+       {" &middot; ".join(f'{n} {g(v)}' + (f' x{q}' if q > 1 else '') for n, v, q in PRINTED if v)}.
+       The fit coupon is extra &mdash; and print it first.</p>
   </div>
 </section>
 
-<footer><span>Helm Print Package &middot; 7 printed parts</span><span>all solids valid &middot; 0 errors</span></footer>
+<footer><span>Helm Print Package &middot; rev {H["REV"]} &middot; {NPARTS} printed parts</span><span>every dimension read from the geometry</span></footer>
 </div>
 """
 pathlib.Path("cad/out/review.html").write_text(HTML)

@@ -26,9 +26,10 @@ DCX, DCY = H["DISP_CX"], H["DISP_CY"]
 # single y they all share.
 BTN_X, ENC_X, ROW_CY = H["BTN_X"], H["ENC_X"], H["ROW_CY"]
 BTN_D, ENC_D = H["BTN_D"], H["ENC_D"]
-ANT_X, ANT_Y, SMA_D = H["ANT_X"], H["ANT_Y"], H["SMA_D"]
+GL_X, VENT_X, SMA_X, SMA_D = H["GL_X"], H["VENT_X"], H["SMA_X"], H["SMA_D"]
+BLK_Y0, BORE_Z = H["BLK_Y0"], H["BORE_Z"]
 BUMP_H, GASKET_W, RIM = H["PI_BUMP_H"], H["GASKET_W"], H["RIM"]
-PIV_X, PIV_Y, PIV_Z, N_TEETH = H["PIV_X"], H["PIV_Y"], H["PIV_Z"], H["N_TEETH"]
+PIV_X, PIV_Y, PIV_Z = H["PIV_X"], H["PIV_Y"], H["PIV_Z"]
 
 # The row is dimensioned as a row, which is only honest if it IS one: one
 # shared y and one shared pitch. Either would have caught the rev B carry-over.
@@ -56,11 +57,22 @@ COVER_PLACED = Pos(0, 0, COVER_Z) * Rot(180, 0, 0) * COVER
 # is inside the shell. The OUTERMOST point is the crown of the Pi bump-out, and
 # that is also the number the side elevation calls the overall depth, so one
 # check covers the placement and that label together.
+# The crown is no longer the Pi bump. The tilt TRUNNIONS are grown from this
+# plate now and stand TRUN_STAND + TRUN_R proud of its outer face, which is
+# further out than the bump - so the outermost point, and the number the side
+# elevation calls overall depth, is whichever of the two is taller.
+_PROUD = max(BUMP_H, H["TRUN_STAND"] + H["TRUN_R"])
 _cz = COVER_PLACED.bounding_box().max.Z
-assert abs(_cz - (COVER_Z + BUMP_H)) < 1e-6, (
-    f"cover crowns at z={_cz:.3f}, expected {COVER_Z + BUMP_H:.3f} - placement "
+assert abs(_cz - (COVER_Z + _PROUD)) < 1e-6, (
+    f"cover crowns at z={_cz:.3f}, expected {COVER_Z + _PROUD:.3f} - placement "
     f"disagrees with cad/assembly.py")
-assert abs(SHELL.bounding_box().size.X - OW) < 1e-6, (
+# The shell is exactly OUT_W again. It briefly was not: the tilt pivot spent a
+# revision as a boss on each SIDE WALL, which was mechanically the best place -
+# 1.4 mm from the CG - but hung hardware off the front shell and stood proud of
+# the bezel line. The pivot moved to trunnions on the REAR COVER, so the shell
+# went back to its body width. This assert tracked it both ways.
+OW_BBOX = OW
+assert abs(SHELL.bounding_box().size.X - OW_BBOX) < 1e-6, (
     f"shell is {SHELL.bounding_box().size.X:.1f} wide, housing.json says {OW:.1f}")
 
 # Display fitted, otherwise the front elevation looks straight through the
@@ -107,15 +119,15 @@ def note(P, pt, label, dx, dy, anchor="start", fs=17):
             f'font-family="IBM Plex Mono,monospace" font-size="{fs}" font-weight="500" '
             f'text-anchor="{anchor}" dy="6">{label}</text>')
 
-# Rear-face callout anchors. These three live on the COVER and helm_housing.py
-# does NOT publish them (GL_X/GL_Y, VENT_X/VENT_Y, AP_CX), so they are written
-# here in SHELL coordinates - the cover is authored mirrored in y and then flown
-# Rot(180,0,0), which puts every cover feature back at its shell y. No number
-# from them reaches a label, they only aim the leader; if one moves the leader
-# points at bare plastic, which is visible rather than silent.
-GL_XY   = (-120.0, -56.0)           # cable gland boss
-VENT_XY = ( -55.0, -64.0)           # Gore vent
-HEAT_XY = ( 103.0,   0.0)           # heat-plate aperture centre
+# Rear-face callout anchors, all READ from housing.json now. The three fittings
+# sit in the blocks beside the bay bumps and bore horizontally, so their leader
+# lands on the block's underside at shell y = BLK_Y0 and z = cover face +
+# half the bump depth. HEAT_XY is the aperture centre (AP_CX, 0).
+FIT_Z   = COVER_Z - BORE_Z          # BORE_Z is cover-local (negative = proud)
+GL_XY   = (GL_X,   BLK_Y0)
+VENT_XY = (VENT_X, BLK_Y0)
+SMA_XY  = (SMA_X,  BLK_Y0)
+HEAT_XY = (H["AP_CX"], 0.0)
 
 # The four yaws mirror each other, so a flip that puts a dim OUTSIDE the part in
 # the front view puts it INSIDE in the rear view. Every off/flip below was set
@@ -149,7 +161,7 @@ VIEWS = [
         f"{DEPTH+CT+GASKET_C:.1f}", off=64, flip=-1, fs=16) +
     dim(P, (0, -OH/2, 0), (0, -OH/2, DEPTH + CT + GASKET_C + BUMP_H),
         f"{DEPTH+CT+GASKET_C+BUMP_H:.1f}", off=104, flip=-1) +
-    note(P, (0, PIV_Y, PIV_Z), f"VISOR PIVOT - {360.0/N_TEETH:.1f} deg DETENT", -200, -20, "end") +
+    note(P, (0, PIV_Y, PIV_Z), f"VISOR PIVOT - FRICTION, HAND SET", -200, -20, "end") +
     note(P, (0, 6, DEPTH + CT + GASKET_C + BUMP_H), f"Pi BUMP-OUT +{BUMP_H:.0f}", -160, -60, "end") +
     note(P, (0, -OH/2, DEPTH), f"BRIM {RIM:.1f} - FOAM BAND {GASKET_W:.2f}", 200, 30))),
  ("dimasm_rear", "REAR VIEW", Rot(0, 180, 0), 1240, 820, lambda P: (
@@ -160,9 +172,9 @@ VIEWS = [
     dim(P, (-OW/2, -OH/2, COVER_Z), (OW/2, -OH/2, COVER_Z), f"{OW:.1f}", off=96, flip=1) +
     note(P, (OW/2 - GASKET_W/2, 0, DEPTH), f"FOAM GASKET BAND {GASKET_W:.2f} WIDE", -90, -150, "end") +
     note(P, (*HEAT_XY, COVER_Z), "HEAT-PLATE APERTURE", -260, -150, "end") +
-    note(P, (ANT_X, ANT_Y, COVER_Z), f"SMA BULKHEAD &#216;{SMA_D}", 70, -130) +
-    note(P, (*GL_XY, COVER_Z), "CABLE GLAND - 90 deg ELBOW", 60, 150) +
-    note(P, (*VENT_XY, COVER_Z), "GORE VENT", 200, 90))),
+    note(P, (*SMA_XY, FIT_Z), f"SMA COAX ENTRY M8, FACES DOWN", 70, -130) +
+    note(P, (*GL_XY, FIT_Z), "CABLE GLAND M16x1.5, FACES DOWN", 60, 150) +
+    note(P, (*VENT_XY, FIT_Z), "GORE VENT M12, FACES DOWN", 200, 90))),
  ("dimasm_top", "TOP VIEW", Rot(-90, 0, 0), 1240, 700, lambda P: (
     dim(P, (-OW/2, 0, 0), (OW/2, 0, 0), f"{OW:.1f}", off=200, flip=-1) +
     dim(P, (PIV_X[0], PIV_Y, PIV_Z), (PIV_X[1], PIV_Y, PIV_Z),

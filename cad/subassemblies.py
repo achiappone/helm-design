@@ -1,27 +1,25 @@
 """
-Subassembly views -- the three things the whole-unit renders cannot show.
+Subassembly views -- the things a whole-unit render cannot show.
 
-A render of the finished unit answers "what does it look like". It does not
-answer "where does that go" or "how do I hold it while the glue sets", and
-those are the questions that actually come up with a part in your hand. Each
-view here exists because a specific question had no picture:
+Each view here exists because a specific question had no picture:
 
-  ANTENNA   it is a hole. In a whole-cover render a O15.75 bore reads as
-            nothing at all, and the bought whip has no CAD, so the assembled
-            views showed an empty plate. Two views: one close enough to see
-            the sealing pad, one far enough back to see WHERE on the cover it
-            is - the close-up alone was unreadable without the context.
-  THERMAL   the stack is cover -> alloy plate -> heatsinks -> shroud -> fan,
-            five parts deep, and only two of them are printed. Exploded along
-            the axis, with the fan wire route drawn, because that route is the
-            one part of it that is not obvious: the wires do NOT pierce the
-            ASA, they go through a grommet in the 6 mm ALLOY PLATE, under the
-            shroud where spray cannot reach.
-  JIG       what the gluing fixture is for, which is impossible to convey in
-            a render of the fixture on its own.
+  THERMAL   the stack is cover -> heatsink -> shroud -> mesh -> two fans, and
+            only one of those is printed. Exploded along the axis so the order
+            and the direction are unambiguous - in particular that the heatsink
+            goes in BASE OUT from the inside, and that its fins end up outside.
+  FIXING    how the shroud is held on. Four M3 run the full depth of corner
+            bosses, enter at the LOUVRED face and stop in blind pilots in the
+            cover. Nothing goes through the pressure boundary.
+  WIRE      the only thing that crosses the boundary: the fans' leads, through
+            one potted O6 pass in the cover, under the shroud.
 
-Everything is positioned from cad/out/housing.json. Bought parts with no CAD
-are drawn as envelopes - correct size and place, no internal detail.
+REWRITTEN. The previous version drew a 6 mm alloy heat plate, a 120 mm fan and
+a gluing jig - three parts that no longer exist - and died on H["HS_HOLE_C"],
+a key housing.json stopped publishing when the plate went. It had been dead
+long enough that the build page was showing its last successful output as if it
+were current.
+
+Everything is positioned from cad/out/housing.json and cad/out/shroud.json.
 """
 import sys, json
 sys.path.insert(0, "cad")
@@ -29,93 +27,158 @@ from build123d import *
 from render import render_multi, png
 
 H = json.load(open("cad/out/housing.json"))
+S = json.load(open("cad/out/shroud.json"))
 COVER = import_step("cad/out/helm_cover_revC.stp")
 SHROUD = import_step("cad/out/heatsink_shroud_revD.stp")
-JIG = import_step("cad/out/heatsink_jig_revA.stp")
+sys.path.insert(0, "cad")
+from parts_lib import finned
 
 BLUE, DEEP = (0.16, 0.40, 0.74), (0.09, 0.24, 0.48)
 ALLOY, STEEL = (0.66, 0.68, 0.72), (0.76, 0.77, 0.80)
 BRASS, DARK, COPPER = (0.80, 0.68, 0.24), (0.18, 0.18, 0.20), (0.78, 0.42, 0.18)
 
-AP_CX, HS_L, HS_W, HS_H = H["AP_CX"], H["HS_L"], H["HS_W"], H["HS_H"]
-HS_CY, PLATE, HOLE_C = H["HS_CY"], H["HS_PLATE"], H["HS_HOLE_C"]
-ANT_X, ANT_Y, SMA = H["ANT_X"], H["ANT_Y"], H["SMA_D"]
+AP_CX, AP_L, AP_W = H["AP_CX"], H["AP_L"], H["AP_W"]
+HS_L, HS_W, HS_H = H["HS_L"], H["HS_W"], H["HS_H"]
+HS_BASE = 3.0
+COVER_T = H["COVER_T"]
+GL_X, VENT_X, SMA_X = H["GL_X"], H["VENT_X"], H["SMA_X"]
+BLK_Y0, BLK_Y1, BORE_Z = H["BLK_Y0"], H["BLK_Y1"], H["BORE_Z"]
+BUMP_H = H["PI_BUMP_H"]
+WIRE_X, WIRE_Y, WIRE_D = H["WIRE_X"], H["WIRE_Y"], H["WIRE_D"]
 out = []
 
-# ── antenna: context, then detail ────────────────────────────────────────
-# cover-local y is the shell's y mirrored, so the antenna lands at -ANT_Y
-AY = -ANT_Y
-def ant_parts(crop):
-    plate = COVER & crop
-    whip  = Pos(ANT_X, AY, -40) * Cylinder(3.0, 34, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    onut  = Pos(ANT_X, AY, -6.0) * Cylinder(10.0, 3.2, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    bulk  = Pos(ANT_X, AY, -2.0) * Cylinder(SMA/2 - 0.15, 14, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    inut  = Pos(ANT_X, AY, 6.2) * Cylinder(10.0, 3.2, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    return [(plate, DEEP), (bulk, BRASS), (whip, DARK), (onut, STEEL), (inut, STEEL)]
+# Cover-local frame: z=0 is the OUTER face, z=COVER_T the inner, and cover y is
+# the shell's y mirrored. Everything below is drawn in that frame, so "out the
+# back" is -z.
+def _ex(dz):
+    return Pos(0, 0, dz)
 
-WIDE = Pos(0, 0, -6) * Box(400, 220, 90, align=(Align.CENTER,)*3)
-rgba, _ = render_multi(ant_parts(WIDE), az=34, el=-30, W=1100, H=720)
-png("cad/out/sub_antenna_context.png", rgba)
-out.append({"name": "sub_antenna_context",
-            "title": "ANTENNA - where it sits on the cover",
-            "note": f"O{SMA} bulkhead bore at shell ({ANT_X:.0f}, {ANT_Y:.0f}), "
-                    f"top corner of the rear cover, opposite the cable gland."})
+# ── thermal stack, exploded ───────────────────────────────────────────────
+# The heatsink goes in from the INSIDE: base into the seat in the inner face,
+# fins down through the aperture to stand HS_PROUD outside. Drawn already
+# trimmed to the aperture, which is how it has to be fitted - a bought
+# extrusion carries fins to the edge of its base and they foul the seat.
+hs_base = Pos(AP_CX, 0, COVER_T - HS_BASE) * Box(
+    HS_L, HS_W, HS_BASE, align=(Align.CENTER, Align.CENTER, Align.MIN))
+hs_fins = Pos(AP_CX, 0, COVER_T - HS_H) * finned(
+    AP_L, AP_W, HS_H - HS_BASE, base=0.01, fin_t=1.4, gap=2.6, along_x=False)
+HS = _ex(-70) * (hs_base + hs_fins)
 
-NEAR = Pos(ANT_X, AY, -6) * Box(95, 85, 60, align=(Align.CENTER,)*3)
-rgba, _ = render_multi(ant_parts(NEAR), az=40, el=-26, W=1000, H=700)
-png("cad/out/sub_antenna_detail.png", rgba)
-out.append({"name": "sub_antenna_detail",
-            "title": "ANTENNA - bulkhead stack",
-            "note": "Outside in: whip, outer nut, sealing washer, M16 bulkhead, inner nut. "
-                    "The raised pad gives the nut a flat face instead of layer lines."})
+MESH = _ex(-150) * Pos(0, 0, 0) * Box(S["OW"] - 1, S["OH"] - 1, 0.6,
+                                      align=(Align.CENTER, Align.CENTER, Align.MIN))
+FANS = [_ex(-190) * Pos(0, fy, 0) * Box(S["FAN_W"], S["FAN_W"], S["FAN_T"],
+                                        align=(Align.CENTER, Align.CENTER, Align.MIN))
+        for fy in S["FAN_CY"]]
+# shroud, flown as it lands: its landing face against the cover
+SH = _ex(-250) * Pos(0, 0, -S["SHROUD_OD"]) * SHROUD
 
-# ── thermal stack, exploded, with the wire route ─────────────────────────
-# Cover-local: the plate lands on the OUTER face, which is -z.
-THERM = Pos(AP_CX, 0, -8) * Box(210, 210, 80, align=(Align.CENTER,)*3)
-cov = COVER & THERM
-plate = Pos(AP_CX, 0, -34) * Box(PLATE, PLATE, 6.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
-sinks = [Pos(AP_CX, sy*HS_CY, -62) * Box(HS_L, HS_W, HS_H, align=(Align.CENTER, Align.CENTER, Align.MIN))
-         for sy in (-1, 1)]
-shroud = Pos(AP_CX, 0, -150) * Rot(180, 0, 0) * SHROUD
-fan = Pos(AP_CX, 0, -196) * Box(120, 120, H_FAN := 27.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
-# the wire route: fan -> shroud pass-through -> grommet in the ALLOY PLATE ->
-# inside the housing. Drawn as a polyline of segments so it reads as a path.
-wire = None
-for a, b in (((AP_CX + 52, 52, -196), (AP_CX + 52, 52, -150)),
-             ((AP_CX + 52, 52, -150), (AP_CX + 52, 52, -34)),
-             ((AP_CX + 52, 52, -34), (AP_CX + 52, 52, 12))):
-    seg = Pos(a[0], a[1], min(a[2], b[2])) * Cylinder(
-        2.2, abs(b[2] - a[2]), align=(Align.CENTER, Align.CENTER, Align.MIN))
-    wire = seg if wire is None else wire + seg
-grommet = Pos(AP_CX + 52, 52, -34) * Cylinder(5.0, 6.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
-
-rgba, _ = render_multi([(cov, DEEP), (plate, ALLOY)] + [(s, ALLOY) for s in sinks]
-                       + [(shroud, BLUE), (fan, DARK), (wire, COPPER), (grommet, (0.25, 0.25, 0.27))],
-                       az=38, el=-22, W=1100, H=860)
+rgba, _ = render_multi([(COVER, DEEP), (HS, ALLOY), (MESH, STEEL)]
+                       + [(f, DARK) for f in FANS] + [(SH, BLUE)],
+                       az=38, el=-22, W=1150, H=900)
 png("cad/out/sub_thermal_exploded.png", rgba)
 out.append({"name": "sub_thermal_exploded",
-            "title": "THERMAL STACK - exploded",
-            "note": "Cover, 6 mm alloy plate, two heatsinks, shroud, fan. The copper line is "
-                    "the fan wire: it leaves the shroud through the O7 pass-through, then goes "
-                    "through a GROMMET IN THE ALLOY PLATE - metal, not ASA - and into the "
-                    "housing. No printed part is pierced, and the penetration sits under the "
-                    "shroud where spray cannot reach it."})
+            "title": "THERMAL STACK - exploded, in fitting order",
+            "note": f"Cover, heatsink, 316 mesh, two {S['FAN_W']:.0f} mm IP67 fans, shroud. "
+                    f"The heatsink goes in FROM THE INSIDE - base into the {HS_BASE:.0f} mm "
+                    f"seat, flush with the inner face, fins down through the "
+                    f"{AP_L:.0f}x{AP_W:.0f} aperture to stand {H['HS_PROUD']:.0f} mm proud "
+                    f"outside. The mesh is clamped by the fans' own screws, so one set of "
+                    f"fasteners does both jobs and nothing stands proud of the face."})
 
-# ── the jig, doing its job ───────────────────────────────────────────────
-jplate = Pos(0, 0, 0) * Box(PLATE, PLATE, 6.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
-jig_a = Pos(0, 0, 6.0) * JIG
-jsinks = [Pos(0, sy*HS_CY, 30) * Box(HS_L, HS_W, HS_H, align=(Align.CENTER, Align.CENTER, Align.MIN))
-          for sy in (-1, 1)]
-rgba, _ = render_multi([(jplate, ALLOY), (jig_a, (0.85, 0.45, 0.15))]
-                       + [(s, STEEL) for s in jsinks],
-                       az=36, el=-26, W=1050, H=740)
-png("cad/out/sub_heatsink_jig.png", rgba)
-out.append({"name": "sub_heatsink_jig",
-            "title": "HEATSINK GLUING JIG - in use",
-            "note": f"Orange is the jig. It drops onto the alloy plate located by the same four "
-                    f"fixings the shroud uses, and its two pockets hold the heatsinks square at "
-                    f"y +/-{HS_CY:.1f} while the thermal adhesive cures. Pockets are through, so "
-                    f"squeeze-out escapes instead of lifting the part. Lift it off after."})
+# ── how the shroud is held on ─────────────────────────────────────────────
+# A section through one corner boss, with the screw drawn, because "four M3
+# through the bosses" does not convey that the screw enters at the weather face
+# and stops blind.
+BOSSES = H["HS_HOLES"]
+screws = None
+for bx, by in BOSSES:
+    _z0 = -(S["SHROUD_OD"] + S["LOUV_H"]) - 2.0      # head sits at the louvred face
+    sc = (Pos(bx, -by, _z0) * Cylinder(
+              1.7, S["SCREW_L"], align=(Align.CENTER, Align.CENTER, Align.MIN))
+          + Pos(bx, -by, _z0) * Cylinder(
+              3.0, 2.5, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+    screws = sc if screws is None else screws + sc
+_sh_placed = Pos(0, 0, -S["SHROUD_OD"]) * SHROUD
+CUT = Pos(0, -60, -25) * Box(300, 120, 130, align=(Align.CENTER,)*3)
+rgba, _ = render_multi([(COVER & CUT, DEEP), (_sh_placed & CUT, BLUE),
+                        (screws & CUT, STEEL)],
+                       az=28, el=-18, W=1150, H=800)
+png("cad/out/sub_shroud_fixing.png", rgba)
+out.append({"name": "sub_shroud_fixing",
+            "title": "SHROUD FIXING - sectioned through two bosses",
+            "note": f"Four M3 x {S['SCREW_L']:.0f} 316. They enter at the LOUVRED face - the "
+                    f"only face you can still reach once the shroud is on - run the full depth "
+                    f"of a corner boss and stop in a blind pilot {H['SHROUD_PILOT_DEEP']} mm "
+                    f"deep in the cover. Nothing passes through the plate: a fan shroud is not "
+                    f"worth a hole in the pressure boundary. The pilots are also set inboard so "
+                    f"that forming a thread does not swell the cord's sealing land."})
+
+# ── the one thing that crosses the boundary ───────────────────────────────
+wire = None
+for a, b in (((WIRE_X, -WIRE_Y, -34), (WIRE_X, -WIRE_Y, 12)),):
+    wire = Pos(a[0], a[1], a[2]) * Cylinder(2.0, b[2] - a[2],
+                                            align=(Align.CENTER, Align.CENTER, Align.MIN))
+pot = Pos(WIRE_X, -WIRE_Y, COVER_T - 0.3) * Box(9.0, 16.0, 3.3,
+                                                align=(Align.CENTER, Align.CENTER, Align.MIN))
+NEAR = Pos(WIRE_X, -WIRE_Y, -10) * Box(80, 80, 70, align=(Align.CENTER,)*3)
+rgba, _ = render_multi([(COVER & NEAR, DEEP), (wire, COPPER), (pot & NEAR, (0.25, 0.25, 0.27))],
+                       az=36, el=-26, W=1050, H=760)
+png("cad/out/sub_wire_pass.png", rgba)
+out.append({"name": "sub_wire_pass",
+            "title": "FAN LEADS - the only penetration that is not a screw",
+            "note": f"O{WIRE_D:.0f} at ({WIRE_X:.1f}, {WIRE_Y:.0f}), in the 10.7 mm strip between "
+                    f"the heatsink seat and the shroud wall, so it sits UNDER the shroud where "
+                    f"spray cannot reach it. The rectangular dam on the inner face is a cup for "
+                    f"the potting compound - a flat face lets it run off before it cures. "
+                    f"Countersunk on the weather side so the plug has a fillet to key into."})
+
+# ── the three bulkhead fittings, in their blocks ──────────────────────────
+# A whole-cover render shows three small holes on a face you cannot see, which
+# is why all three were allowed to sit in mid air for three revisions. These two
+# views exist to show WHICH face they are in and WHICH WAY they point.
+BACK = H["DEPTH"] + H["GASKET_C"] + H["COVER_T"]
+def _asm(shape):
+    """Cover-local -> assembled: flown Rot(180,0,0) onto the back of the unit,
+    so that DOWN in these pictures is down on the boat. The first cut of this
+    view drew the cover in its own frame, where +y is the boat's DOWN, and every
+    fitting appeared to point at the sky."""
+    return Pos(0, 0, BACK) * Rot(180, 0, 0) * shape
+
+def fit_parts(crop):
+    plate = _asm(COVER & crop)
+    out_ = [(plate, DEEP)]
+    _y = -(BLK_Y0 + BLK_Y1)/2                   # cover-local y of the block
+    for _x, _bore, _fl, _col in ((GL_X, 14.5, 22.0, STEEL),
+                                 (SMA_X, 8.2, 12.7, BRASS),
+                                 (VENT_X, 10.5, 19.0, STEEL)):
+        body = (Pos(_x, _y - 6.0, BORE_Z) * Rot(90, 0, 0)
+                * Cylinder(_fl/2, 6.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+        tail = (Pos(_x, _y - 30.0, BORE_Z) * Rot(90, 0, 0)
+                * Cylinder(_bore/2 - 1.0, 24.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+        out_ += [(_asm(body), _col), (_asm(tail), DARK)]
+    return out_
+
+WIDE = Pos(0, 0, -BUMP_H/2) * Box(400, 260, 160, align=(Align.CENTER,)*3)
+rgba, _ = render_multi(fit_parts(WIDE), az=150, el=24, W=1150, H=780)
+png("cad/out/sub_fittings_context.png", rgba)
+out.append({"name": "sub_fittings_context",
+            "title": "CABLE ENTRY, VENT AND COAX - where they are",
+            "note": f"Seen from behind and below. All three are in blocks that fill the "
+                    f"dead pockets beside the bay bumps, and all three bore HORIZONTALLY and "
+                    f"exit DOWNWARD. Nothing is on the cover's flat face - the bays own it, "
+                    f"and the three fittings used to be placed in that void with nothing "
+                    f"under them."})
+
+NEAR = Pos(GL_X + 10, -(BLK_Y0 + BLK_Y1)/2, -BUMP_H/2) * Box(120, 120, 110, align=(Align.CENTER,)*3)
+rgba, _ = render_multi(fit_parts(NEAR), az=140, el=30, W=1050, H=760)
+png("cad/out/sub_fittings_detail.png", rgba)
+out.append({"name": "sub_fittings_detail",
+            "title": "THE Pi-SIDE BLOCK - M16 gland and M8 SMA",
+            "note": f"M16x1.5 straight gland at x={GL_X:.0f} and an M8x0.75 IP67 SMA at "
+                    f"x={SMA_X:.0f}, both tapped straight into the block and both wrenched "
+                    f"from below with the cover on the bench, before anything else is "
+                    f"fitted. Facing down means an automatic drip loop, no standing water "
+                    f"on a seal and no sun on a nylon gland."})
 
 json.dump(out, open("cad/out/subdims.json", "w"), indent=1)
 for v in out:

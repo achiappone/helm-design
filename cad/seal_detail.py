@@ -18,6 +18,7 @@ from render import render_multi, png
 H = json.load(open("cad/out/housing.json"))
 OUT_H, DEPTH, COVER_T, RIM = H["OUT_H"], H["DEPTH"], H["COVER_T"], H["RIM"]
 GASKET_T, GASKET_C, GASKET_W = H["GASKET_T"], H["GASKET_C"], H["GASKET_W"]
+GASKET_D = H["GASKET_D"]            # groove depth
 GASKET_OUT, LAND_IN, BOLT_INSET = H["GASKET_OUT"], H["LAND_IN"], H["BOLT_INSET"]
 
 # The brim face runs outer edge -> land -> screw -> web -> foam -> lip -> cavity.
@@ -92,10 +93,17 @@ KEEP = Pos(SX + SEC_D/2, (Y0 + Y1)/2, (Z0 + Z1)/2) * Box(
 
 sh = SHELL & KEEP
 cv = COVER_ASM & KEEP
-# The band as ASSEMBLED - GASKET_C tall, because it is already squashed here.
-# GASKET_T is what you cut it from and is drawn as the dashed outline in SVG.
-foam = Pos(SX + SEC_D/2, G_OUT_Y - GASKET_W/2, DEPTH) * Box(
-    SEC_D, GASKET_W, GASKET_C, align=(Align.CENTER, Align.CENTER, Align.MIN))
+# THE SEAL IS A CORD IN A GROOVE AGAIN, not a flat band squeezed on the face.
+# That matters to this drawing in a way it did not before: a band held the cover
+# GASKET_C off the brim, so there was a visible gap to draw. A cord closes
+# METAL-TO-METAL - the cover lands on the brim and the cord is squashed down
+# into its groove - so GASKET_C is 0 and the old band Box was zero-height, which
+# is what killed this script.
+#
+# Drawn as the cord filling the groove: GASKET_W wide by GASKET_D deep, sitting
+# in the cut. The round O3.0 it was before assembly is the dashed outline below.
+foam = Pos(SX + SEC_D/2, G_OUT_Y - GASKET_W/2, DEPTH - GASKET_D) * Box(
+    SEC_D, GASKET_W, GASKET_D, align=(Align.CENTER, Align.CENTER, Align.MIN))
 # The trade rev C makes by moving the screws out: they are now in the WET
 # zone. The shell's pilot is blind and never reaches the cavity, so the leak
 # path is the COVER's through-hole - every one of these needs a bonded sealing
@@ -127,12 +135,15 @@ def leader(pt, label, dx, dy, anchor="start"):
             f'font-family="IBM Plex Mono,monospace" font-size="17" font-weight="500" '
             f'text-anchor="{anchor}" dy="6">{label}</text>')
 
-# The foam AS BOUGHT, dashed, in the cut plane. It overlaps the cover because
-# that overlap IS the squeeze: GASKET_T - GASKET_C of interference is what the
-# brim screws pull out.
-_uncut = " ".join("%.1f,%.1f" % proj(p) for p in (
-    (SX, G_OUT_Y, DEPTH), (SX, G_OUT_Y - GASKET_W, DEPTH),
-    (SX, G_OUT_Y - GASKET_W, DEPTH + GASKET_T), (SX, G_OUT_Y, DEPTH + GASKET_T)))
+# The cord AS BOUGHT - round, O GASKET_T - dashed in the cut plane, sitting on
+# the groove mouth. It stands proud of the brim face by GASKET_T - GASKET_D, and
+# THAT overlap is the squeeze the brim screws pull out.
+_cy0 = G_OUT_Y - GASKET_W/2
+_cz0 = DEPTH - GASKET_D + GASKET_T/2
+import math as _m
+_uncut = " ".join("%.1f,%.1f" % proj(
+    (SX, _cy0 + GASKET_T/2*_m.cos(_a*_m.pi/8), _cz0 + GASKET_T/2*_m.sin(_a*_m.pi/8)))
+    for _a in range(16))
 
 svg = [f'<svg viewBox="0 0 {W} {H_PX}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">',
        f'<image href="data:image/png;base64,{base64.b64encode(open("cad/out/seal_detail.png","rb").read()).decode()}" '
@@ -148,13 +159,13 @@ svg = [f'<svg viewBox="0 0 {W} {H_PX}" xmlns="http://www.w3.org/2000/svg" style=
               -250, 120, "end"),
        leader((SX, OUT_H/2, COVER_IN + COVER_T/2), f"REAR COVER {COVER_T:.0f}", -200, -60, "end"),
        leader((SX, OUT_H/2, DEPTH), f"SHELL BRIM - RIM {RIM:.0f}", -200, 60, "end"),
-       leader((SX, G_OUT_Y, DEPTH + GASKET_T),
-              f"BAND {GASKET_W:.1f} W, {GASKET_OUT:.1f} IN FROM EDGE", 160, 82),
-       leader((SX, G_OUT_Y - GASKET_W/2, DEPTH + GASKET_C/2),
-              f"FOAM {GASKET_T:.0f} AS CUT -> {GASKET_C} CLOSED", 116, 110),
+       leader((SX, G_OUT_Y, DEPTH - GASKET_D),
+              f"GROOVE {GASKET_W:.2f} W x {GASKET_D:.2f} D, {GASKET_OUT:.1f} IN FROM EDGE", 160, 82),
+       leader((SX, G_OUT_Y - GASKET_W/2, DEPTH - GASKET_D/2),
+              f"O{GASKET_T:.0f} CORD - COVER LANDS METAL TO METAL", 116, 110),
        '</svg>']
 open("cad/out/seal_detail.svg", "w").write("".join(svg))
 print(f"  section at x={SX:.1f} on the top rail (bolt {BOLT_INSET:.2f} in, "
-      f"foam {GASKET_OUT:.2f} in): screw clears the band by "
+      f"groove {GASKET_OUT:.2f} in): screw clears the groove by "
       f"{(RAIL_Y - PILOT_R) - G_OUT_Y:.2f} mm, band continuous")
 print(f"  seal_detail.svg  ({len(''.join(svg))//1024} KB)")

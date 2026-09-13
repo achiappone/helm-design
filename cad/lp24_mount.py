@@ -34,7 +34,8 @@ CORD_D = 3.0
 GW, GD = CORD_D*1.15, CORD_D*0.77
 GL, GH, GR = 98.0, 70.0, 10.0
 
-CABLE_D = 14.0                            # SET FROM YOUR CABLE
+import json as _j
+CABLE_D = _j.load(open("cad/out/housing.json"))["CABLE_D"]   # set by the housing's M16 gland - do not retype
 OPEN_L, OPEN_W = 36.0, 28.0
 LIP_H, LIP_T = 5.0, 2.5
 SR_X, SR_HALF, SR_INSERT = -4.0, 22.0, 5.6    # screws straddle the opening

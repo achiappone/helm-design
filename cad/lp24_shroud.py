@@ -36,7 +36,8 @@ CORD_D = 3.0
 GW, GD = CORD_D*1.15, CORD_D*0.77
 GL, GH, GR = 98.0, 70.0, 10.0
 
-CABLE_D  = 11.0                 # Belden 1058A jacket OD - VERIFY ON THE DATASHEET
+import json as _j
+CABLE_D  = _j.load(open("cad/out/housing.json"))["CABLE_D"]   # the housing's M16 gland clamps <= this
 FAN_W    = 30.0                 # fan-out trough for the stripped conductors
 FAN_D    = 5.0
 SR_HALF  = 22.0                 # screw half-pitch
@@ -160,3 +161,13 @@ print(f"CLAMP  vol={c.volume/1000:6.1f} cm3 solids={len(c.solids())} "
       f"bbox={bb.size.X:.0f}x{bb.size.Y:.0f}x{bb.size.Z:.0f}")
 print(f"       jacket Ø{CABLE_D} | 1.0 mm squeeze | fan trough {FAN_W:.0f} x {FAN_D:.0f}")
 print(f"       screw M4 x 30, engagement {PILOT_L:.0f} mm")
+
+# Published for cad/build_review.py: the page listed this part as 132 x 102 x 63
+# and ~98 g for several revisions. Sizes and masses come from the solids now.
+import json as _json
+_sb = s.bounding_box()
+_json.dump({"SHROUD_CM3": s.volume/1000.0, "CLAMP_CM3": c.volume/1000.0,
+            "SHROUD_BBOX": [_sb.size.X, _sb.size.Y, _sb.size.Z],
+            "CLAMP_BBOX": [bb.size.X, bb.size.Y, bb.size.Z],
+            "CABLE_D": CABLE_D},
+           open("cad/out/lp24.json", "w"), indent=1)
