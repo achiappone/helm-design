@@ -398,7 +398,10 @@ SENSORS = [                      # (name, shell x, shell y, pitch x, pitch y)
     ("ICM20948",  -60.0,  55.0, 20.32, 12.70),
 ]
 # Anchor x's are picked to clear what shares those bands: the bottom row must
-# miss the gland boss at x -150 and the Gore vent at -60. The top row used to
+# miss the gland boss at GL_X (-120) and the Gore vent at -60. That said -150
+# for two revisions while the boss was actually at -120; two independent
+# reviewers read the comment instead of the code and both computed the cable
+# swing off the wrong point. A number written twice is a number that drifts. The top row used to
 # have to dodge the GPS cradle at x 128..152 as well; that is gone, and the
 # anchors are left where they are rather than re-spaced for nothing.
 TIE_TOP = [ -40.0,   0.0,  60.0, 100.0]

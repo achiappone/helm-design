@@ -2,6 +2,7 @@
 import sys, json, base64
 sys.path.insert(0, "cad")
 from build123d import *
+from parts_lib import pi4, armor_lite, pican_m, drok as _drok, breakout, finned
 
 def _solid(path):
     """import_step may return a Compound; a Location on the wrapper is
@@ -19,26 +20,49 @@ BRACKET = _solid("cad/out/tilt_bracket_revC.stp")
 SHROUD_F = _solid("cad/out/heatsink_shroud_revD.stp")
 LP24_SH = _solid("cad/out/lp24_shroud_revD.stp")
 LP24_CL = _solid("cad/out/lp24_clamp_revD.stp")
+# Same fix as cad/assembly.py - see the long note there. Two bugs stacked:
+# fusing Noctua's 11 solids collapsed 96.0 cm3 into 5.6 and destroyed the frame
+# and impeller, and separately one unmeshable face out of 583 made the frame
+# raise on tessellate so the old filter silently dropped it. A Compound does no
+# boolean, and render.safe_tessellate keeps the 582 good faces.
 _fan_raw = import_step("NF-F12_iPPC_Public-CAD.stp")
-_fok = []
-for _s in _fan_raw.solids():
-    try:
-        _s.tessellate(0.25); _fok.append(_s)
-    except Exception:
-        pass
-FAN = _fok[0]
-for _s in _fok[1:]:
-    FAN = FAN + _s
+FAN = Compound(_fan_raw.solids())
+assert FAN.volume/1000 > 90.0, (
+    f"fan compound is {FAN.volume/1000:.1f} cm3, expected ~96 - something fused it")
 
 BLUE=(0.16,0.42,0.78); BLUE2=(0.13,0.34,0.64); GLASS=(0.10,0.12,0.16)
 GREEN=(0.10,0.42,0.24); DGREEN=(0.07,0.30,0.18); ALLOY=(0.62,0.65,0.69)
 BLACK=(0.13,0.13,0.15)
+# One colour per BOARD, not one colour for "a PCB". Every board used to be GREEN
+# or DGREEN - the Pi, the HAT, the MCP23017 and all three breakouts - so in a
+# colour render they were six identical green rectangles and you had to count
+# balloons to work out which was which. Distinct hues cost nothing and make the
+# stack readable without the BOM.
+PI_G   = (0.11, 0.46, 0.26)     # Raspberry Pi 4
+HAT_R  = (0.58, 0.16, 0.18)     # PiCAN-M - CAN boards are red, and it reads
+DROK_T = (0.12, 0.43, 0.47)     # DROK buck converter
+MCP_P  = (0.40, 0.25, 0.55)     # MCP23017 expander
+BRK_A  = (0.76, 0.47, 0.12)     # sensor breakouts
+SDR_G  = (0.20, 0.55, 0.35)     # RTL-SDR
+
+# Balloon captions. A bare number means cross-referencing the BOM to read the
+# drawing; the name is the thing you actually wanted.
+NAMES = {
+    1: "Visor",            2: "Front shell",      3: "12.3in display",
+    5: "DROK buck",        6: "Raspberry Pi 4",   7: "PiCAN-M HAT",
+    8: "Rear cover",       9: "LP-24 shroud",    10: "Strain clamp",
+    12: "MCP23017",       13: "Sensor breakout", 15: "RTL-SDR",
+    16: "Encoder",        17: "Push button",     28: "SMA bulkhead",
+    31: "Tilt bracket",   32: "Fan shroud",      33: "Alloy plate",
+    34: "Heatsink",       35: "NF-F12 fan",      36: "Whip antenna",
+    38: "RG316 pigtail",
+}
 
 disp = Box(305, 125, 10, align=(Align.CENTER, Align.CENTER, Align.MIN))
 
 # sensor breakouts, from the Adafruit fab prints
-mcp23017 = Box(43.18, 17.78, 1.6, align=(Align.CENTER, Align.CENTER, Align.MIN))
-brk      = Box(25.40, 17.78, 1.6, align=(Align.CENTER, Align.CENTER, Align.MIN))
+mcp23017 = breakout(35.0, 25.4)   # expander, a bit bigger than a breakout
+brk      = breakout(25.40, 17.78)
 sdr      = Box(68, 27, 12, align=(Align.CENTER, Align.CENTER, Align.MIN))
 # SMA bulkhead + whip. Antenna is 185 mm; shown truncated so the sheet fits.
 # SMA female bulkhead, M16 waterproof box: hex body, O-ring, threaded shank
@@ -54,24 +78,27 @@ whip = (Cylinder(6.5, 34, align=(Align.CENTER, Align.CENTER, Align.MIN))
 # RG316 pigtail, 150 mm, bulkhead to SMA male
 pigtail = sweep(Circle(1.3), path=Spline((0, 0, 0), (-26, 14, -34), (-40, 6, -78),
                                          (-20, -18, -112), (10, -22, -140)))
-pi   = (Box(85, 56, 1.6, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        + Pos(28, 0, 1.6) * Box(28, 50, 13.5, align=(Align.CENTER, Align.CENTER, Align.MIN)))
-hat  = Box(65, 56.5, 1.6, align=(Align.CENTER, Align.CENTER, Align.MIN))
-drok = Box(65, 58, 20, align=(Align.CENTER, Align.CENTER, Align.MIN))
+# Recognisable envelopes, shared with assembly.py and subassemblies.py so the
+# three views cannot drift. See cad/parts_lib.py for what these are and are not.
+pi   = pi4()
+armor = armor_lite()
+hat  = pican_m()
+drok = _drok()
 
 # item number -> (shape, colour, balloon anchor)  numbers match the BOM
 ITEMS = [
     (1, Pos(0, 0, -390) * VISOR,             BLUE,   (0, 30, -390)),
     (2, Pos(0, 0, -150) * SHELL,             BLUE,   (-160, 40, -130)),
     (3, Pos(DISP_CX, H["DISP_CY"], 110) * disp,         GLASS,  (DISP_CX-120, H["DISP_CY"], 115)),
-    (5, Pos(-140, 45, 470) * drok,           ALLOY,  (-160, 45, 480)),
-    (6, Pos(80, -25, 460) * pi,              GREEN,  (120, -25, 462)),
-    (7, Pos(80, -25, 530) * hat,             DGREEN, (120, -25, 532)),
+    (5, Pos(-140, 45, 470) * drok,           DROK_T,  (-160, 45, 480)),
+    (6, Pos(80, -25, 460) * pi,              PI_G,  (120, -25, 462)),
+    (6, Pos(80, -25, 496) * armor,            ALLOY,  None),
+    (7, Pos(80, -25, 560) * hat,             HAT_R, (120, -25, 532)),
     (8, Pos(0, 0, 700) * COVER,              BLUE2,  (165, 0, 706)),
     (31, Pos(0, -260, 620) * BRACKET,        (0.10,0.26,0.52), (-190, -260, 616)),
     (33, Pos(118, 0, 830) * Box(114, 114, 6, align=(Align.CENTER,)*3), ALLOY, (200, 0, 826)),
-    (34, Pos(118, 30, 890) * Box(100, 40, 20, align=(Align.CENTER,)*3), ALLOY, None),
-    (34, Pos(118, -30, 890) * Box(100, 40, 20, align=(Align.CENTER,)*3), ALLOY, (200, -30, 886)),
+    (34, Pos(118, 30, 890) * Pos(0, 0, -10) * finned(100, 40, 20), ALLOY, None),
+    (34, Pos(118, -30, 890) * Pos(0, 0, -10) * finned(100, 40, 20), ALLOY, (200, -30, 886)),
     (35, Pos(118, 0, 1000) * Rot(90, 0, 0) * FAN, (0.42,0.30,0.26), (200, 0, 1010)),
     (17, Pos(-159.5, 45, -250) * Rot(0, 0, 0) * Cylinder(7.5, 21), BLACK, (-215, 45, -254)),
     (17, Pos(-159.5, 21, -250) * Cylinder(7.5, 21), BLACK, None),
@@ -81,11 +108,11 @@ ITEMS = [
     (32, Pos(118, 0, 1120) * SHROUD_F, BLUE2, (200, 0, 1150)),
     (9,  Pos(-150, -230, 1290) * LP24_SH, BLUE, (-215, -230, 1300)),
     (10, Pos(-150, -230, 1230) * LP24_CL, BLUE2, None),
-    (12, Pos(-155, 42, 690) * mcp23017,      DGREEN, (-200, 42, 686)),
-    (13, Pos(-155, 4, 690) * brk,            DGREEN, (-200, 4, 686)),
-    (13, Pos(-72, -50, 690) * brk,           DGREEN, None),
-    (13, Pos(-30, -50, 690) * brk,           DGREEN, None),
-    (15, Pos(-150, 150, -140) * Rot(-90,0,0) * Box(18,18,8.6, align=(Align.CENTER,)*3), (0.20,0.55,0.35), (-190, 150, -140)),
+    (12, Pos(-155, 42, 690) * mcp23017,      MCP_P, (-200, 42, 686)),
+    (13, Pos(-155, 4, 690) * brk,            BRK_A, (-200, 4, 686)),
+    (13, Pos(-72, -50, 690) * brk,           BRK_A, None),
+    (13, Pos(-30, -50, 690) * brk,           BRK_A, None),
+    (15, Pos(-150, 150, -140) * Rot(-90,0,0) * Box(18,18,8.6, align=(Align.CENTER,)*3), SDR_G, (-190, 150, -140)),
     (28, Pos(-165, 150, -150) * Rot(-90,0,0) * sma_bulk,  ALLOY, (-200, 150, -150)),
     (36, Pos(-165, 205, -150) * Rot(-90,0,0) * whip,      BLACK, (-208, 300, -150)),
     (38, Pos(-165, 118, -150) * Rot(-90,0,0) * pigtail,  (0.78,0.55,0.42), (-208, 108, -150)),
