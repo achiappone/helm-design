@@ -1472,7 +1472,7 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "INT_W":INT_W,"INT_H":INT_H,
            "PILOT_L":PILOT_L,"M3_CLEAR":M3_CLEAR,
            "BRIM_SCREW_L":COVER_T + PILOT_L - 1.0,
-           "MOD_W":MOD_W,"MOD_H":MOD_H,"MOD_D":MOD_D,"CLR":CLR,
+           "MOD_W":MOD_W,"MOD_H":MOD_H,"MOD_D":MOD_D,"CLR":CLR,"GLUE_T":GLUE_T,
            "ACT_W":ACT_W,"ACT_H":ACT_H,
            "BTN_PITCH":BTN_PITCH,"BTN_DOME":BTN_DOME,"KNOB_OD":KNOB_OD,
            "PI_BUMP_L":PI_BUMP_L,"PI_BUMP_W":PI_BUMP_W,

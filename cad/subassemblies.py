@@ -159,7 +159,7 @@ def fit_parts(crop):
     return out_
 
 WIDE = Pos(0, 0, -BUMP_H/2) * Box(400, 260, 160, align=(Align.CENTER,)*3)
-rgba, _ = render_multi(fit_parts(WIDE), az=150, el=24, W=1150, H=780)
+rgba, _ = render_multi(fit_parts(WIDE), az=210, el=150, W=1150, H=780)
 png("cad/out/sub_fittings_context.png", rgba)
 out.append({"name": "sub_fittings_context",
             "title": "CABLE ENTRY, VENT AND COAX - where they are",
@@ -170,7 +170,7 @@ out.append({"name": "sub_fittings_context",
                     f"under them."})
 
 NEAR = Pos(GL_X + 10, -(BLK_Y0 + BLK_Y1)/2, -BUMP_H/2) * Box(120, 120, 110, align=(Align.CENTER,)*3)
-rgba, _ = render_multi(fit_parts(NEAR), az=140, el=30, W=1050, H=760)
+rgba, _ = render_multi(fit_parts(NEAR), az=200, el=145, W=1050, H=760)
 png("cad/out/sub_fittings_detail.png", rgba)
 out.append({"name": "sub_fittings_detail",
             "title": "THE Pi-SIDE BLOCK - M16 gland and M8 SMA",
