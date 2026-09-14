@@ -350,17 +350,34 @@ M25_PILOT, STANDOFF_H, STANDOFF_D = 2.2, 1.5, 6.0   # 1.5 + 1.6 board = 3.1
 # if the bumps do not reach the same plane the part balances on two r13 tips
 # when you try to print it - 429 mm2 of bed contact on a 334 x 177 ASA plate.
 SHROUD_ENVELOPE = 112.0             # ceiling the finished shroud must fit
-TRUN_X, TRUN_WEB_T = 156.0, 8.0
-TRUN_STAND, TRUN_R, TRUN_LAND = 18.0, 13.0, 3.0
-TRUN_BORE, TRUN_BORE_D = 7.0, 9.0
-TRUN_GUSSET = 10.0                  # root fillet, fore and aft of the web
+# THE TRUNNION CARRIES THE WHOLE UNIT on two joints, in ASA, on a boat. It was
+# an 8 mm web with a r13 land and a thread formed straight into the plastic -
+# adequate on paper and thin everywhere it mattered. Heavier now, in all three
+# directions that matter, and each one is bounded by something real:
+#   WEB 8 -> 12   the root is in cross-layer bending at 60 C; section modulus
+#                 goes as the thickness, so this is the cheapest strength on
+#                 the part. Bounded inboard by the bay bump.
+#   STAND 18 -> 22  a longer neck, which costs nothing in width and buys the
+#                 arm's eye its clearance (EYE_R must stay under it).
+#   LAND r13 -> r15  the disc the serrated washer bites: bearing area goes as
+#                 r^2, so 15 is a third more face for 2 mm of radius.
+# And the joint stops being a thread in plastic: a 316 NYLOC sits captive in a
+# hex pocket in the web's inboard face and the bolt pulls against steel.
+TRUN_X, TRUN_WEB_T = 156.0, 12.0
+TRUN_STAND, TRUN_R, TRUN_LAND = 22.0, 15.0, 3.0
+TRUN_BORE = 5.4                     # M5 316 clearance, through to the nut
+TRUN_NUT_AF, TRUN_NUT_DEEP = 8.0, 6.0     # M5 316 nyloc, captive in the web
+TRUN_GUSSET = 16.0                  # root fillet, fore and aft of the web
 
 # 18 -> 31, DERIVED. Three faults, one number. At 18 the cover had no flat face
 # to print on, the Pi stack did not fit the bay it bolts into, and the three
 # bulkhead fittings had nowhere on the part to go. At TRUN_STAND + TRUN_R the
 # bumps' backs are coplanar with the trunnion tips, the bay is 13 mm deeper, and
 # the dead pockets beside each bump end become tall enough to take a flange.
-PI_BUMP_L, PI_BUMP_W = 88.0, 125.0
+# 88 -> 82. The web thickened inboard by 4 mm and the bumps reached to 146
+# against a web that now starts at 144. 82 is the floor the Pi's own connector
+# clearance sets, asserted below - so this is the whole of the room there is.
+PI_BUMP_L, PI_BUMP_W = 82.0, 125.0
 PI_BUMP_H = TRUN_STAND + TRUN_R
 PI_BOARD_L, PI_BOARD_W = 56.0, 85.0         # Pi 4, on its side
 PI_CONN = 20.0                              # cable turn clearance at HDMI/USB-C
@@ -588,7 +605,10 @@ assert HS_PLATE_X >= AP and HS_PLATE_Y >= AP, "plate does not cover the aperture
 # through one costs nothing in width or depth because it never reaches past the
 # bumps' back plane. Downward-facing also means: no standing water, no sun on a
 # nylon gland, and an automatic drip loop on the cable.
-BLK_X0, BLK_X1 = 98.0, 152.0        # mirrored, one block per bottom pocket
+# DERIVED from the bump, not typed: the block is fused to the bump's end wall,
+# so when the bump moved 4 mm the block has to move with it or it hangs in air.
+BLK_X0 = abs(PI_BUMP_CX) - PI_BUMP_L/2 + 34.0
+BLK_X1 = abs(PI_BUMP_CX) + PI_BUMP_L/2 + 6.0
 BLK_Y0, BLK_Y1 = -76.0, -62.5       # from the bump's end wall outward
 BLK_CHAM = 2.0
 BORE_Z = -PI_BUMP_H/2               # bores on the block's mid-height
@@ -601,7 +621,7 @@ BORE_Z = -PI_BUMP_H/2               # bores on the block's mid-height
 # COST: M16 clamps 5-10 mm, so the tail has to be <= 10 mm OD. A 24 x 24 AWG
 # overall-shielded cable is about that; parallel three pins each for +12 V and
 # ground on the LP-24 rather than running heavier cores.
-GL_X, GL_TAP, GL_FLANGE = -113.0, 14.5, 22.0
+GL_X, GL_TAP, GL_FLANGE = -110.0, 14.5, 22.0
 CABLE_D = 10.0                      # the most an M16 gland clamps; the LP-24 parts read this
 # Gore M12x1.5, TAPPED rather than clearance + locknut: a O19 locknut pocket at
 # this x reaches the bay void's wall with 0.00 mm to spare.
@@ -616,7 +636,9 @@ VENT_X, VENT_TAP, VENT_FLANGE = 133.0, 10.5, 19.0
 # smallest: a plain M8x0.75 IP67 SMA bulkhead in a sheltered, downward-facing
 # seat, with no raised sealing pad needed on either side because the block's
 # faces are flat by construction.
-SMA_X, SMA_D, SMA_CB_D, SMA_CB_Y = -134.0, 8.2, 15.0, -59.0
+# 134 -> 131: the O15 nut counterbore has to stay inside the bay void, and the
+# void's outer wall came in with the narrower bump.
+SMA_X, SMA_D, SMA_CB_D, SMA_CB_Y = -131.0, 8.2, 15.0, -59.0
 ANT_MOUNT = True                    # now means "coax entry", not "whip mount"
 # All of these lie in the 4.5 mm behind the display panel (1.5 standoff +
 # 1.6 board = 3.1), and all must stay INBOARD of the cover's sealing face.
@@ -1423,26 +1445,44 @@ for sx in (-1, 1):
         c += _g
     c += (Pos(sx*TRUN_X, _ty, -TRUN_STAND) * Rot(0, 90*sx, 0)
           * Cylinder(TRUN_R, TRUN_LAND, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+    # ---- the pivot bolt's path, and the nut at the end of it -------------
+    # It used to be a O7 blind pocket 9 deep, meant for a heat-set insert - an
+    # insert that does not exist at that size, in a hole that was a stagnant
+    # salt pocket behind it. It is a THROUGH BORE now, from the land's face all
+    # the way to the web's inboard face, with a captive M5 316 NYLOC in a hex
+    # pocket at the far end. The bolt pulls steel against steel; the ASA is only
+    # in compression between them, which is the one thing it is good at.
     _v0 = c.volume
+    _thru = TRUN_LAND + TRUN_WEB_T
     c -= (Pos(sx*(TRUN_X + TRUN_LAND), _ty, -TRUN_STAND) * Rot(0, -90*sx, 0)
-          * Cylinder(TRUN_BORE/2, TRUN_BORE_D, align=(Align.CENTER, Align.CENTER, Align.MIN)))
-    _want = math.pi*(TRUN_BORE/2)**2 * TRUN_BORE_D
-    # TEARDROP. The cover prints bumps-down, which puts this bore HORIZONTAL:
-    # its crown is an unsupported arc that sags, and the insert then goes into
-    # an oval. A 45 deg apex above the axis turns the crown into two walls that
-    # bridge themselves. "Above" in the print is -z here (the part is flown
-    # upside down onto the bed), so the apex points toward the bump backs.
-    # +, not -. The cover prints BUMPS DOWN, so the bed is at -z and "up" in
-    # the print is increasing z. The apex was below the bore, which is not a
-    # teardrop, it is a drip.
+          * Cylinder(TRUN_BORE/2, _thru, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+    # TEARDROP. The cover prints BUMPS DOWN, so the bed is at -z and "up" in the
+    # print is increasing z: a horizontal bore's crown sags, and a 45 deg apex
+    # ABOVE the axis bridges it. The apex pointed at the bed once, which is not
+    # a teardrop, it is a drip.
     c -= (Pos(sx*(TRUN_X + TRUN_LAND), _ty, -TRUN_STAND + TRUN_BORE*0.25)
           * Rot(0, -90*sx, 0) * Rot(0, 0, 45)
-          * Box(TRUN_BORE*0.707, TRUN_BORE*0.707, TRUN_BORE_D,
+          * Box(TRUN_BORE*0.707, TRUN_BORE*0.707, _thru,
                 align=(Align.CENTER, Align.CENTER, Align.MIN)))
+    _want = math.pi*(TRUN_BORE/2)**2 * _thru
     _got = _v0 - c.volume
-    assert _want*0.95 < _got < _want*1.35, (
+    assert _want*0.95 < _got < _want*1.45, (
         f"trunnion bore removed {_got:.0f} mm3, expected {_want:.0f} plus a "
-        f"teardrop - it is cutting outward into air instead of into the boss")
+        f"teardrop - it is cutting outward into air instead of through the boss")
+    # the hex pocket, cut from the web's INBOARD face so the nut drops in from
+    # the middle of the back where your fingers are, not from inside the box
+    _v0 = c.volume
+    _nut_cr = TRUN_NUT_AF/2/math.cos(math.pi/6)
+    c -= (Pos(sx*(TRUN_X - TRUN_WEB_T), _ty, -TRUN_STAND) * Rot(0, 90*sx, 0)
+          * extrude(RegularPolygon(_nut_cr, 6), TRUN_NUT_DEEP))
+    _want = (math.sqrt(3)/2*TRUN_NUT_AF**2 - math.pi*(TRUN_BORE/2)**2) * TRUN_NUT_DEEP
+    _got = _v0 - c.volume
+    assert abs(_got - _want) < 0.25*_want, (
+        f"the nyloc pocket removed {_got:.0f} mm3, expected {_want:.0f} - it is "
+        f"cutting outboard into air, which leaves a joint with no nut in it")
+    assert TRUN_NUT_DEEP < TRUN_WEB_T - 3.0, (
+        f"a {TRUN_NUT_DEEP} mm nut pocket in a {TRUN_WEB_T} mm web leaves "
+        f"{TRUN_WEB_T - TRUN_NUT_DEEP:.1f} mm of ASA for the bolt to pull on")
 
 # -- heatsink aperture and seat --------------------------------------------
 # No internal boss: the shell interior is DEPTH-FACE_T and the panel takes MOD_D
@@ -1569,7 +1609,8 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "FRIC_R0":FRIC_R0,"FRIC_R1":FRIC_R1,"FRIC_SHIM":FRIC_SHIM,
            "FRIC_T":FRIC_T,"FRIC_CLAMP":FRIC_CLAMP,
            "TILT_Y":TILT_Y,"TRUN_X":TRUN_X,"TRUN_STAND":TRUN_STAND,
-           "TRUN_R":TRUN_R,"TRUN_LAND":TRUN_LAND,"SHROUD_W":SHROUD_W,"SHROUD_ENVELOPE":SHROUD_ENVELOPE,
+           "TRUN_R":TRUN_R,"TRUN_LAND":TRUN_LAND,"TRUN_WEB_T":TRUN_WEB_T,
+           "TRUN_BORE":TRUN_BORE,"TRUN_NUT_AF":TRUN_NUT_AF,"TRUN_NUT_DEEP":TRUN_NUT_DEEP,"SHROUD_W":SHROUD_W,"SHROUD_ENVELOPE":SHROUD_ENVELOPE,
            "R_EAR":R_EAR,"UPS_T":UPS_T,"PIV_BOLT":PIV_BOLT,
                       "DISP_CX":DISP_CX,"DISP_CY":DISP_CY,
            # --- published for cad/build_review.py -------------------------

@@ -17,6 +17,7 @@ Shared so that exploded.py, assembly.py and subassemblies.py draw the same
 thing. They used to each have their own idea of a heatsink.
 """
 from build123d import *
+import math
 
 MIN = (Align.CENTER, Align.CENTER, Align.MIN)
 CEN = (Align.CENTER,) * 3
@@ -117,4 +118,33 @@ def breakout(l=25.4, w=17.8):
     """Adafruit-style breakout: small board with a header along one edge."""
     s = pcb(l, w, 1.2, comps=[(0, 0, 6, 6, 1.2)])
     s += Pos(0, w / 2 - 2.0, 1.2) * header(int(l / 2.54) - 1, rows=1, h=3.0)
+    return s
+
+
+def nyloc(af=8.0, h=5.0, bolt=5.0):
+    """A 316 nyloc nut: hex body with the nylon insert collar proud of it.
+
+    Drawn because "M5 nyloc" in a BOM is a line of text, and where the nut SITS
+    is a geometric question - it needs a pocket, a face to bear on, and a hand
+    to reach it. Three of these were specified on this unit before any of them
+    had somewhere to go."""
+    cr = af / 2 / math.cos(math.pi / 6)
+    s = extrude(RegularPolygon(cr, 6), h)
+    s += Pos(0, 0, h) * Cylinder(cr * 0.86, 1.6, align=MIN)   # nylon collar
+    s -= Cylinder(bolt / 2, h + 4, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return s
+
+
+def cap_screw(d=5.0, length=25.0, head_d=None, head_h=None):
+    """A socket-head cap screw, drawn so a render shows which way it goes in."""
+    head_d = head_d or d * 1.6
+    head_h = head_h or d * 0.9
+    return (Cylinder(head_d / 2, head_h, align=MIN)
+            + Pos(0, 0, head_h) * Cylinder(d / 2, length, align=MIN))
+
+
+def push_button(bore=11.8, dome=17.5, barrel=13.0):
+    """Twidec PBS-33B: domed bezel in front of the panel, threaded barrel behind."""
+    s = Cylinder(dome / 2, 5.7, align=MIN)
+    s += Pos(0, 0, -barrel) * Cylinder(bore / 2 - 0.4, barrel, align=MIN)
     return s

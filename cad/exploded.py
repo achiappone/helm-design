@@ -2,7 +2,8 @@
 import sys, json, base64
 sys.path.insert(0, "cad")
 from build123d import *
-from parts_lib import pi4, armor_lite, pican_m, drok as _drok, breakout, finned
+from parts_lib import (pi4, armor_lite, pican_m, drok as _drok, breakout, finned,
+                       nyloc, cap_screw, push_button)
 
 def _solid(path):
     """import_step may return a Compound; a Location on the wrapper is
@@ -29,7 +30,7 @@ FAN = Pos(0, -40, 0) * FAN
 
 BLUE=(0.16,0.42,0.78); BLUE2=(0.13,0.34,0.64); GLASS=(0.10,0.12,0.16)
 GREEN=(0.10,0.42,0.24); DGREEN=(0.07,0.30,0.18); ALLOY=(0.62,0.65,0.69)
-BLACK=(0.13,0.13,0.15)
+BLACK=(0.13,0.13,0.15); STEEL=(0.78,0.79,0.82)
 # One colour per BOARD, not one colour for "a PCB". Every board used to be GREEN
 # or DGREEN - the Pi, the HAT, the MCP23017 and all three breakouts - so in a
 # colour render they were six identical green rectangles and you had to count
@@ -106,11 +107,16 @@ ITEMS = [
     (34, Pos(0, 0, 860) * Rot(180, 0, 0) * finned(H["HS_L"], H["HS_W"], H["HS_H"], base=3.0,
                                                   fin_t=1.4, gap=2.6, along_x=False), ALLOY, (80, 0, 856)),
     (35, Pos(0, 0, 1000) * FAN, (0.42,0.30,0.26), (100, 0, 1010)),
-    (17, Pos(-159.5, 45, -250) * Rot(0, 0, 0) * Cylinder(7.5, 21), BLACK, (-215, 45, -254)),
-    (17, Pos(-159.5, 21, -250) * Cylinder(7.5, 21), BLACK, None),
-    (17, Pos(-159.5, -3, -250) * Cylinder(7.5, 21), BLACK, None),
-    (17, Pos(-159.5, -27, -250) * Cylinder(7.5, 21), BLACK, None),
-    (16, Pos(-159.5, -55, -250) * Cylinder(10.25, 17.5), (0.72,0.60,0.25), (-215, -55, -254)),
+    # THE CONTROLS, at their real positions. They were drawn as a COLUMN at
+    # x=-159.5 - the rev B layout, deleted when the controls moved into a ROW
+    # under the display. The drawing kept showing four buttons stacked up the
+    # left-hand bezel, which is not where a single one of them is. Read from
+    # housing.json now, so the sheet cannot disagree with the part again.
+    (17, Pos(H["BTN_X"][0], H["ROW_CY"], -250) * push_button(H["BTN_D"], 17.5), BLACK, (H["BTN_X"][0]+60, H["ROW_CY"]-30, -254)),
+    (17, Pos(H["BTN_X"][1], H["ROW_CY"], -250) * push_button(H["BTN_D"], 17.5), BLACK, None),
+    (17, Pos(H["BTN_X"][2], H["ROW_CY"], -250) * push_button(H["BTN_D"], 17.5), BLACK, None),
+    (17, Pos(H["BTN_X"][3], H["ROW_CY"], -250) * push_button(H["BTN_D"], 17.5), BLACK, None),
+    (16, Pos(H["ENC_X"], H["ROW_CY"], -250) * Cylinder(10.25, 17.5), (0.72,0.60,0.25), (H["ENC_X"]-60, H["ROW_CY"]-30, -254)),
     (32, Pos(118, 0, 1120) * SHROUD_F, BLUE2, (200, 0, 1150)),
     (9,  Pos(-150, -230, 1290) * LP24_SH, BLUE, (-215, -230, 1300)),
     (10, Pos(-150, -230, 1230) * LP24_CL, BLUE2, None),
@@ -122,6 +128,20 @@ ITEMS = [
     (28, Pos(-165, 150, -150) * Rot(-90,0,0) * sma_bulk,  ALLOY, (-200, 150, -150)),
     (36, Pos(-165, 205, -150) * Rot(-90,0,0) * whip,      BLACK, (-208, 300, -150)),
     (38, Pos(-165, 118, -150) * Rot(-90,0,0) * pigtail,  (0.78,0.55,0.42), (-208, 108, -150)),
+    # THE PIVOT HARDWARE. Four M5 316 nylocs and two bolts that the sheet never
+    # drew, so the one question the drawing exists to answer - where does the
+    # nut go - had no answer on it.
+    # Placed OUTBOARD OF THE JOINT THEY BELONG TO, not in a hardware pile:
+    # the visor pair beside the shell's pivot ears, the bail pair beside the
+    # cover's trunnions. Where the nut goes is the question this sheet exists
+    # to answer.
+    (19, Pos(-200, H["PIV_Y"], -150) * Rot(0, -90, 0) * nyloc(8.0, 4.0), STEEL,
+         (-250, H["PIV_Y"], -146)),
+    (19, Pos(-232, H["PIV_Y"], -150) * Rot(0, -90, 0) * cap_screw(5.0, 25.0), STEEL, None),
+    (20, Pos(-200, H["TILT_Y"], 700) * Rot(0, -90, 0)
+         * nyloc(H["TRUN_NUT_AF"], H["TRUN_NUT_DEEP"] - 1.0, H["TRUN_BORE"]), STEEL,
+         (-250, H["TILT_Y"], 704)),
+    (20, Pos(-232, H["TILT_Y"], 700) * Rot(0, -90, 0) * cap_screw(5.0, 25.0), STEEL, None),
 ]
 parts = [(sh, col) for _n, sh, col, _a in ITEMS]
 BALLOONS = [(n, a) for n, _sh, _c, a in ITEMS if a is not None]

@@ -106,7 +106,7 @@ BRK = (Plane(origin=(0, _DASH_Y - _BJ["BASE_T"], _AXIS_Z),
 # page calls "Assembled", and until now they drew shell, cover, visor and bail
 # and stopped - no shroud, no fans, no heatsink, no boards. A reader could not
 # tell from them that the fan had changed, which is exactly what happened.
-from parts_lib import finned, pi4, armor_lite, pcb
+from parts_lib import finned, pi4, armor_lite, pcb, nyloc, cap_screw
 _BACK = H["DEPTH"] + H["COVER_T"] + H["GASKET_C"]
 # The LANDING FACE is shroud-local z = OD, not the part's bounding box: the
 # louvres stand LOUV_H proud on the other side, so using the bbox floated the
@@ -144,6 +144,69 @@ for _fx, _fd, _fl in ((H["GL_X"], H["GL_TAP"], 22.0), (H["VENT_X"], H["VENT_TAP"
              + Pos(_fx, H["BLK_Y0"] - 8.0, _FIT_Z) * Rot(90, 0, 0)
              * Cylinder(_fd/2 - 1.0, 18.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
     _FITS = _body if _FITS is None else _FITS + _body
+# ---- THE PIVOT HARDWARE, where it actually sits --------------------------
+# Four M5 316 nylocs on this unit and not one of them was drawn, so "where does
+# the nut go" was never a question anyone could answer by looking. Two are
+# captive in hex pockets in the TRUNNION WEBS, reached from the middle of the
+# back; two are in the VISOR EARS' outboard faces. The bolts pull steel against
+# steel through the printed boss, which is the only load ASA is good at.
+_STEEL = (0.78, 0.79, 0.82)
+_NUTS, _BOLTS = None, None
+for _sx in (-1, 1):
+    # bail pivot: bolt in from outboard, nut captive at the web's inboard face
+    _nz = _sx*(H["TRUN_X"] - H["TRUN_WEB_T"])
+    _n = (Pos(_nz, H["TILT_Y"], _AXIS_Z) * Rot(0, 90*_sx, 0)
+          * nyloc(H["TRUN_NUT_AF"], H["TRUN_NUT_DEEP"] - 1.0, H["TRUN_BORE"]))
+    _b = (Pos(_sx*(_BJ["ARM_FACE"] + _BJ["ARM_T"]), H["TILT_Y"], _AXIS_Z)
+          * Rot(0, -90*_sx, 0) * cap_screw(5.0, 25.0))
+    _NUTS = _n if _NUTS is None else _NUTS + _n
+    _BOLTS = _b if _BOLTS is None else _BOLTS + _b
+    # visor pivot: nut in the ear's OUTBOARD face
+    _vx = _sx*(H["PIV_X"][1] - 1.2)
+    _n2 = (Pos(_vx, H["PIV_Y"], H["PIV_Z"]) * Rot(0, 90*_sx, 0) * nyloc(8.0, 4.0, 5.0))
+    _NUTS = _NUTS + _n2
+
+# ---- THE ANTENNA, which is real and is not on the housing ----------------
+# The 185 mm whip moved off the rear cover: on a face that TILTS it points into
+# the dash, and it swept an arc through the bail arms and the visor. It is a
+# rail or hardtop mount now with a coax run - the same call the GPS puck got -
+# and the housing's job is the M8 SMA coax entry in the -x block.
+#
+# It is drawn anyway, in its place, because "not on the housing" reads as
+# "missing" in a render, and the one thing the assembled view has to show is
+# where the aerial and its cable actually go.
+_ANT_X, _ANT_Y = -215.0, -40.0
+_WHIP = (Pos(_ANT_X, _ANT_Y, 40) * Cylinder(9.0, 16, align=(Align.CENTER, Align.CENTER, Align.MIN))
+         + Pos(_ANT_X, _ANT_Y, 56) * Cylinder(6.5, 30, align=(Align.CENTER, Align.CENTER, Align.MIN))
+         + Pos(_ANT_X, _ANT_Y, 86) * Cone(6.5, 2.0, 14, align=(Align.CENTER, Align.CENTER, Align.MIN))
+         + Pos(_ANT_X, _ANT_Y, 100) * Cylinder(1.6, 95, align=(Align.CENTER, Align.CENTER, Align.MIN))
+         + Pos(_ANT_X, _ANT_Y, 195) * Cone(2.0, 5.5, 10, align=(Align.CENTER, Align.CENTER, Align.MIN))
+         + Pos(_ANT_X, _ANT_Y, 205) * Cylinder(5.5, 32, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+# rail mount: a clamp block on a length of 25 mm tube
+_RAIL = (Pos(_ANT_X, _ANT_Y, 0) * Rot(90, 0, 0) * Cylinder(12.5, 220, align=(Align.CENTER,)*3)
+         + Pos(_ANT_X, _ANT_Y, 18) * Box(30, 34, 26, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+# and the coax, from the whip's base round to the SMA entry under the -x block
+# ROUTED UNDER THE UNIT as straight runs with radiused corners. A Spline
+# through four points looked like a route on paper and came out as a loop of
+# coax hanging in mid air beside the boat - twice. Segments go where you put
+# them.
+def _run(pts, r=1.6):
+    out = None
+    for a, b in zip(pts, pts[1:]):
+        v = Vector(*b) - Vector(*a)
+        seg = Location(Plane(origin=a, z_dir=tuple(v))) * Cylinder(
+            r, v.length, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        out = seg if out is None else out + seg
+    for pt in pts[1:-1]:
+        out += Pos(*pt) * Sphere(r)
+    return out
+
+_SMA_Z = _BACK - H["BORE_Z"]
+_COAX = _run([(_ANT_X, _ANT_Y, 40),
+              (_ANT_X, -H["OUT_H"]/2 - 16, 40),
+              (H["SMA_X"], -H["OUT_H"]/2 - 16, _SMA_Z),
+              (H["SMA_X"], H["BLK_Y0"] - 10, _SMA_Z)])
+
 ALLOY, PI_G, DARK = (0.66, 0.68, 0.72), (0.11, 0.46, 0.26), (0.20, 0.20, 0.22)
 # The display itself. Without it the front view looks straight through the
 # aperture at the cover's inner face, and every reader took the bays for the
@@ -161,6 +224,8 @@ asm = [
     (_HS, ALLOY),
     (_PI, PI_G), (_ARM, ALLOY), (_DRV, (0.12, 0.43, 0.47)),
     (_FITS, (0.55, 0.56, 0.58)),
+    (_NUTS, _STEEL), (_BOLTS, _STEEL),
+    (_WHIP, DARK), (_RAIL, (0.72, 0.73, 0.76)), (_COAX, (0.78, 0.55, 0.42)),
 ]
 # Camera solved rather than guessed: az=198, el=-112 gives depth.z>0 (front
 # face nearest), up.y>0 (+Y up) and explode.z<0 (front of the stack on top).
