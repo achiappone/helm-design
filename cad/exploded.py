@@ -124,10 +124,14 @@ ITEMS = [
     (13, Pos(-155, 4, 690) * brk,            BRK_A, (-200, 4, 686)),
     (13, Pos(-72, -50, 690) * brk,           BRK_A, None),
     (13, Pos(-30, -50, 690) * brk,           BRK_A, None),
-    (15, Pos(-150, 150, -140) * Rot(-90,0,0) * Box(18,18,8.6, align=(Align.CENTER,)*3), SDR_G, (-190, 150, -140)),
-    (28, Pos(-165, 150, -150) * Rot(-90,0,0) * sma_bulk,  ALLOY, (-200, 150, -150)),
-    (36, Pos(-165, 205, -150) * Rot(-90,0,0) * whip,      BLACK, (-208, 300, -150)),
-    (38, Pos(-165, 118, -150) * Rot(-90,0,0) * pigtail,  (0.78,0.55,0.42), (-208, 108, -150)),
+    # THE AERIAL GOES ON TOP OF THE +x BUMP. It was laid out here at x=-165 on
+    # the shell's top wall, which is the rev B position - the bulkhead has been
+    # on the rear cover for two revisions and is now in the TOP block of the
+    # driver bump, boring UP. Exploded along +y, the way it is fitted.
+    (28, Pos(H["SMA_X"], 150, 700) * Rot(-90, 0, 0) * sma_bulk, ALLOY,
+         (H["SMA_X"] + 70, 150, 700)),
+    (38, Pos(H["SMA_X"] - 10, 96, 700) * Rot(-90, 0, 0) * pigtail, (0.78,0.55,0.42),
+         (H["SMA_X"] + 70, 96, 700)),
     # THE PIVOT HARDWARE. Four M5 316 nylocs and two bolts that the sheet never
     # drew, so the one question the drawing exists to answer - where does the
     # nut go - had no answer on it.

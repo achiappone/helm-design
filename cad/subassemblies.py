@@ -152,13 +152,19 @@ def fit_parts(crop):
     # beyond the face and grows back toward it. The first cut of this put them
     # at the block's mid-plane growing inward, i.e. inside the bay.
     _y0 = -BLK_Y0
-    for _x, _bore, _fl, _col in ((GL_X, 14.5, 22.0, STEEL),
-                                 (SMA_X, 8.2, 12.7, BRASS),
-                                 (VENT_X, 10.5, 19.0, STEEL)):
-        body = (Pos(_x, _y0 + 6.0, BORE_Z) * Rot(90, 0, 0)
+    # (x, bore, flange, colour, which block face it comes out of). The SMA is
+    # in the TOP block and faces UP; the other two are in the bottom blocks and
+    # face DOWN. Drawing all three on one face put the aerial under the boat.
+    for _x, _bore, _fl, _col, _face in ((GL_X, 14.5, 22.0, STEEL, BLK_Y0),
+                                        (VENT_X, 10.5, 19.0, STEEL, BLK_Y0),
+                                        (SMA_X, 8.2, 12.7, BRASS, H["BLK_TY0"])):
+        _out = -1.0 if _face < 0 else 1.0
+        _y0 = -_face
+        body = (Pos(_x, _y0 + _out*6.0, BORE_Z) * Rot(90*_out, 0, 0)
                 * Cylinder(_fl/2, 6.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
-        tail = (Pos(_x, _y0 + 30.0, BORE_Z) * Rot(90, 0, 0)
-                * Cylinder(_bore/2 - 1.0, 24.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+        _len = 24.0 if _face < 0 else 90.0        # the aerial is a whip, not a tail
+        tail = (Pos(_x, _y0 + _out*(6.0 + _len), BORE_Z) * Rot(90*_out, 0, 0)
+                * Cylinder(_bore/2 - 1.0, _len, align=(Align.CENTER, Align.CENTER, Align.MIN)))
         # cropped like the plate, or the vent floats in space beside a detail
         # of the Pi-side block
         _b, _t = body & crop, tail & crop
@@ -181,12 +187,13 @@ NEAR = Pos(GL_X + 10, -BLK_Y0 - 10, -BUMP_H/2) * Box(120, 130, 110, align=(Align
 rgba, _ = render_multi(fit_parts(NEAR), az=200, el=145, W=1050, H=760)
 png("cad/out/sub_fittings_detail.png", rgba)
 out.append({"name": "sub_fittings_detail",
-            "title": "THE Pi-SIDE BLOCK - M16 gland and M8 SMA",
-            "note": f"M16x1.5 straight gland at x={GL_X:.0f} and an M8x0.75 IP67 SMA at "
-                    f"x={SMA_X:.0f}, both tapped straight into the block and both wrenched "
-                    f"from below with the cover on the bench, before anything else is "
-                    f"fitted. Facing down means an automatic drip loop, no standing water "
-                    f"on a seal and no sun on a nylon gland."})
+            "title": "THE Pi-SIDE BLOCK - M16 gland, facing down",
+            "note": f"M16x1.5 straight gland at x={GL_X:.0f}, tapped into the block and "
+                    f"wrenched from below with the cover on the bench, before anything else "
+                    f"is fitted. Facing down means an automatic drip loop, no standing water "
+                    f"on a seal and no sun on a nylon gland. The M8 SMA is NOT here any more "
+                    f"- it moved to the TOP block of the driver bump at x={SMA_X:.0f}, where "
+                    f"it bores upward and the whip can stand up."})
 
 json.dump(out, open("cad/out/subdims.json", "w"), indent=1)
 for v in out:

@@ -166,46 +166,24 @@ for _sx in (-1, 1):
     _n2 = (Pos(_vx, H["PIV_Y"], H["PIV_Z"]) * Rot(0, 90*_sx, 0) * nyloc(8.0, 4.0, 5.0))
     _NUTS = _NUTS + _n2
 
-# ---- THE ANTENNA, which is real and is not on the housing ----------------
-# The 185 mm whip moved off the rear cover: on a face that TILTS it points into
-# the dash, and it swept an arc through the bail arms and the visor. It is a
-# rail or hardtop mount now with a coax run - the same call the GPS puck got -
-# and the housing's job is the M8 SMA coax entry in the -x block.
-#
-# It is drawn anyway, in its place, because "not on the housing" reads as
-# "missing" in a render, and the one thing the assembled view has to show is
-# where the aerial and its cable actually go.
-_ANT_X, _ANT_Y = -215.0, -40.0
-_WHIP = (Pos(_ANT_X, _ANT_Y, 40) * Cylinder(9.0, 16, align=(Align.CENTER, Align.CENTER, Align.MIN))
-         + Pos(_ANT_X, _ANT_Y, 56) * Cylinder(6.5, 30, align=(Align.CENTER, Align.CENTER, Align.MIN))
-         + Pos(_ANT_X, _ANT_Y, 86) * Cone(6.5, 2.0, 14, align=(Align.CENTER, Align.CENTER, Align.MIN))
-         + Pos(_ANT_X, _ANT_Y, 100) * Cylinder(1.6, 95, align=(Align.CENTER, Align.CENTER, Align.MIN))
-         + Pos(_ANT_X, _ANT_Y, 195) * Cone(2.0, 5.5, 10, align=(Align.CENTER, Align.CENTER, Align.MIN))
-         + Pos(_ANT_X, _ANT_Y, 205) * Cylinder(5.5, 32, align=(Align.CENTER, Align.CENTER, Align.MIN)))
-# rail mount: a clamp block on a length of 25 mm tube
-_RAIL = (Pos(_ANT_X, _ANT_Y, 0) * Rot(90, 0, 0) * Cylinder(12.5, 220, align=(Align.CENTER,)*3)
-         + Pos(_ANT_X, _ANT_Y, 18) * Box(30, 34, 26, align=(Align.CENTER, Align.CENTER, Align.MIN)))
-# and the coax, from the whip's base round to the SMA entry under the -x block
-# ROUTED UNDER THE UNIT as straight runs with radiused corners. A Spline
-# through four points looked like a route on paper and came out as a loop of
-# coax hanging in mid air beside the boat - twice. Segments go where you put
-# them.
-def _run(pts, r=1.6):
-    out = None
-    for a, b in zip(pts, pts[1:]):
-        v = Vector(*b) - Vector(*a)
-        seg = Location(Plane(origin=a, z_dir=tuple(v))) * Cylinder(
-            r, v.length, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        out = seg if out is None else out + seg
-    for pt in pts[1:-1]:
-        out += Pos(*pt) * Sphere(r)
-    return out
-
+# ---- THE ANTENNA, ON TOP OF THE DRIVER BUMP -----------------------------
+# It was drawn on a rail mount beside the unit with a coax run, which is where
+# it lived while the only SMA was on the cover's flat face pointing backwards.
+# The bulkhead moved into the TOP block of the +x bump and bores UP, so the whip
+# screws straight onto it and stands at the sky - no remote mount, no coax run,
+# nothing to lead round the outside of the boat.
 _SMA_Z = _BACK - H["BORE_Z"]
-_COAX = _run([(_ANT_X, _ANT_Y, 40),
-              (_ANT_X, -H["OUT_H"]/2 - 16, 40),
-              (H["SMA_X"], -H["OUT_H"]/2 - 16, _SMA_Z),
-              (H["SMA_X"], H["BLK_Y0"] - 10, _SMA_Z)])
+_SMA_Y = H["BLK_TY0"]
+_ANT = Pos(H["SMA_X"], _SMA_Y, _SMA_Z) * Rot(-90, 0, 0) * (
+    Cylinder(9.0, 16, align=(Align.CENTER, Align.CENTER, Align.MIN))            # base collar
+    + Pos(0, 0, 16) * Cylinder(6.5, 30, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    + Pos(0, 0, 46) * Cone(6.5, 2.0, 14, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    + Pos(0, 0, 60) * Cylinder(1.6, 95, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    + Pos(0, 0, 155) * Cone(2.0, 5.5, 10, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    + Pos(0, 0, 165) * Cylinder(5.5, 20, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+# the bulkhead body itself, sitting in the block with its nut inside
+_SMA = (Pos(H["SMA_X"], _SMA_Y, _SMA_Z) * Rot(-90, 0, 0)
+        * Cylinder(6.35, 5.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
 
 ALLOY, PI_G, DARK = (0.66, 0.68, 0.72), (0.11, 0.46, 0.26), (0.20, 0.20, 0.22)
 # The display itself. Without it the front view looks straight through the
@@ -225,7 +203,7 @@ asm = [
     (_PI, PI_G), (_ARM, ALLOY), (_DRV, (0.12, 0.43, 0.47)),
     (_FITS, (0.55, 0.56, 0.58)),
     (_NUTS, _STEEL), (_BOLTS, _STEEL),
-    (_WHIP, DARK), (_RAIL, (0.72, 0.73, 0.76)), (_COAX, (0.78, 0.55, 0.42)),
+    (_ANT, DARK), (_SMA, (0.80, 0.68, 0.24)),
 ]
 # Camera solved rather than guessed: az=198, el=-112 gives depth.z>0 (front
 # face nearest), up.y>0 (+Y up) and explode.z<0 (front of the stack on top).
