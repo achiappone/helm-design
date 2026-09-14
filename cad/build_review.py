@@ -257,6 +257,9 @@ a{{color:var(--accent)}}
     <span class="file">front shell + rear cover</span></div>
   <div class="grid">
     {pic("cad/out/asm_housing.png","Assembled - front","Nothing on the face. Every fastener is either behind the unit or hidden under the visor.")}
+    {pic("cad/out/asm_housing_left.png","Assembled - other shoulder","")}
+    {pic("cad/out/asm_housing_side.png","Assembled - side","The shroud's depth and how far the bail holds it off the dash.")}
+    {pic("cad/out/asm_housing_top.png","Assembled - from above","")}
     {pic("cad/out/asm_housing_rear.png","Assembled - rear",f"{NBOLT} M3 through the cover into the shell&rsquo;s brim, the fan shroud over the heatsink, and the bail arms on trunnions grown from the cover itself.")}
   </div>
   <div class="grid dwgs">
@@ -273,6 +276,7 @@ a{{color:var(--accent)}}
   <div class="grid">
     {pic("cad/out/exp_a.png","Exploded - three-quarter","")}
     {pic("cad/out/exp_b.png","Exploded - from the right","")}
+    {pic("cad/out/exp_c.png","Exploded - from the left","")}
     {pic("cad/out/exp_rear.png","Exploded - from BEHIND","The other two views show the display side of every part. The bumps, the fitting blocks, the three bulkheads, the shroud's louvres and all four bail pieces only read from this side.")}
   </div>
   <div class="flag w">

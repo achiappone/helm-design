@@ -1,5 +1,5 @@
 """Three exploded views; one as a numbered CAD-style assembly drawing."""
-import sys, json, base64
+import sys, json, base64, math
 sys.path.insert(0, "cad")
 from build123d import *
 from parts_lib import (pi4, armor_lite, pican_m, drok as _drok, breakout, finned,
@@ -53,6 +53,8 @@ NAMES = {
     5: "DROK buck",        6: "Raspberry Pi 4",   7: "PiCAN-M HAT",
     8: "Rear cover",       9: "LP-24 shroud",    10: "Strain clamp",
     12: "MCP23017",       13: "Sensor breakout", 15: "RTL-SDR",
+    14: "Audio ADC + DAC", 25: "LP-24 connector",
+    26: "M16 cable gland", 27: "M12 Gore vent",
     16: "Encoder",        17: "Push button",     28: "SMA bulkhead",
     31: "Bail base",      32: "Fan shroud",     34: "Heatsink 150x74x10",
     35: "80 mm IP67 fan x2", 36: "Whip antenna",
@@ -114,9 +116,9 @@ ITEMS = [
     # ONE 150 x 74 x 10 heatsink, base-out, where a 114 alloy plate and two
     # 100 x 40 x 20 strips used to be ballooned - parts that left the design
     # two revisions before this view stopped drawing them.
-    (34, Pos(0, 0, 860) * Rot(180, 0, 0) * finned(H["HS_L"], H["HS_W"], H["HS_H"], base=3.0,
+    (34, Pos(0, 0, 880) * Rot(180, 0, 0) * finned(H["HS_L"], H["HS_W"], H["HS_H"], base=3.0,
                                                   fin_t=1.4, gap=2.6, along_x=False), ALLOY, (80, 0, 856)),
-    (35, Pos(0, 0, 1000) * FAN, (0.42,0.30,0.26), (100, 0, 1010)),
+    (35, Pos(0, 0, 1120) * FAN, (0.42,0.30,0.26), (120, 0, 1020)),
     # THE CONTROLS, at their real positions. They were drawn as a COLUMN at
     # x=-159.5 - the rev B layout, deleted when the controls moved into a ROW
     # under the display. The drawing kept showing four buttons stacked up the
@@ -127,9 +129,11 @@ ITEMS = [
     (17, Pos(H["BTN_X"][2], H["ROW_CY"], -250) * push_button(H["BTN_D"], 17.5), BLACK, None),
     (17, Pos(H["BTN_X"][3], H["ROW_CY"], -250) * push_button(H["BTN_D"], 17.5), BLACK, None),
     (16, Pos(H["ENC_X"], H["ROW_CY"], -250) * Cylinder(10.25, 17.5), (0.72,0.60,0.25), (H["ENC_X"]-60, H["ROW_CY"]-30, -254)),
-    (32, Pos(118, 0, 1120) * SHROUD_F, BLUE2, (200, 0, 1150)),
-    (9,  Pos(-150, -230, 1290) * LP24_SH, BLUE, (-215, -230, 1300)),
-    (10, Pos(-150, -230, 1230) * LP24_CL, BLUE2, None),
+    # the shroud was off at x=118 while the heatsink and fans it covers sat on
+    # x=0. Three parts of one stack, drawn on two different axes.
+    (32, Pos(0, 0, 1400) * SHROUD_F, BLUE2, (150, 0, 1430)),
+    (9,  Pos(-150, -230, 1620) * LP24_SH, BLUE, (-215, -230, 1300)),
+    (10, Pos(-150, -230, 1560) * LP24_CL, BLUE2, (-215, -230, 1236)),
     # ITEM 15 WAS DELETED BY ACCIDENT when the old antenna block came out of
     # this list, and it had been wrong before that anyway - drawn as an
     # 18 x 18 x 8.6 box, which is the GPS module's envelope, at the rev B
@@ -138,6 +142,22 @@ ITEMS = [
     # clear of the cover in x and dropped below it, or the dongle disappears
     # behind the plate in the projection and the balloon points at nothing
     (15, Pos(H["DRV_CX"] + 110, 0, 620) * sdr, SDR_G, (H["DRV_CX"] + 165, 0, 616)),
+    # ---- the five the cross-check found with no shape on the sheet -------
+    # A BOM row nobody can point at is a part the builder has to find by
+    # reading prose. Each of these is where it is actually fitted.
+    (26, Pos(H["GL_X"], -132, 700) * Rot(90, 0, 0)
+         * Cylinder(11.0, 30, align=(Align.CENTER, Align.CENTER, Align.MIN)), ALLOY,
+         (H["GL_X"] - 70, -150, 700)),
+    (27, Pos(H["VENT_X"], -132, 700) * Rot(90, 0, 0)
+         * Cylinder(9.5, 20, align=(Align.CENTER, Align.CENTER, Align.MIN)), ALLOY,
+         (H["VENT_X"] + 70, -150, 700)),
+    (36, Pos(H["SMA_X"], 215, 700) * Rot(-90, 0, 0) * whip, BLACK,
+         (H["SMA_X"] + 80, 300, 700)),
+    (25, Pos(-150, -230, 1700) * Rot(0, 0, 0)
+         * Cylinder(16.5, 30, align=(Align.CENTER, Align.CENTER, Align.MIN)), ALLOY,
+         (-230, -230, 1370)),
+    (14, Pos(-250, 120, 690) * breakout(30.0, 20.0), (0.35,0.30,0.55),
+         (-320, 120, 686)),
     (12, Pos(-155, 42, 690) * mcp23017,      MCP_P, (-200, 42, 686)),
     (13, Pos(-155, 4, 690) * brk,            BRK_A, (-200, 4, 686)),
     (13, Pos(-72, -50, 690) * brk,           BRK_A, None),
@@ -166,6 +186,149 @@ ITEMS = [
     (20, Pos(-236, H["TILT_Y"], 700) * Rot(0, -90, 0)
          * lobe_knob(stud=B["KNOB_STUD"], boss_d=B["KNOB_BOSS_D"]), (0.20,0.20,0.22), None),
 ]
+# ══════════════════════════════════════════════ AND IT HAS TO BE VISIBLE
+# Being in ITEMS is not the same as being READABLE. Item 15 was in the list,
+# ballooned, and rendering - on top of the Pi stack, where you could not pick it
+# out. The fans were on x=0 while the shroud that covers them was on x=118.
+# Both passed every check there was, because every check asked "is it drawn".
+#
+# So the layout SOLVES ITSELF. The structural stack stays where it is, because
+# its positions mean something - that is the order the thing comes apart in.
+# Every other item is then placed one at a time, and if its projected box is
+# buried under what is already down, it gets pushed outward until it is not.
+# Hand-tuning 28 positions against a projection is a job nobody can do twice.
+STACK = {1, 2, 3, 8, 31, 32, 34, 35, 9}      # the assembly axis itself
+MAX_COVER = 0.45                              # of its own area, before it moves
+
+
+def _bbox2d(shape, proj):
+    b = shape.bounding_box()
+    pts = [proj((x, y, z)) for x in (b.min.X, b.max.X)
+           for y in (b.min.Y, b.max.Y) for z in (b.min.Z, b.max.Z)]
+    xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _overlap(a, b):
+    w = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    h = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    return w * h
+
+
+def _covered(box, placed):
+    area = max(1.0, (box[2] - box[0]) * (box[3] - box[1]))
+    return sum(_overlap(box, o) for o in placed) / area
+
+
+def solve_layout(items, proj):
+    """Return items with the loose hardware nudged clear of everything else."""
+    out, placed = [], []
+    for n, sh, col, anc in items:                     # the stack first, unmoved
+        if n in STACK:
+            placed.append(_bbox2d(sh, proj))
+            out.append((n, sh, col, anc))
+    moved = 0
+    for n, sh, col, anc in items:
+        if n in STACK:
+            continue
+        best = None
+        for r in (0, 45, 90, 140, 200, 270, 350, 440, 540, 650, 780):
+            for ang in range(0, 360, 15) if r else (0,):
+                dx = r * math.cos(math.radians(ang))
+                dy = r * math.sin(math.radians(ang))
+                cand = Pos(dx, dy, 0) * sh
+                cov = _covered(_bbox2d(cand, proj), placed)
+                if best is None or cov < best[0]:
+                    best = (cov, dx, dy, cand)
+                if cov <= MAX_COVER:
+                    break
+            if best[0] <= MAX_COVER:
+                break
+        cov, dx, dy, cand = best
+        if abs(dx) > 1 or abs(dy) > 1:
+            moved += 1
+        placed.append(_bbox2d(cand, proj))
+        out.append((n, cand, col,
+                    None if anc is None else (anc[0] + dx, anc[1] + dy, anc[2])))
+    return out, moved
+
+
+_probe = render_multi([(sh, c) for _n, sh, c, _a in ITEMS], 208, -124,
+                      W=1200, H=1900, style="line")[1]
+ITEMS, _moved = solve_layout(ITEMS, _probe)
+
+
+# ---- and then COUNT THE PIXELS, because bboxes lie ----------------------
+# A bounding box around a thin plate seen edge-on is enormous and almost
+# entirely empty, so a box-overlap test calls every small part near the cover
+# "buried" and cannot tell the difference between hidden and merely nearby.
+#
+# This renders the sheet ONCE with every item in a colour of its own and counts
+# what survives. A part with no pixels is a part that is not on the drawing,
+# whatever the list says - which is the only definition that matters.
+def _decode(path):
+    import zlib, struct
+    d = open(path, "rb").read(); i = 8; idat = b""
+    while i < len(d):
+        ln = struct.unpack(">I", d[i:i+4])[0]; typ = d[i+4:i+8]
+        if typ == b"IHDR":
+            w, h, _bd, ct = struct.unpack(">IIBB", d[i+8:i+18])
+        elif typ == b"IDAT":
+            idat += d[i+8:i+8+ln]
+        i += 12 + ln
+    raw = zlib.decompress(idat); ch = {0: 1, 2: 3, 4: 2, 6: 4}[ct]
+    stride = w*ch; prev = bytearray(stride); out = []; pos = 0
+    for _y in range(h):
+        f = raw[pos]; pos += 1
+        line = bytearray(raw[pos:pos+stride]); pos += stride
+        for x in range(stride):
+            a = line[x-ch] if x >= ch else 0
+            b = prev[x]; c = prev[x-ch] if x >= ch else 0
+            if f == 1: line[x] = (line[x]+a) & 255
+            elif f == 2: line[x] = (line[x]+b) & 255
+            elif f == 3: line[x] = (line[x]+(a+b)//2) & 255
+            elif f == 4:
+                pp = a+b-c; pa, pb, pc = abs(pp-a), abs(pp-b), abs(pp-c)
+                line[x] = (line[x] + (a if (pa <= pb and pa <= pc)
+                                      else (b if pb <= pc else c))) & 255
+        out.append(bytes(line)); prev = line
+    return w, h, ch, out
+
+
+_KEY = []
+for _i, (_n, _sh, _c, _a) in enumerate(ITEMS):
+    _KEY.append(((_i % 12) / 12.0 + 0.02, 0.35 + (_i // 12) * 0.25, 0.9))
+def _hsv(h, s_, v):
+    import colorsys
+    return colorsys.hsv_to_rgb(h, s_, v)
+_tag = [( _sh, _hsv(*_KEY[_i])) for _i, (_n, _sh, _c, _a) in enumerate(ITEMS)]
+png("cad/out/_vis.png", render_multi(_tag, 208, -124, W=1200, H=1900)[0])
+_w, _h, _ch, _rows = _decode("cad/out/_vis.png")
+_seen = {}
+for _y in range(0, _h, 2):
+    _r = _rows[_y]
+    for _x in range(0, _w, 2):
+        _px = (_r[_x*_ch], _r[_x*_ch+1], _r[_x*_ch+2])
+        if max(_px) - min(_px) < 12:
+            continue                                  # grey: background
+        _best, _bd = None, 1e9
+        for _i, _k in enumerate(_KEY):
+            _t = _hsv(*_k); _dd = sum((_t[_j]*255 - _px[_j])**2 for _j in range(3))
+            if _dd < _bd:
+                _best, _bd = _i, _dd
+        _seen[_best] = _seen.get(_best, 0) + 1
+_invisible = [ITEMS[_i][0] for _i in range(len(ITEMS)) if _seen.get(_i, 0) < 3]
+if _invisible:
+    raise AssertionError(
+        "these BOM items are in the drawing but put NO PIXELS on it - they are "
+        "hidden behind something (sampled every 2nd pixel, so an 8 mm nut is "
+        "only a handful of samples - 0 means gone, not small): " + ", ".join(str(n) for n in sorted(set(_invisible), key=int)))
+print(f"  visibility: all {len(ITEMS)} items put ink on the sheet "
+      f"(smallest {min(_seen.values())} px)")
+
+parts = [(sh, col) for _n, sh, col, _a in ITEMS]
+BALLOONS = [(n, a) for n, _sh, _c, a in ITEMS if a is not None]
+
 parts = [(sh, col) for _n, sh, col, _a in ITEMS]
 BALLOONS = [(n, a) for n, _sh, _c, a in ITEMS if a is not None]
 
@@ -173,9 +336,13 @@ BALLOONS = [(n, a) for n, _sh, _c, a in ITEMS if a is not None]
 # display side of every part, which is the wrong side for the half of this BOM
 # that lives on the cover - the bumps, the blocks, the three fittings, the
 # shroud's louvres and all four bail parts only read from the back.
-for name, az, el in (("cad/out/exp_a.png", 205, -126),
-                     ("cad/out/exp_b.png", 248, -118),
-                     ("cad/out/exp_rear.png", 25, -126)):
+# FOUR angles. One view of an exploded stack always hides something behind
+# something else - the layout solver works on ONE projection, and a part it
+# cleared on that sheet can still sit behind a neighbour from elsewhere.
+for name, az, el in (("cad/out/exp_a.png", 205, -126),      # front three-quarter
+                     ("cad/out/exp_b.png", 248, -118),      # from the right
+                     ("cad/out/exp_c.png", 165, -132),      # from the left
+                     ("cad/out/exp_rear.png", 25, -126)):   # from behind
     png(name, render_multi(parts, az, el, W=1200, H=1900)[0])
     print(f"  {name}")
 
@@ -191,7 +358,7 @@ svg = [f'<svg viewBox="0 0 {W} {Hh}" xmlns="http://www.w3.org/2000/svg" '
        f'x="0" y="0" width="{W}" height="{Hh}"/>']
 
 # dash-dot assembly axis running through the stack
-a0, a1 = proj((0, 0, -470)), proj((0, 0, 1330))
+a0, a1 = proj((0, 0, -470)), proj((0, 0, 1500))
 svg.append(f'<line x1="{a0[0]:.1f}" y1="{a0[1]:.1f}" x2="{a1[0]:.1f}" y2="{a1[1]:.1f}" '
            f'stroke="{INK}" stroke-width="1" stroke-dasharray="14 5 3 5" opacity="0.55"/>')
 
@@ -210,3 +377,44 @@ for n, anchor in BALLOONS:
 svg.append('</svg>')
 open("cad/out/exp_cad.svg", "w").write("".join(svg))
 print(f"  cad/out/exp_cad.svg  ({len(''.join(svg))//1024} KB, {len(BALLOONS)} balloons)")
+
+
+# ══════════════════════════════════════════════ EVERY BOM ITEM GETS A BALLOON
+# THE RULE: if it is in the bill of materials, it is in this drawing. A BOM row
+# with no balloon is a part the builder has to find by reading prose, and a
+# balloon with no row is a part they cannot buy.
+#
+# This has been wrong repeatedly and quietly - item 15 was deleted from ITEMS by
+# accident and nothing noticed for two revisions, because the drawing still
+# rendered and the BOM still listed it. Neither file can see the other, so the
+# check has to reach across: the BOM's numbers are parsed out of
+# cad/build_review.py, which is the file that owns them.
+import re as _re
+_bom_src = open("cad/build_review.py").read()
+_BOM = {m for m in _re.findall(r'<tr><td class="m">(\d{1,2})[a-z]?</td>', _bom_src)}
+_DRAWN = {str(n) for n, _sh, _c, _a in ITEMS}
+_BALLOONED = {str(n) for n, _a in BALLOONS}
+
+# Hardware that is fitted rather than exploded - a bonded washer or a smear of
+# sealant has no shape worth a balloon. Named, so the exemption is a decision
+# and not an oversight.
+_NO_SHAPE = {"11", "21", "22", "23", "24", "29", "30", "39", "40", "41",
+             "42", "43", "44", "45", "46", "18"}
+
+_missing_shape = sorted(_BOM - _DRAWN - _NO_SHAPE, key=int)
+_missing_balloon = sorted(_BOM - _BALLOONED - _NO_SHAPE, key=int)
+_orphan = sorted(_DRAWN - _BOM, key=int)
+if _missing_shape or _missing_balloon or _orphan:
+    _msg = []
+    if _missing_shape:
+        _msg.append(f"in the BOM but NOT DRAWN: {', '.join(_missing_shape)}")
+    if _missing_balloon:
+        _msg.append(f"drawn but NOT BALLOONED: {', '.join(_missing_balloon)}")
+    if _orphan:
+        _msg.append(f"drawn but NOT IN THE BOM: {', '.join(_orphan)}")
+    raise AssertionError("the exploded view and the BOM disagree:\n  - "
+                         + "\n  - ".join(_msg))
+print(f"  BOM cross-check: {len(_BOM)} rows, {len(_DRAWN)} drawn, "
+      f"{len(_BALLOONED)} ballooned, {len(_NO_SHAPE)} fitted-not-exploded")
+
+

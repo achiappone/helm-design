@@ -237,8 +237,15 @@ asm = [
 ]
 # Camera solved rather than guessed: az=198, el=-112 gives depth.z>0 (front
 # face nearest), up.y>0 (+Y up) and explode.z<0 (front of the stack on top).
-png("cad/out/asm_housing.png", render_multi(asm, 198, -112, W=1200, H=850)[0])
-print("  asm_housing (front)")
+# FOUR angles on the finished unit. One three-quarter view hides half of what
+# is on this thing: the controls only read from the front, the bumps, blocks,
+# fittings and bail only from behind, and the shroud's depth only from the side.
+for _nm, _az, _el in (("asm_housing", 198, -112),        # front three-quarter
+                      ("asm_housing_left", 232, -120),   # front, other shoulder
+                      ("asm_housing_side", 270, -100),   # side elevation
+                      ("asm_housing_top", 198, -150)):   # down onto the top
+    png(f"cad/out/{_nm}.png", render_multi(asm, _az, _el, W=1200, H=850)[0])
+print("  asm_housing / _left / _side / _top")
 # from behind and a little below, so the bail base reads as what it is - a
 # plate on the dash under the unit - and the shroud drain is in view
 png("cad/out/asm_housing_rear.png", render_multi(asm, 150, -20, W=1200, H=850)[0])
