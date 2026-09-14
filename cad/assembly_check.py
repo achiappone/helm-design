@@ -73,11 +73,30 @@ def clash(a, b):
     return 0.0 if h is None else h.volume
 
 
-def access(name, at, axis, r, length, obstacles, start=1.0, budget=1.0):
-    """Can a tool of radius r reach this fastener along `axis`?"""
-    t = Location(Plane(origin=tuple(Vector(*at) + Vector(*axis).normalized()*start),
-                       z_dir=axis)) * Cylinder(
-        r, length, align=(Align.CENTER, Align.CENTER, Align.MIN))
+def access(name, at, axis, r, length, obstacles, start=1.0, budget=1.0, flat=None):
+    """Can a tool of radius r reach this fastener along `axis`?
+
+    `flat` models an OPEN-ENDED SPANNER instead of a socket: a slab `flat` thick
+    rather than a full cylinder. The difference is not pedantry - a 34 A/F
+    socket is 44 across and its corner grazes the cover's flange at the cable
+    gland, where an open spanner has 12 mm of clearance. Saying "it does not
+    fit" when the right tool fits is as wrong as the other way round."""
+    # x_dir is pinned so the slab's THICKNESS lands in the axis that is tight.
+    # Left to itself the plane picks its own x, and a 12 mm slab oriented the
+    # wrong way round is just a 42 mm socket again.
+    # x_dir is pinned so the slab's THICKNESS lands in the axis that is tight.
+    # Left to itself the plane picks its own x, and a 12 mm slab oriented the
+    # wrong way round is just a 42 mm socket again. Pick an x_dir that is not
+    # parallel to the axis, or gp_Ax3 refuses it.
+    _ax = Vector(*axis).normalized()
+    _xd = (1, 0, 0) if abs(_ax.X) < 0.9 else (0, 1, 0)
+    _pl = Plane(origin=tuple(Vector(*at) + _ax*start), z_dir=axis, x_dir=_xd)
+    if flat is None:
+        t = Location(_pl) * Cylinder(r, length,
+                                     align=(Align.CENTER, Align.CENTER, Align.MIN))
+    else:
+        t = Location(_pl) * Box(2*r, flat, length,
+                                align=(Align.CENTER, Align.CENTER, Align.MIN))
     worst, who = 0.0, ""
     for oname, o in obstacles:
         v = clash(t, o)
@@ -159,11 +178,19 @@ def stage(title):
 # ---------------------------------------------------------------- bare cover
 stage("fittings into the bare cover, on the bench")
 _FIT_Z = BACK - H["BORE_Z"]
-for _n, _x, _af in (("cable gland M16", H["GL_X"], 22.0),
-                    ("Gore vent M12", H["VENT_X"], 19.0),
-                    ("SMA bulkhead M8", H["SMA_X"], 12.7)):
-    access(f"{_n} spanner", (_x, H["BLK_Y0"], _FIT_Z), (0, -1, 0),
-           _af/2 + 4.0, 45.0, [("the cover", COV)])
+# (name, x, A/F, how far its own seat stands proud, which face it is on).
+# A tool cannot start INSIDE the boss it is reaching past: the gland's boss is
+# 5 mm proud and this was starting its spanner 1 mm off the block face, inside
+# it. And the SMA is on the TOP block now, facing the other way.
+for _n, _x, _af, _proud, _top in (
+        ("3/4 NPT gland", H["GL_X"], 34.0, H["GL_BOSS_PROUD"], False),
+        ("Gore vent M12", H["VENT_X"], 19.0, 0.0, False),
+        ("SMA bulkhead M8", H["SMA_X"], 12.7, 0.0, True)):
+    _face = H["BLK_TY0"] if _top else H["BLK_Y0"]
+    _dir = (0, 1, 0) if _top else (0, -1, 0)
+    access(f"{_n} spanner", (_x, _face, _FIT_Z), _dir,
+           _af/2 + 4.0, 45.0, [("the cover", COV)], start=_proud + 1.0,
+           flat=12.0 if _af > 25 else None)
 
 stage("heatsink bonded into its seat, from inside")
 _HS_Z0 = H["DEPTH"] + H["GASKET_C"]

@@ -395,6 +395,19 @@ SHROUD_ENVELOPE = 112.0             # ceiling the finished shroud must fit
 # And the joint stops being a thread in plastic: a 316 NYLOC sits captive in a
 # hex pocket in the web's inboard face and the bolt pulls against steel.
 TRUN_X, TRUN_WEB_T = 156.0, 12.0
+# STAND 22 -> 26, and the reason is the CABLE, not the pivot. PI_BUMP_H is
+# derived from TRUN_STAND + TRUN_R so the bumps' backs stay coplanar with the
+# trunnion tips - that coplanarity is what gives the cover 24,000 mm2 of bed
+# contact instead of balancing on two r15 tips. The bumps' END FACES are also
+# the seats the three bulkhead fittings bolt to, so that same number is the
+# height of every fitting's flange seat.
+#
+# Back to 22 from 26. It went to 26 to give an M25 gland's O33.3 flange a seat
+# to bear on - and then the owner said they have 3/4 NPT, which is a TAPERED
+# thread that seals on the thread itself. It needs thread DEPTH, not a flat
+# face, and depth comes from a local boss rather than from the whole bump. A
+# longer trunnion neck is a real structural cost, so it does not get paid for a
+# requirement that turned out not to exist.
 TRUN_STAND, TRUN_R, TRUN_LAND = 22.0, 15.0, 3.0
 TRUN_BORE = 5.4                     # M5 316 clearance, through to the nut
 TRUN_NUT_AF, TRUN_NUT_DEEP = 8.0, 6.0     # M5 316 nyloc, captive in the web
@@ -695,8 +708,37 @@ BORE_Z = -PI_BUMP_H/2               # bores on the block's mid-height
 # COST: M16 clamps 5-10 mm, so the tail has to be <= 10 mm OD. A 24 x 24 AWG
 # overall-shielded cable is about that; parallel three pins each for +12 V and
 # ground on the LP-24 rather than running heavier cores.
-GL_X, GL_TAP, GL_FLANGE = -110.0, 14.5, 22.0
-CABLE_D = 10.0                      # the most an M16 gland clamps; the LP-24 parts read this
+# 3/4-14 NPT, which is what the owner has. Tap drill 59/64" = 23.42, and the
+# common 3/4 NPT cable glands clamp 13-18 mm, which is exactly the window a
+# 15.2 mm jacket needs - an M16 clamps 5-10 and an M20 10-14, so neither would
+# ever have closed on this cable.
+#
+# NPT CHANGES THE REQUIREMENT. A parallel thread seals on a face, so it needs a
+# flat seat wide enough for its flange. A taper seals on the thread, so what it
+# needs is ENGAGEMENT: L2, the effective thread length, is 13.86 mm for 3/4-14,
+# and the block is 13.5 deep. So the gland gets a local BOSS - 5 mm proud of the
+# block's face, in free air below the unit where it costs nothing - and the
+# thread gets 18.5 mm to bite into. The hex can overhang the block freely; it is
+# not bearing on anything.
+GL_X, GL_TAP = -120.0, 23.42        # 3/4-14 NPT, 59/64" tap drill
+GL_NPT_L2 = 13.86                   # effective thread length, ASME B1.20.1
+# The boss is a ROUNDED RECTANGLE, not a disc. A O36 disc on a block face 37
+# tall leaves half a millimetre of block either side of it; the same area as a
+# 36 x 34 pad leaves 1.5, and x is the direction with room to spare.
+# PROUD IS 5 AND IT IS PINNED THERE. It wants to be bigger - NPT takes all the
+# engagement you give it - but at 10 the boss reaches y -86 and the brim screw
+# ring runs at 85.2, so the boss simply covers a screw head. Moving the gland in
+# x does not help: the block spans |x| 95..149, the screw inside that is at 109,
+# and a 36-wide boss clearing it by a head radius has nowhere left to sit.
+#
+# 5 proud gives 18.5 mm of thread against an L2 of 13.86, which is enough. What
+# it costs is the TOOL: a 34 A/F socket is about 44 across and its corner grazes
+# the cover's own flange. Use an OPEN-ENDED spanner, which sweeps a slab rather
+# than a cylinder and clears easily - the assembly check models exactly that.
+GL_BOSS_W, GL_BOSS_H, GL_BOSS_PROUD = 36.0, 34.0, 5.0
+GL_FLANGE = GL_BOSS_H               # the tight axis is the block's height
+CABLE_D = 15.2                      # Belden 1058A, 12 pair 20+22 AWG, datasheet OD
+GL_BEND_R = 5.0 * CABLE_D           # one-time-install bend radius for this jacket
 # Gore M12x1.5, TAPPED rather than clearance + locknut: a O19 locknut pocket at
 # this x reaches the bay void's wall with 0.00 mm to spare.
 VENT_X, VENT_TAP, VENT_FLANGE = 133.0, 10.5, 19.0
@@ -1307,8 +1349,34 @@ def _ybore(x, dia, y0, y1, teardrop=True):
                * Box(dia*0.707, dia*0.707, abs(y1 - _td0) + 2, align=(Align.CENTER,)*3))
     return _b
 
-# cable gland: tapped straight through into the Pi bay
-c -= _ybore(GL_X, GL_TAP, BLK_Y0, BLK_Y1)
+# cable gland: a local boss to get NPT its thread length, then bored through
+c += (Pos(GL_X, cy(BLK_Y0 - GL_BOSS_PROUD/2), BORE_Z) * Rot(90, 0, 0)
+      # both=True extrudes BOTH ways, so amount is the HALF thickness. Passing
+      # the full proud height doubled the boss to 10 mm and it reached back far
+      # enough to stand in a brim screw's driver path.
+      * extrude(RectangleRounded(GL_BOSS_W, GL_BOSS_H, 6.0), GL_BOSS_PROUD/2,
+                both=True))
+c -= _ybore(GL_X, GL_TAP, BLK_Y0 - GL_BOSS_PROUD, BLK_Y1)
+# How far does material actually reach past the block's face? Cover-local, the
+# face is at cy(BLK_Y0) and the boss grows further out; measure that column and
+# take the extreme, rather than trusting the same arithmetic twice.
+# ...and keep the probe clear of the cover PLATE at z 0..COVER_T, which reaches
+# out to the outline at y 88.5 and otherwise reads as 12.5 mm of "boss".
+_col = c & (Pos(GL_X, cy(BLK_Y0) + 7.0, BORE_Z)
+            * Box(GL_BOSS_W + 4, 14.0, GL_BOSS_H - 2.0, align=(Align.CENTER,)*3))
+_proud = (_col.bounding_box().max.Y - cy(BLK_Y0)) if _col is not None else 0.0
+assert abs(_proud - GL_BOSS_PROUD) < 0.05, (
+    f"the gland boss stands {_proud:.1f} proud, not {GL_BOSS_PROUD} - "
+    f"extrude(both=True) takes the HALF thickness")
+_gl_thread = abs(BLK_Y1 - BLK_Y0) + GL_BOSS_PROUD
+assert _gl_thread > GL_NPT_L2 + 2.0, (
+    f"the gland has {_gl_thread:.1f} mm to thread into and 3/4-14 NPT needs "
+    f"{GL_NPT_L2} of effective thread - it will not seal")
+assert min(GL_BOSS_W, GL_BOSS_H)/2 - GL_TAP/2 > 4.5, (
+    f"only {min(GL_BOSS_W, GL_BOSS_H)/2 - GL_TAP/2:.1f} mm of wall round a tapered "
+    f"thread that wedges as it tightens")
+assert GL_BOSS_H < PI_BUMP_H - 2.0, (
+    f"the gland boss is {GL_BOSS_H} on a {PI_BUMP_H:.0f} block face")
 # Gore vent: tapped, into the driver bay
 c -= _ybore(VENT_X, VENT_TAP, BLK_Y0, BLK_Y1)
 # SMA coax entry: a short threaded section, then a counterbore so the inner nut
@@ -1335,8 +1403,11 @@ assert SMA_NUT_DEEP < abs(BLK_TY0 - BLK_TY1) - 6.0, (
 # O-ring lands on, and demand the ring is solid all the way round. A notch
 # anywhere in it - from a teardrop, a chamfer, a neighbour's counterbore - is a
 # leak path straight up the bore and into the box.
-for _n, _x, _d, _fl, _need in [("cable gland", GL_X, GL_TAP, GL_FLANGE, 0),
-                               ("Gore vent", VENT_X, VENT_TAP, VENT_FLANGE, 0),
+# The GLAND IS NOT IN THIS LIST. It is 3/4 NPT, a tapered thread that seals on
+# the thread itself - it has no O-ring and no sealing land, and checking it for
+# one reported a 9% notch in a face that does nothing. The vent and the SMA are
+# parallel threads with face O-rings and they do need the land.
+for _n, _x, _d, _fl, _need in [("Gore vent", VENT_X, VENT_TAP, VENT_FLANGE, 0),
                                ("SMA coax entry", SMA_X, SMA_D, 12.7, 0)]:
     _slab = Pos(_x, cy(BLK_Y0 + 0.25), BORE_Z) * Rot(90, 0, 0) * Cylinder(
         _fl/2, 0.5, align=(Align.CENTER,)*3)
@@ -1796,8 +1867,9 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "APER_W":APER_W,"APER_H":APER_H,"APER_X":APER_X,"APER_Y":APER_Y,
            "BTN_X":BTN_X,"ENC_X":ENC_X,"ROW_CY":ROW_CY,"BTN_D":BTN_D,"ENC_D":ENC_D,
            "GPS_X":GPS_X,"GPS_Z":GPS_Z,"GPS_L":GPS_L,"GPS_W":GPS_W,"GPS_T":GPS_T,"GPS_WIN_T":GPS_WIN_T,
-           "SMA_X":SMA_X,"SMA_D":SMA_D,"SMA_NUT_AF":SMA_NUT_AF,"SMA_NUT_DEEP":SMA_NUT_DEEP,"GL_X":GL_X,"GL_TAP":GL_TAP,
-           "CABLE_D":CABLE_D,"SEAT_LAND":SEAT_LAND,
+           "SMA_X":SMA_X,"SMA_D":SMA_D,"SMA_NUT_AF":SMA_NUT_AF,"SMA_NUT_DEEP":SMA_NUT_DEEP,"GL_X":GL_X,"GL_TAP":GL_TAP,"GL_NPT_L2":GL_NPT_L2,"GL_BOSS_PROUD":GL_BOSS_PROUD,
+           "GL_BOSS_W":GL_BOSS_W,"GL_BOSS_H":GL_BOSS_H,
+           "CABLE_D":CABLE_D,"GL_FLANGE":GL_FLANGE,"GL_BEND_R":GL_BEND_R,"SEAT_LAND":SEAT_LAND,
            "VENT_X":VENT_X,"VENT_TAP":VENT_TAP,"BORE_Z":BORE_Z,
            "BLK_X0":BLK_X0,"BLK_X1":BLK_X1,"BLK_Y0":BLK_Y0,"BLK_Y1":BLK_Y1,
            "BLK_TY0":BLK_TY0,"BLK_TY1":BLK_TY1,
@@ -1922,7 +1994,10 @@ print(f"       heatsink {HS_L:.0f} x {HS_W:.0f} x {HS_H:.0f} bonded base-out in 
       f"seat: base flush INSIDE, {HS_PROUD:.0f} mm of fin proud OUTSIDE under the shroud")
 print(f"       inside face is a bare {_plate_in_cm2:.0f} cm2 plate - the internal "
       f"air-to-metal step is the bottleneck, not the fan")
-print(f"       fittings: M16 gland x{GL_X:.0f} and M12 Gore vent x{VENT_X:.0f} face DOWN "
+print(f"       CABLE {CABLE_D} mm: bend radius {GL_BEND_R:.0f} at 5x OD, and the bay it "
+      f"enters is {PI_BUMP_L:.0f} wide - make the turn OUTSIDE, under the unit, and come "
+      f"into the raceway already running across")
+print(f"       fittings: 3/4 NPT gland x{GL_X:.0f} and M12 Gore vent x{VENT_X:.0f} face DOWN "
       f"through the bottom blocks; M8 SMA coax x{SMA_X:.0f} faces UP through the top of "
       f"the driver bump, so the whip stands at the sky")
 print(f"       fan leads cross at ({WIRE_X:.1f}, {WIRE_Y:.0f}) - O{WIRE_D:.0f} potted, "
