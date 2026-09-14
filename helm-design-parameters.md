@@ -399,7 +399,7 @@ Your instinct is correct and it's better than the 45° I was going to build. A v
 | Walls | 4.5 mm, shelled, open bottom |
 | LP-24 bore | **Ø24.4, teardropped** |
 | LP-24 fixing | 4 × Ø4.0 insert bores on 26.0 square, into 8.5 mm bosses on the **inside** of the front wall (a 4.5 mm wall alone is too thin for an insert) — **316 SS M3 heat-sets** |
-| Gasket | 3 mm cord gland, 92 × 58 R10, 3.45 W × 2.31 D, inboard of the bolts |
+| Gasket | 3 mm rubber cord in a groove cut into the shell brim, 3.60 W × 2.31 D (85% fill), 22 × M3 outboard of it into blind pilots — no washers needed there; the 4 panel screws are the sealed penetrations |
 | Cable opening | 36 × 34 in the base, with a **5 mm anti-wick lip** so floor water can't run down into the deck penetration |
 | Strain relief | 20 × 36 pad + 2 × M4 316 SS inserts at 24 mm pitch, with the separate clamp block (Ø14.8 saddle, countersunk) |
 | Drain | 20 × 14 × 3.5 slot at the front low point — **leave it open, no sealant** |
@@ -690,7 +690,7 @@ Earlier sections are kept as history. Where they conflict with this, **this wins
 
 All cooling is **outside** the cover. The 4 mm interior clearance cannot take a fan or inner sink.
 
-- 120 × 120 × 6 alloy plate over the 90 × 90 aperture, **tapped M3, screws from inside, flexible sealant — not glued** (0.37 mm CTE differential over 50 °C)
+- ONE 150 × 74 × 10 heatsink, base bonded INTO a 3 mm recess in the cover's inner face, fins out through a 59 × 135 aperture — **flexible adhesive (MS polymer / Sikaflex 291i), not epoxy**: 0.9 mm of CTE differential over 150 mm and 50 °C, and the seat walls index it so no jig is needed. Inside face is a bare plate; if it throttles, bond a second finned block to it
 - 2 × Easycargo 100 × 40 × 20 outside, 1 inside on the plate
 - 1 × WINSINN 5015 blower aimed at the inner fins
 - Expected ≈ **56 °C internal at 45 °C ambient**; Pi throttles at 80–85
