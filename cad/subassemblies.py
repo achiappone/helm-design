@@ -159,7 +159,11 @@ def fit_parts(crop):
                 * Cylinder(_fl/2, 6.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
         tail = (Pos(_x, _y0 + 30.0, BORE_Z) * Rot(90, 0, 0)
                 * Cylinder(_bore/2 - 1.0, 24.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
-        out_ += [(_asm(body), _col), (_asm(tail), DARK)]
+        # cropped like the plate, or the vent floats in space beside a detail
+        # of the Pi-side block
+        _b, _t = body & crop, tail & crop
+        if _b is not None and _b.volume > 1:
+            out_ += [(_asm(_b), _col), (_asm(_t), DARK)]
     return out_
 
 WIDE = Pos(0, 0, -BUMP_H/2) * Box(400, 260, 160, align=(Align.CENTER,)*3)
