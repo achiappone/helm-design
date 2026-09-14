@@ -204,3 +204,20 @@ def sensor_breakout(l, w, name=""):
     s += Pos(0, 0, 1.2) * Box(min(8, l/3), min(8, w/2), 1.6, align=MIN)
     s += Pos(0, w/2 - 2.0, 1.2) * header(max(2, int(l/2.54) - 2), rows=1, h=3.0)
     return s
+
+
+def lobe_knob(d=32.0, h=14.0, lobes=5, boss_d=16.0, boss_h=6.0, stud=20.0):
+    """A five-lobe clamping knob with a male stud - the part you actually turn
+    to set the tilt.
+
+    Drawn because the stud length is the whole problem. Off-the-shelf knobs come
+    in 16/20/25/30 and the window between 'reaches the nut' and 'fouls the bay
+    wall' on this housing is 17..24 mm, so three of those four are wrong and
+    nothing about the knob's catalogue photo tells you that."""
+    s = Cylinder(d/2 - 4.0, h, align=MIN)
+    for i in range(lobes):
+        a = i * 360.0 / lobes
+        s += Rot(0, 0, a) * Pos(d/2 - 5.0, 0, 0) * Cylinder(5.0, h, align=MIN)
+    s += Pos(0, 0, -boss_h) * Cylinder(boss_d/2, boss_h, align=MIN)
+    s += Pos(0, 0, -boss_h - stud) * Cylinder(2.5, stud, align=MIN)
+    return s

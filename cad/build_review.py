@@ -43,6 +43,8 @@ def subpic(name, note=None):
 # Counted off the geometry, not retyped - the page has quoted a wrong
 # fastener count and a wrong bezel through two revisions already.
 DRV_L, DRV_W = 55.25, 113.25          # the board the cover's +x bosses are drilled to
+GD_SHELL = f"{H[chr(34)+chr(34)] if False else H["GASKET_D"]:.2f}"
+GD_COVER = f"{H["GASKET_D_COVER"]:.2f}"
 NBOLT = H["N_BRIM_BOLTS"]
 BEZEL = (OUT_W - H["APER_W"])/2
 BEZEL_T = OUT_H/2 - (H["APER_Y"] + H["APER_H"]/2)
@@ -271,6 +273,7 @@ a{{color:var(--accent)}}
   <div class="grid">
     {pic("cad/out/exp_a.png","Exploded - three-quarter","")}
     {pic("cad/out/exp_b.png","Exploded - from the right","")}
+    {pic("cad/out/exp_rear.png","Exploded - from BEHIND","The other two views show the display side of every part. The bumps, the fitting blocks, the three bulkheads, the shroud's louvres and all four bail pieces only read from this side.")}
   </div>
   <div class="flag w">
     <h3>What the box actually is now</h3>
@@ -323,7 +326,7 @@ a{{color:var(--accent)}}
     <tr><td class="m">17</td><td>Twidec 12 mm buttons</td><td>4</td><td>Bore &Oslash;{H["BTN_D"]}, dome &Oslash;{H["BTN_DOME"]}, at {H["BTN_PITCH"]:.0f} mm pitch</td></tr>
     <tr><td class="m">18</td><td>M3 &times; {H["BRIM_SCREW_L"]:.0f} 316 SS</td><td>{NBOLT}</td><td><b>Brim screws.</b> Through the cover into blind pilots in the shell, <b>outboard of the cord</b>. Bonded sealing washer on every one</td></tr>
     <tr><td class="m">19</td><td><b>M5 &times; 25 316 cap screw + M5 316 nyloc</b></td><td>2 sets</td><td><b>Visor pivots.</b> Screw in from the housing&rsquo;s upstand, nut <b>captive in a hex pocket in the visor ear&rsquo;s OUTBOARD face</b> &mdash; the inboard face is the friction land that runs on the 316 shim. Set by hand: firm enough to stay put, loose enough to move under bare-hand pressure</td></tr>
-    <tr><td class="m">20</td><td><b>M5 &times; 25 316 cap screw + M5 316 nyloc</b></td><td>2 sets</td><td><b>Bail pivots.</b> Screw in from OUTBOARD through the arm eye, the serrated pair and the trunnion land; nut <b>captive in an {H["TRUN_NUT_AF"]:.0f} mm A/F hex pocket {H["TRUN_NUT_DEEP"]:.0f} mm deep in the trunnion web&rsquo;s INBOARD face</b>, reached from the middle of the back. Steel pulls against steel and the ASA is only in compression &mdash; it is no longer a thread formed in plastic</td></tr>
+    <tr><td class="m">20</td><td><b>5-lobe tilt knob, M5 &times; {B["KNOB_STUD"]:.0f} stud</b> + M5 316 nyloc</td><td>2 sets</td><td><b>The tilt knobs.</b> Stud length is not a free choice: the knob&rsquo;s face, the captive nut in the trunnion web and the bay&rsquo;s outer wall leave a window about 7 mm wide, and the catalogue only sells 16/20/25/30. The arm&rsquo;s eye is <b>counterbored {B["EYE_CB"]:.0f} mm</b> so a stock <b>M5 &times; {B["KNOB_STUD"]:.0f}</b> engages the whole {H["TRUN_NUT_DEEP"]:.0f} mm nut and still stops 1 mm short of the bay wall. Elesa VC.692, Ganter GN&nbsp;5337 or Kipp K0155 all make this part with a stainless stud. Nut captive in the {H["TRUN_NUT_AF"]:.0f} mm hex pocket in the web</td></tr>
     <tr><td class="m">20b</td><td>Dash screws</td><td>{B["N_DASH"]}</td><td>Base plate to the dash, through &Oslash;{B["DASH_D"]} &times; {B["DASH_SLOT"]:.0f} slots in two rows {B["DASH_ROWS"]:.0f} apart</td></tr><tr><td class="m">20c</td><td><b>M5 &times; 16 316 + M5 heat-set insert</b></td><td>4 sets</td><td><b>Arm feet.</b> Up from <em>under</em> the base plate into inserts in the arm&rsquo;s {B["FOOT_PAD_T"]:.0f} mm foot pad &mdash; which is why the arms go on the plate before the plate goes on the dash. The blade thickens to take them: &Oslash;{B["INSERT_D"]} in a 7 mm blade left 0.8 mm of wall</td></tr>
         <tr><td class="m">21</td><td>M3 &times; 20 316 SS</td><td>4</td><td>LP-24 into the shroud frame</td></tr>
     <tr><td class="m">22</td><td>M4 &times; 30 316 SS</td><td>2</td><td>Clamp up into the shroud beam</td></tr>
@@ -544,7 +547,7 @@ a{{color:var(--accent)}}
   <div class="sheet-hd"><h2>The seal</h2>
     <span class="file">shell brim &rarr; rear cover</span></div>
   <div class="grid dwgs">
-    {svgpic("cad/out/seal_detail.svg","Section through the top rail","Cord gland cut into the shell&rsquo;s rear brim; the cover presents a flat land. Groove verified continuous on all four rails.")}
+    {svgpic("cad/out/seal_detail.svg","Section through the top rail","The groove is SPLIT: the shell&rsquo;s brim takes {GD_SHELL} and the cover a {GD_COVER} witness groove on the same path, so the cord is captured on BOTH sides and cannot roll out of its seat as the lid closes. Total depth, and so the squeeze, is unchanged. Groove verified continuous on all four rails.")}
   </div>
   <div class="cols">
     <div class="panel"><h3>As modelled</h3><table>
@@ -586,9 +589,14 @@ a{{color:var(--accent)}}
   <div class="sheet-hd"><h2>Hinged visor</h2><span class="rev">REV {H["REV"]}</span>
     <span class="file">helm_visor_revC.stp</span></div>
   <div class="grid">
-    {pic("cad/out/asm_tilt_up.png","Tilted up","+15&deg;. Clears a standing eye looking down at the screen.")}
-    {pic("cad/out/asm_tilt_flat.png","Flat","0&deg;. Neutral, and the most shade for a seated helm.")}
-    {pic("cad/out/asm_tilt_down.png","Tilted down","&minus;30&deg;. Maximum glare rejection, or folded down over the screen at rest.")}
+    {pic("cad/out/asm_tilt_flat.png","Flat","0&deg;. Where it sits at rest.")}
+    {pic("cad/out/asm_tilt_up.png","Tilted up","+10&deg;.")}
+    {pic("cad/out/asm_tilt_max.png","Full tilt",f"+{B['TILT_UP']:.0f}&deg;, the end of the range. Tilt is FACE UP ONLY: the arms run inside the bezel width, so face-down swings the unit into them.")}
+  </div>
+  <div class="grid">
+    {pic("cad/out/asm_visor_deployed.png","Visor deployed","Shading the screen from the top edge.")}
+    {pic("cad/out/asm_visor_half.png","Visor half way","")}
+    {pic("cad/out/asm_visor_stowed.png","Visor STOWED FLAT",f"&minus;90&deg;, lying across the bezel {abs(H['VIS_STOW_Z']):.0f} mm in front of it and clear of the glass. The hood sits ABOVE its axis so it folds forward; slung below it, it could only ever swing round behind the face.")}
   </div>
   <div class="cols">
     <div class="panel"><h3>As modelled</h3><table>
@@ -722,8 +730,8 @@ a{{color:var(--accent)}}
   </div>
   <div class="grid">
     {subpic("sub_wire_pass")}
-    {subpic("sub_antenna_context", "The bulkhead goes straight through the flat cover plate, on a raised sealing pad. Its POSITION is being relocated in a parallel pass - the view shows the detail, not the final coordinate.")}
-    {subpic("sub_antenna_detail", "Outside in: whip, outer nut, sealing washer, M16 bulkhead, inner nut. The raised pad gives the nut a flat face instead of layer lines. Position relocating - see open items.")}
+    {subpic("sub_fittings_context")}
+    {subpic("sub_fittings_detail")}
   </div>
   <div class="flag">
     <h3>The thermal path &mdash; and the step that is honestly weak</h3>

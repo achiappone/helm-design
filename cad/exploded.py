@@ -4,7 +4,7 @@ sys.path.insert(0, "cad")
 from build123d import *
 from parts_lib import (pi4, armor_lite, pican_m, drok as _drok, breakout, finned,
                        nyloc, cap_screw, push_button, driver_board, rtl_sdr,
-                       sensor_breakout)
+                       sensor_breakout, lobe_knob)
 
 def _solid(path):
     """import_step may return a Compound; a Location on the wrapper is
@@ -14,6 +14,7 @@ def _solid(path):
 from render import render_multi, png
 
 H = json.load(open("cad/out/housing.json"))
+B = json.load(open("cad/out/bail.json"))
 DISP_CX = H["DISP_CX"]
 SHELL = _solid("cad/out/helm_shell_revC.stp")
 COVER = _solid("cad/out/helm_cover_revC.stp")
@@ -134,7 +135,9 @@ ITEMS = [
     # 18 x 18 x 8.6 box, which is the GPS module's envelope, at the rev B
     # antenna position on the shell's top wall. It is a 68 x 27 x 12 dongle and
     # it lives in the driver bay, under the bulkhead it feeds.
-    (15, Pos(H["DRV_CX"] + 30, 0, 690) * sdr, SDR_G, (H["DRV_CX"] + 80, 0, 686)),
+    # clear of the cover in x and dropped below it, or the dongle disappears
+    # behind the plate in the projection and the balloon points at nothing
+    (15, Pos(H["DRV_CX"] + 110, 0, 620) * sdr, SDR_G, (H["DRV_CX"] + 165, 0, 616)),
     (12, Pos(-155, 42, 690) * mcp23017,      MCP_P, (-200, 42, 686)),
     (13, Pos(-155, 4, 690) * brk,            BRK_A, (-200, 4, 686)),
     (13, Pos(-72, -50, 690) * brk,           BRK_A, None),
@@ -160,7 +163,8 @@ ITEMS = [
     (20, Pos(-200, H["TILT_Y"], 700) * Rot(0, -90, 0)
          * nyloc(H["TRUN_NUT_AF"], H["TRUN_NUT_DEEP"] - 1.0, H["TRUN_BORE"]), STEEL,
          (-250, H["TILT_Y"], 704)),
-    (20, Pos(-232, H["TILT_Y"], 700) * Rot(0, -90, 0) * cap_screw(5.0, 25.0), STEEL, None),
+    (20, Pos(-236, H["TILT_Y"], 700) * Rot(0, -90, 0)
+         * lobe_knob(stud=B["KNOB_STUD"], boss_d=B["KNOB_BOSS_D"]), (0.20,0.20,0.22), None),
 ]
 parts = [(sh, col) for _n, sh, col, _a in ITEMS]
 BALLOONS = [(n, a) for n, _sh, _c, a in ITEMS if a is not None]

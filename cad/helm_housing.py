@@ -104,8 +104,22 @@ M4_PILOT, M4_CLEAR, PILOT_L = 3.5, 4.5, 11.0
 # has nowhere to go when it warms up: it hydraulically locks and the lid stops
 # seating. 85% is the top of the safe band.
 CORD_D, CORD_FILL = 3.0, 0.85
-GD = CORD_D*0.77
-GW = (math.pi*(CORD_D/2)**2) / (CORD_FILL*GD)
+# THE GROOVE IS SPLIT BETWEEN THE TWO HALVES. It was all in the shell's brim,
+# with the cover presenting a flat land - which is textbook for an O-ring in a
+# machined face and wrong for a 2.3 m loop of cord being closed by hand. The
+# cord is only captured on one side, so it rolls out of the groove as the cover
+# comes down and you cannot see it happening: the lid still bolts flat, and the
+# seal is half off its seat somewhere along the bottom rail.
+#
+# A shallow witness groove in the COVER captures the other side. The total
+# depth is unchanged, so the squeeze is unchanged - what changes is that the
+# cord has nowhere to go sideways while the joint is being closed.
+GD_TOTAL = CORD_D*0.77
+GD_COVER = 0.7                      # the cover's half: locate it, do not squeeze it
+GD = GD_TOTAL - GD_COVER            # the shell's half, which still does the work
+# from the COMBINED cavity, not the shell's half: the cord sits in a slot
+# GW wide and GD_TOTAL deep, spanning both parts.
+GW = (math.pi*(CORD_D/2)**2) / (CORD_FILL*GD_TOTAL)
 assert 1.10*CORD_D < GW < 1.30*CORD_D, f"groove width {GW:.2f} is off the cord"
 
 # -- brim land budget ------------------------------------------------------
@@ -141,7 +155,11 @@ assert 1.10*CORD_D < GW < 1.30*CORD_D, f"groove width {GW:.2f} is off the cord"
 # squeezed, and a cord is actually the easier of the two here: it is narrower
 # than the 4.4 band it replaces, so the brim gets MORE lip, not less.
 GASKET_T = 3.0                      # cord diameter
-GASKET_W, GASKET_D = GW, GD         # groove from the cord and the fill target
+GASKET_W, GASKET_D = GW, GD         # the SHELL's groove
+GASKET_D_COVER = GD_COVER           # and the cover's
+assert GD + GD_COVER < CORD_D - 0.4, (
+    f"the two grooves are {GD + GD_COVER:.2f} deep against a {CORD_D} cord - "
+    f"that leaves {CORD_D - GD - GD_COVER:.2f} of squeeze, which is not a seal")
 # A CORD IN A GROOVE CLOSES METAL-TO-METAL. The cover lands on the brim face and
 # the cord is squeezed into its groove - so the assembled gap is ZERO, where the
 # foam band held the cover 1.5 mm off. That ripples: the display bearing posts
@@ -168,6 +186,7 @@ GASKET_OUT = LAND_OUT + M3_PILOT + LAND_WEB     # groove's OUTER edge from the e
 LAND_IN = BRIM_CAVITY - GASKET_OUT - GASKET_W   # spare all goes to the inner lip
 assert LAND_IN >= _MIN_IN, f"inner lip {LAND_IN:.2f} under {_MIN_IN}"
 assert GASKET_D < COVER_T - 1.0, "groove deeper than the brim can carry"
+assert GD_COVER < COVER_T - 3.0, "the cover's groove leaves too little plate"
 
 VENT_D = 12.3                       # Gore vent, low on the cover
 # Antenna: FM/SDR whip on a waterproof M16 SMA bulkhead. It lives on the REAR
@@ -1000,7 +1019,9 @@ print(f"       controls: bore O{BTN_D}/dome O{BTN_DOME}, knob O{KNOB_OD} at y={R
       f"bezel round the O{CTRL_MAX} knob {_ap_bot-(ROW_CY+CTRL_MAX/2):.2f} above / "
       f"{(ROW_CY-CTRL_MAX/2)+OUT_H/2:.2f} below")
 print(f"       brim @ RIM {RIM}: {GASKET_T:.0f} mm CORD in a {GASKET_W:.2f} x "
-      f"{GASKET_D:.2f} groove, screws OUTBOARD of it; cover lands metal-to-metal")
+      f"{GASKET_D:.2f} groove + {GASKET_D_COVER:.2f} in the COVER = {GASKET_D + GASKET_D_COVER:.2f} "
+      f"of a {CORD_D} cord captured, {CORD_D - GASKET_D - GASKET_D_COVER:.2f} of squeeze; "
+      f"screws OUTBOARD of it")
 print(f"       bands out {LAND_OUT:.2f} / M3 {M3_PILOT} / web {LAND_WEB:.2f} / "
       f"groove {GASKET_W:.2f} / lip {LAND_IN:.2f}; bolt inset {BOLT_INSET:.2f}")
 print(f"       bezel {(OUT_W-APER_W)/2:.1f} side / {OUT_H/2-(APER_Y+APER_H/2):.1f} top")
@@ -1603,6 +1624,23 @@ c -= Pos(AP_CX, 0) * Box(AP_L, AP_W, 3*COVER_T, align=(Align.CENTER,)*3)
 # entirely inside the aperture, i.e. in air, which is why the ring looked
 # harmless in every render.
 
+# -- the cover's half of the cord groove -----------------------------------
+# Same path as the shell's, on the cover's INNER face, and only GD_COVER deep:
+# it locates the cord while the joint is closed, it does not do the squeezing.
+# Cutting it here also means the cord cannot be pinched outside its seat by a
+# lid that went down a millimetre out of line.
+_cg_out = RectangleRounded(OUT_W - 2*GASKET_OUT, OUT_H - 2*GASKET_OUT,
+                           max(R_OUT - GASKET_OUT, 1.0))
+_cg_in = RectangleRounded(OUT_W - 2*(GASKET_OUT + GASKET_W),
+                          OUT_H - 2*(GASKET_OUT + GASKET_W),
+                          max(R_OUT - GASKET_OUT - GASKET_W, 1.0))
+_v0 = c.volume
+c -= extrude(Plane.XY.offset(COVER_T - GASKET_D_COVER) * (_cg_out - _cg_in),
+             amount=GASKET_D_COVER + 1)
+assert c.volume < _v0 - 500, (
+    f"the cover's groove removed only {_v0 - c.volume:.0f} mm3 - it is not "
+    f"landing on the sealing face")
+
 # -- the cover's sealing face must be unbroken -----------------------------
 # The gasket path moved inboard when OUT_H came down, and it stranded the
 # sensors and the tie-wrap anchors straddling it. Checked now, not assumed.
@@ -1649,7 +1687,8 @@ print(f"COVER  vol={c.volume/1000:6.0f} cm3 solids={len(c.solids())} "
 json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T,
            "RIM":RIM,"BOLT_INSET":BOLT_INSET,"GASKET_W":GASKET_W,
            "LAND_OUT":LAND_OUT,"LAND_WEB":LAND_WEB,"LAND_IN":LAND_IN,
-           "GASKET_T":GASKET_T,"GASKET_C":GASKET_C,"GASKET_D":GASKET_D,
+           "GASKET_T":GASKET_T,"GASKET_C":GASKET_C,"GASKET_D_COVER":GASKET_D_COVER,
+           "CORD_D":CORD_D,"GASKET_D":GASKET_D,
            "N_BRIM_BOLTS":len(BOLTS),"BOLT_PITCH":BOLT_PITCH,"AP_SEAL":AP_SEAL,"BRIM_BOLT":M3_PILOT,"BOLTS":[[round(x,3),round(y,3)] for x,y in BOLTS],
            "M3_HEAD_R":M3_HEAD_R,
            "AP":AP,"AP_L":AP_L,"AP_W":AP_W,"AP_CX":AP_CX,"AP_PITCH":AP_PITCH,"HS_PLATE":HS_PLATE,

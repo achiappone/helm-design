@@ -47,7 +47,9 @@ TOOLS = [
                    f"bed to 100&nbsp;&deg;C. The shell and cover are {OUT_W:.0f} mm long "
                    f"with 8&nbsp;mm a side to spare"),
     ("Hex driver, 2.5&nbsp;mm", "every M3 on the unit"),
-    ("Hex driver, 4&nbsp;mm", "the M5 pivots and the arm feet"),
+    ("Hex driver, 4&nbsp;mm", "the arm feet"),
+    ("5-lobe knobs, M5 &times; 20 stud &times;2", "the tilt joints &mdash; buy the "
+     "<b>20&nbsp;mm</b> stud, not 25: 25 drives into the bay wall"),
     ("Spanner / socket, 22&nbsp;mm A/F", "the M16 cable gland"),
     ("Spanner / socket, 19&nbsp;mm A/F", "the M12 Gore vent"),
     ("Spanner, 12&nbsp;mm A/F", "the M8 SMA bulkhead"),
@@ -141,7 +143,10 @@ STEPS = [
   [f"Bond the panel into the front shell&rsquo;s seat. The rails and side pads locate "
    f"it; leave the {H['GLUE_T']} mm bond line &mdash; do not squeeze it to nothing.",
    f"Lay the <b>3&nbsp;mm cord</b> into the groove in the shell&rsquo;s brim. Scarf the ends "
-   f"and glue the joint away from the bottom edge.",
+   f"and glue the joint away from the bottom edge. The groove is <b>split between "
+   f"the two halves</b> &mdash; {H['GASKET_D']:.2f} in the brim and {H['GASKET_D_COVER']:.2f} in the "
+   f"cover &mdash; so the cord is captured on both sides and cannot roll out as the lid "
+   f"goes down.",
    f"Cover on. <b>{len(H['DSP_POSTS'])} &times; M3 panel screws first</b>, through the cover&rsquo;s "
    f"bearing posts into the display&rsquo;s own standoffs, each with a bonded washer.",
    f"Then <b>{NBOLT} &times; M3 brim screws</b> at {H['BOLT_PITCH']:.0f}&nbsp;mm pitch. These are "
@@ -167,7 +172,9 @@ STEPS = [
    f"<b>sideways, from outboard</b>, and the unit + arms assembly then goes onto the base.",
    f"Per side, outboard to inboard: knob or cap screw &rarr; arm eye &rarr; "
    f"<b>316 serrated washer pair</b> &rarr; trunnion land &rarr; the M5 nyloc captive in "
-   f"the {H['TRUN_NUT_AF']:.0f}&nbsp;mm hex pocket in the web.",
+   f"the {H['TRUN_NUT_AF']:.0f}&nbsp;mm hex pocket in the web. The eye is counterbored "
+   f"{B['EYE_CB']:.0f}&nbsp;mm so a stock M5 &times; {B['KNOB_STUD']:.0f} knob stud engages the "
+   f"whole nut and still stops 1&nbsp;mm short of the bay wall.",
    "The serrated pair is what holds the tilt &mdash; teeth, not friction. Set it by "
    "hand: firm enough to stay, loose enough to move.",
    f"Fit the <b>M5 heat-set inserts</b> into the arms&rsquo; foot pads now, while the arms "

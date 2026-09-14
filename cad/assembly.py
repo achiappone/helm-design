@@ -107,7 +107,8 @@ BRK = (Plane(origin=(0, _DASH_Y - _BJ["BASE_T"], _AXIS_Z),
 # and stopped - no shroud, no fans, no heatsink, no boards. A reader could not
 # tell from them that the fan had changed, which is exactly what happened.
 from parts_lib import (finned, pi4, armor_lite, pcb, nyloc, cap_screw,
-                       driver_board, rtl_sdr, sensor_breakout, push_button)
+                       driver_board, rtl_sdr, sensor_breakout, push_button,
+                       lobe_knob)
 _BACK = H["DEPTH"] + H["COVER_T"] + H["GASKET_C"]
 # The LANDING FACE is shroud-local z = OD, not the part's bounding box: the
 # louvres stand LOUV_H proud on the other side, so using the bbox floated the
@@ -164,8 +165,11 @@ for _sx in (-1, 1):
     _nz = _sx*(H["TRUN_X"] - H["TRUN_WEB_T"])
     _n = (Pos(_nz, H["TILT_Y"], _AXIS_Z) * Rot(0, 90*_sx, 0)
           * nyloc(H["TRUN_NUT_AF"], H["TRUN_NUT_DEEP"] - 1.0, H["TRUN_BORE"]))
-    _b = (Pos(_sx*(_BJ["ARM_FACE"] + _BJ["ARM_T"]), H["TILT_Y"], _AXIS_Z)
-          * Rot(0, -90*_sx, 0) * cap_screw(5.0, 25.0))
+    # the KNOB, seated EYE_CB down in the arm's eye, with the stud length the
+    # joint actually accepts - see the window bail.py computes
+    _b = (Pos(_sx*(_BJ["ARM_FACE"] + _BJ["ARM_T"] - _BJ["EYE_CB"]), H["TILT_Y"], _AXIS_Z)
+          * Rot(0, 90*_sx, 0) * lobe_knob(stud=_BJ["KNOB_STUD"],
+                                          boss_d=_BJ["KNOB_BOSS_D"]))
     _NUTS = _n if _NUTS is None else _NUTS + _n
     _BOLTS = _b if _BOLTS is None else _BOLTS + _b
     # visor pivot: nut in the ear's OUTBOARD face
@@ -258,7 +262,10 @@ for _d, _nm in ((0, "deployed"), (-45, "half"), (-90, "stowed")):
 print("  asm_visor_deployed / half / stowed")
 
 YAW = Rot(0, -40, 0)
-for ang, name in ((15, "up"), (0, "flat"), (-30, "down")):
+# 0 / +10 / +20, not 15 / 0 / -30. Tilt is FACE UP ONLY now - the arms run
+# inside the bezel width, so face-down swings the unit into them - and a sheet
+# showing a -30 deg attitude is showing a position the mount cannot reach.
+for ang, name in ((0, "flat"), (10, "up"), (20, "max")):
     a2 = [(YAW * BRK, (0.10, 0.26, 0.52)),
           (YAW * SHELL, BLUE),
           (YAW * Pos(0, 0, H["DEPTH"] + H["COVER_T"] + H["GASKET_C"]) * Rot(180, 0, 0) * COVER, BLUE2),

@@ -212,6 +212,22 @@ a = extrude(Plane.XZ * Polygon((-FOOT_L/2, 0), (FOOT_L/2, 0),
                                align=None), amount=ARM_T)
 a += Pos(STANDOFF, 0, RISE) * Rot(90, 0, 0) * Cylinder(
         EYE_R, ARM_T, align=(Align.CENTER, Align.CENTER, Align.MIN))
+# ---- the knob's counterbore, and why there has to be one ----------------
+# THE STUD LENGTH IS THE PROBLEM, not the knob. Measured through the joint:
+# the knob's face sits at |x| = ARM_FACE + ARM_T, the captive nut in the
+# trunnion web spans two known planes, and behind the web the bay's outer wall
+# is 1 mm away. That leaves a window of about 17..24 mm for the stud - and
+# catalogue knobs come in 16, 20, 25 and 30. 16 does not reach the nut, 25 and
+# 30 drive into the bay wall, and 20 gets three millimetres of thread.
+#
+# So the EYE IS COUNTERBORED and the knob sits down in it. That moves the datum
+# inboard by EYE_CB and slides the whole window with it, until a stock length
+# lands with the nut fully engaged and clearance behind. The alternative is a
+# female knob on a stud you cut yourself, which works and which nobody enjoys.
+EYE_CB, KNOB_BOSS_D = 3.0, 16.0
+a -= (Pos(STANDOFF, 0, RISE) * Rot(-90, 0, 0)
+      * Cylinder(KNOB_BOSS_D/2 + 0.4, EYE_CB, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+
 # the pivot bore - the thread is a 316 insert in the SHELL, this is clearance
 a -= Pos(STANDOFF, 0, RISE) * Rot(90, 0, 0) * Cylinder(
         BOLT_D/2, 3*ARM_T, align=(Align.CENTER, Align.CENTER, Align.CENTER))
@@ -309,12 +325,31 @@ for _t in (-TILT_DOWN, 0.0, TILT_UP/2, TILT_UP):
         f"cut TILT_UP/TILT_DOWN, or move the arms outboard of the bezel")
 print(f"       arms clear the housing across {TILT_DOWN:+.0f}..{TILT_UP:+.0f} deg")
 
+# ---- does a stock knob fit? ---------------------------------------------
+_KNOB_FACE = ARM_FACE + ARM_T - EYE_CB
+_NUT_OUT = H["TRUN_X"] - H["TRUN_WEB_T"] + H["TRUN_NUT_DEEP"]
+_NUT_IN = H["TRUN_X"] - H["TRUN_WEB_T"]
+_WALL = abs(H["PI_BUMP_CX"]) + H["PI_BUMP_L"]/2          # the bay's outer skin
+STOCK_STUD = [12, 16, 20, 25, 30, 35, 40]
+_reach, _full, _foul = (_KNOB_FACE - _NUT_OUT, _KNOB_FACE - _NUT_IN,
+                        _KNOB_FACE - _WALL)
+KNOB_STUD = next((L for L in STOCK_STUD if _full - 1.0 <= L <= _foul - 1.0), None)
+assert KNOB_STUD is not None, (
+    f"no stock knob stud fits: it needs {_full:.1f} mm to engage the nut fully "
+    f"and must stay under {_foul:.1f} before it hits the bay wall, and the "
+    f"catalogue only has {STOCK_STUD}. Change EYE_CB.")
+KNOB_ENGAGE = _KNOB_FACE - KNOB_STUD
+print(f"       KNOB: 5-lobe, M5 x {KNOB_STUD} stud, seated {EYE_CB:.0f} mm into the eye. "
+      f"Engages the nut {_NUT_OUT - max(_NUT_IN, KNOB_ENGAGE):.1f} of {H['TRUN_NUT_DEEP']:.0f} mm, "
+      f"tip {KNOB_ENGAGE - _WALL:.1f} mm clear of the bay wall")
+
 json.dump({"ARM_FACE": ARM_FACE, "ARM_T": ARM_T, "STANDOFF": STANDOFF,
            "RISE": RISE, "EYE_R": EYE_R, "AXIS_Z": AXIS_Z,
            "BASE_L": BASE_L, "BASE_W": BASE_W, "BASE_T": BASE_T,
            "N_DASH": 2*len(DASH_X), "DASH_D": DASH_D, "DASH_SLOT": DASH_SLOT,
            "DASH_ROWS": DASH_ROWS, "N_FOOT_BOLTS": 4, "BOLT_D": BOLT_D,
            "TILT_MAX": TILT_MAX, "TILT_UP": TILT_UP, "TILT_DOWN": TILT_DOWN,
+           "KNOB_STUD": KNOB_STUD, "EYE_CB": EYE_CB, "KNOB_BOSS_D": KNOB_BOSS_D,
            "FOOT_PAD_T": FOOT_PAD_T, "FOOT_PAD_H": FOOT_PAD_H,
            "INSERT_D": INSERT_D, "INSERT_L": INSERT_L, "FOOT_FLARE": FOOT_FLARE,
            "FOOT_BOLT_X": FOOT_BOLT_X,
