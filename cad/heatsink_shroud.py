@@ -274,6 +274,16 @@ for _bx, _by in H["BOLTS"]:
         s -= Pos(_bx, -_by, OD - HEAD_RELIEF/2 + 0.5) * Cylinder(
             HEAD_R + 1.5, HEAD_RELIEF + 1.0, align=(Align.CENTER, Align.CENTER, Align.CENTER))
         _relieved += 1
+# THE COVER'S PILOT BOSSES LAND INSIDE THIS WALL. They are r6 at |x| 46.5 and
+# the wall's inner face is at 49, so each boss stands 3.5 mm into it - 164 mm3
+# a corner, four corners, and the shroud simply will not sit down. Relieved
+# here rather than shrunk there: the boss radius is what gives the M3 its
+# thread, and this part has material to spare at its corners.
+_PB_R, _PB_H = 6.0 + 0.5, H["SHROUD_PILOT_BOSS"] + 0.5
+for hx, hy in HOLES:
+    s -= Pos(hx, hy, OD - _PB_H + 0.5) * Cylinder(
+        _PB_R, _PB_H + 1.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
+
 assert _relieved == 4, (
     f"relieved {_relieved} brim screw heads, expected 4 - the fastener ring or "
     f"this outline has moved and the two are placed in different files")
@@ -286,14 +296,32 @@ PAD_C = OW/2 - 14.0
 # open end were reachable only from inside, between the fan backs and the
 # cover, which is a place no driver goes.
 BOSS_R = 5.0
+# The boss stops short of the cover by the height of the cover's own pilot boss,
+# and lands on it. That moves 6 mm of thread OUTSIDE the 6 mm plate, which is
+# what makes a stock screw length exist at all - see helm_housing.py at
+# SHROUD_PILOT_BOSS.
+BOSS_H = OD - H["SHROUD_PILOT_BOSS"] + LOUV_H
+HEAD_CB = 4.0
 for hx, hy in HOLES:
-    s += Pos(hx, hy, -LOUV_H) * Cylinder(BOSS_R, OD + LOUV_H,
+    s += Pos(hx, hy, -LOUV_H) * Cylinder(BOSS_R, BOSS_H,
                                           align=(Align.CENTER, Align.CENTER, Align.MIN))
-    s -= Pos(hx, hy, -LOUV_H - 1) * Cylinder(MOUNT_D/2, OD + LOUV_H + 2,
+    s -= Pos(hx, hy, -LOUV_H - 1) * Cylinder(MOUNT_D/2, BOSS_H + 2,
                                               align=(Align.CENTER, Align.CENTER, Align.MIN))
-    s -= Pos(hx, hy, -LOUV_H - 1) * Cylinder(3.2, 4.0,          # head counterbore
+    s -= Pos(hx, hy, -LOUV_H - 1) * Cylinder(3.2, HEAD_CB,       # head counterbore
                                               align=(Align.CENTER, Align.CENTER, Align.MIN))
-SCREW_L = OD + LOUV_H - 3.0 + H["SHROUD_PILOT_DEEP"]
+# A STOCK LENGTH, picked rather than derived, because a derived length that is
+# 0.1 mm over the next size down is a screw nobody can buy. The screw crosses
+# the boss from the counterbore floor, then finds thread; it must not bottom out
+# in the blind pilot and must not reach the floor under it.
+_PASSES = BOSS_H - HEAD_CB
+_PILOT = H["SHROUD_PILOT_TOTAL"]
+_FLOOR = H["COVER_T"] - H["SHROUD_PILOT_DEEP"]
+SCREW_L = next(L for L in (16, 20, 25, 30, 35, 40, 45, 50, 55, 60)
+               if 4.0 <= L - _PASSES <= _PILOT - 1.0)
+assert 4.0 <= SCREW_L - _PASSES <= _PILOT - 1.0, "no stock screw fits"
+print(f"       shroud screw M3 x {SCREW_L:.0f}: crosses {_PASSES:.1f} of boss, "
+      f"{SCREW_L - _PASSES:.1f} of thread in a {_PILOT:.1f} pilot "
+      f"({_FLOOR:.1f} of plate left under it)")
 
 # The housing reserves clearance for this width to place the tilt trunnions.
 # If the shroud grows past what it was told, the trunnions foul it - so the
@@ -343,8 +371,8 @@ print(f"       316 mesh sheet {FILT_LX:.0f}x{FILT_LY:.0f} x {FILT_MESH}, lying o
       f"bosses at z={FILT_Z:.1f} and clamped by both fan frames")
 print(f"       depth {OD:.1f} = {WALL:.0f} wall + {FAN_BOSS:.0f} boss + {FILT_MESH} mesh + "
       f"{FAN_T:.0f} fan + {PLENUM:.0f} plenum + {HS_H:.0f} fin")
-print(f"       4 corner bosses, M3 x {SCREW_L:.0f} from the louvred face into blind "
-      f"cover pilots ({H['SHROUD_PILOT_DEEP']} deep, never through)")
+print(f"       4 corner bosses, M3 x {SCREW_L:.0f} from the louvred face into the cover's "
+      f"pilot bosses ({_PILOT:.1f} of thread, {_FLOOR:.1f} of plate left - never through)")
 
 # What the REAR OF THE UNIT actually reaches, for anything that has to swing it.
 # bail.py sized its standoff off BACK (the cover face, z=28) and the unit now

@@ -649,8 +649,13 @@ SENSORS = [                      # (name, shell x, shell y, pitch x, pitch y)
 # The old pattern put anchors at 0 and -40, inside it, and the seat sheared them
 # off their own face - caught by the floating-feature check, not by a clash test.
 # Clear of the heatsink seat (x +/-37) AND of the bays (x 58..146 each side).
-TIE_TOP = [-50.0, -42.0, 42.0, 50.0]
-TIE_BOT = [-50.0, -42.0, 42.0, 50.0]
+# ONE PER SIDE, at 48, not two at 42 and 50. A 13 mm anchor centred at 42 spans
+# x 35.5..48.5 and the heatsink's seat reaches 37.6 - so the anchors were inside
+# the seat, and the heatsink's own base corners hit them on the way in. The
+# clear strip is between the seat (37.6) and the bay (58), which is 20 mm wide:
+# it takes one 13 mm anchor, not two.
+TIE_TOP = [-48.0, 48.0]
+TIE_BOT = [-48.0, 48.0]
 TIE_Y, TIE_L, TIE_W, TIE_H, TIE_SLOT = 70.0, 13.0, 7.0, 3.5, 2.2
 # GPS IS EXTERNAL - a puck on the hardtop, its lead in through the gland.
 #
@@ -744,8 +749,10 @@ def rrect_pts(hw, hh, r, target):
 # is stiffness, not clamp load - and stiffness is the pitch.
 #
 # These screws are OUTBOARD of the cord and go into BLIND pilots in the brim,
-# so they never enter the sealed cavity and need no sealing washer. The four
-# panel screws are the ones that do.
+# so none of them is a path into the box. They still get a bonded washer each,
+# for the opposite reason: a 2.6 x 11 blind hole in ASA, horizontal in service
+# and open to spray, is a chloride crevice around a 316 thread with no way to
+# drain. The washer keeps the pilot dry. Pack them with Tef-Gel as well.
 BOLT_PITCH = 45.0
 BOLTS = rrect_pts(OUT_W/2 - BOLT_INSET, OUT_H/2 - BOLT_INSET,
                   R_OUT - BOLT_INSET, BOLT_PITCH)
@@ -981,6 +988,35 @@ for _hx, _hy in DRV_HOLES:
     c += _p * Cylinder(6.0/2 + 1.6, 5.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
     c -= _p * Cylinder(M25_PILOT/2 + 0.3, 5.5, align=(Align.CENTER, Align.CENTER, Align.MIN))
 
+# -- Pi bay: the SAME treatment, which it did not have --------------------
+# The driver bay has had bosses since the bay existed. The Pi bay had none: an
+# 88 x 125 pocket with a Raspberry Pi loose in it. It was invisible because
+# every render draws the Pi floating at the right height, and every review read
+# "boards in their bays" as if mounting them were solved. (It was added once and
+# then lost inside a block replacement, which is why it is asserted below now.)
+#
+# Pi 4: 85 x 56, holes 58 x 49 on 3.5 mm edge margins. It lies PORTRAIT here -
+# 85 along y - so the 58 pitch runs in y and the 49 in x.
+PI_HOLES = [(sx*49.0/2, sy*58.0/2) for sx in (-1, 1) for sy in (-1, 1)]
+PI_STANDOFF_H = 5.0                 # clears the solder side and the SD card
+_v_before = c.volume
+for _hx, _hy in PI_HOLES:
+    _p = Pos(PI_BOARD_CX + _hx, cy(PI_BUMP_CY + _hy), -PI_BUMP_H + WALL)
+    c += _p * Cylinder(6.0/2 + 1.6, PI_STANDOFF_H, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    c -= _p * Cylinder(M25_PILOT/2 + 0.3, PI_STANDOFF_H + 0.5,
+                       align=(Align.CENTER, Align.CENTER, Align.MIN))
+assert c.volume > _v_before, (
+    "the Pi bay's mounting bosses added no material - the board has nothing to "
+    "bolt to, which is exactly the fault this block was written to fix")
+# The stack has to fit the hole it is bolted into: bay floor to the display's
+# back is the bay depth, plus the window through the plate, plus the gap behind
+# the panel. Pi + Armor Lite is the tall case.
+_PI_STACK = PI_STANDOFF_H + 1.6 + 17.0          # standoff + board + Armor Lite
+_PI_ROOM = (PI_BUMP_H - WALL) + COVER_T + (DEPTH - FACE_T - GLUE_T - MOD_D)
+assert _PI_STACK < _PI_ROOM, (
+    f"Pi stack is {_PI_STACK:.1f} tall and there is {_PI_ROOM:.1f} from the bay "
+    f"floor to the back of the display")
+
 # -- tie-wrap anchors, inner face ------------------------------------------
 for _xs, _sgn in ((TIE_TOP, 1), (TIE_BOT, -1)):
     for _tx in _xs:
@@ -995,6 +1031,15 @@ for _xs, _sgn in ((TIE_TOP, 1), (TIE_BOT, -1)):
 # floor, in the clear band between the gland's mouth and the board.
 for _ax in (GL_X - 12.0, GL_X + 12.0):
     _ay = -(PI_BUMP_W/2 - WALL) + 9.0            # 9 mm in from the end wall
+    c += Pos(_ax, cy(_ay), -PI_BUMP_H + WALL - 0.3) * Box(
+        TIE_W, TIE_L, TIE_H + 0.3, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    c -= Pos(_ax, cy(_ay), -PI_BUMP_H + WALL + TIE_H - TIE_SLOT/2 - 0.4) * Box(
+        TIE_SLOT, TIE_L + 2, TIE_SLOT, align=(Align.CENTER,)*3)
+
+# ...and the same two inside the DRIVER bay, so the two bays stay alike and the
+# anchor count the cable work needs comes back.
+for _ax in (VENT_X - 12.0, VENT_X + 12.0):
+    _ay = -(PI_BUMP_W/2 - WALL) + 9.0
     c += Pos(_ax, cy(_ay), -PI_BUMP_H + WALL - 0.3) * Box(
         TIE_W, TIE_L, TIE_H + 0.3, align=(Align.CENTER, Align.CENTER, Align.MIN))
     c -= Pos(_ax, cy(_ay), -PI_BUMP_H + WALL + TIE_H - TIE_SLOT/2 - 0.4) * Box(
@@ -1103,25 +1148,57 @@ for _bs in (-1, 1):
               * Box(BLK_CHAM*1.42, BLK_CHAM*1.42, PI_BUMP_H + 2,
                     align=(Align.CENTER, Align.CENTER, Align.CENTER)))
 
+SEAT_LAND = 3.0                     # round-crown collar at the flange face
+
 def _ybore(x, dia, y0, y1, teardrop=True):
     """A horizontal bore along -y through a block, printed without support.
-    The crown of a horizontal hole sags; a teardrop apex above it turns the
-    top of the bore into two 45 deg walls that bridge themselves."""
+
+    The crown of a horizontal hole sags, and a 45 deg teardrop apex above it
+    turns that crown into two walls that bridge themselves. But the apex is a
+    NOTCH, and the first cut of this ran it the full length of the bore - i.e.
+    straight out through the face the fitting's O-ring seats on. All three
+    fittings had a V-groove 0.25 x D deep cut across their sealing land: the
+    gland's and the vent's face seals had nothing to seal against.
+
+    So the teardrop stops SEAT_LAND short of the face. That leaves a short
+    round-crown collar for the O-ring - 3 mm of unsupported 14.5 crown, which
+    is a bridge ASA spans without thinking about it, and which the tap trues
+    on its way in anyway."""
     _b = (Pos(x, cy((y0 + y1)/2), BORE_Z) * Rot(90, 0, 0)
           * Cylinder(dia/2, abs(y1 - y0) + 2, align=(Align.CENTER,)*3))
     if teardrop:
-        _b += (Pos(x, cy((y0 + y1)/2), BORE_Z + dia*0.25) * Rot(90, 0, 0) * Rot(0, 0, 45)
-               * Box(dia*0.707, dia*0.707, abs(y1 - y0) + 2, align=(Align.CENTER,)*3))
+        # y0 is the OUTER (face) end; hold the apex back from it
+        _td0 = y0 + SEAT_LAND if y0 < y1 else y0 - SEAT_LAND
+        _b += (Pos(x, cy((_td0 + y1)/2), BORE_Z + dia*0.25) * Rot(90, 0, 0) * Rot(0, 0, 45)
+               * Box(dia*0.707, dia*0.707, abs(y1 - _td0) + 2, align=(Align.CENTER,)*3))
     return _b
 
 # cable gland: tapped straight through into the Pi bay
-c -= _ybore(GL_X, GL_TAP, BLK_Y0 - 1, BLK_Y1)
+c -= _ybore(GL_X, GL_TAP, BLK_Y0, BLK_Y1)
 # Gore vent: tapped, into the driver bay
-c -= _ybore(VENT_X, VENT_TAP, BLK_Y0 - 1, BLK_Y1)
+c -= _ybore(VENT_X, VENT_TAP, BLK_Y0, BLK_Y1)
 # SMA coax entry: a short threaded section, then a counterbore so the inner nut
 # lands in open bay rather than being buried in the block
-c -= _ybore(SMA_X, SMA_D, BLK_Y0 - 1, BLK_Y1)
+c -= _ybore(SMA_X, SMA_D, BLK_Y0, BLK_Y1)
 c -= _ybore(SMA_X, SMA_CB_D, SMA_CB_Y, BLK_Y0 + 6.0, teardrop=False)
+
+# THE SEATING FACES MUST BE FLAT ANNULI. Probed, not reasoned about: take a
+# thin slab at the block's outer face, intersect it with the ring the flange's
+# O-ring lands on, and demand the ring is solid all the way round. A notch
+# anywhere in it - from a teardrop, a chamfer, a neighbour's counterbore - is a
+# leak path straight up the bore and into the box.
+for _n, _x, _d, _fl, _need in [("cable gland", GL_X, GL_TAP, GL_FLANGE, 0),
+                               ("Gore vent", VENT_X, VENT_TAP, VENT_FLANGE, 0),
+                               ("SMA coax entry", SMA_X, SMA_D, 12.7, 0)]:
+    _slab = Pos(_x, cy(BLK_Y0 + 0.25), BORE_Z) * Rot(90, 0, 0) * Cylinder(
+        _fl/2, 0.5, align=(Align.CENTER,)*3)
+    _ring = _slab - (Pos(_x, cy(BLK_Y0 + 0.25), BORE_Z) * Rot(90, 0, 0)
+                     * Cylinder(_d/2 + 0.2, 1.0, align=(Align.CENTER,)*3))
+    _got = c & _ring
+    _have = 0.0 if _got is None else _got.volume
+    assert _have > 0.98 * _ring.volume, (
+        f"{_n}'s O-ring land is {100*(1 - _have/_ring.volume):.0f}% cut away at "
+        f"the seating face - it has nothing to seal against")
 
 # ---- and the checks that would have caught the original fault -------------
 # Every one of these compares a fitting to something OUTSIDE its own family -
@@ -1208,13 +1285,24 @@ print(f"       shroud lands over {len(_UNDER)} brim screw heads: "
 # The pilots are blind, so they cannot leak, but they are drilled from the
 # WEATHER face and leave only SHROUD_PILOT_FLOOR of plate. Under the gasket land
 # that floor is the sealing face itself, and a thread-forming screw swells it.
+# A PILOT BOSS AT EACH CORNER, and it is not decoration. 4.5 mm is all the
+# thread a 6 mm plate can give without breaking through, and the screw has to
+# cross 43.6 mm of shroud before it gets there - so the length that reaches is
+# 45 and the length that stops in time is 40, and neither exists. The boss adds
+# SHROUD_PILOT_BOSS of thread OUTSIDE the pressure boundary and shortens the
+# shroud's own boss by the same amount, which turns one impossible screw into a
+# stock M3 x 40 with 6.4 mm of engagement.
+SHROUD_PILOT_BOSS = 6.0
+SHROUD_PILOT_TOTAL = SHROUD_PILOT_BOSS + SHROUD_PILOT_DEEP
 _gask_in = OUT_H/2 - GASKET_OUT - GASKET_W
 for _hx, _hy in HS_HOLES:
     assert abs(_hy) + SHROUD_PILOT_D/2 + 1.5 < _gask_in, (
         f"shroud pilot at y={_hy:.1f} is within 1.5 mm of the gasket land at "
         f"{_gask_in:.1f} - forming a thread there bulges the sealing face")
-    c -= Pos(_hx, cy(_hy), -1.0) * Cylinder(
-        SHROUD_PILOT_D/2, SHROUD_PILOT_DEEP + 1.0,
+    c += Pos(_hx, cy(_hy), -SHROUD_PILOT_BOSS) * Cylinder(
+        6.0, SHROUD_PILOT_BOSS, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    c -= Pos(_hx, cy(_hy), -SHROUD_PILOT_BOSS - 1.0) * Cylinder(
+        SHROUD_PILOT_D/2, SHROUD_PILOT_TOTAL + 1.0,
         align=(Align.CENTER, Align.CENTER, Align.MIN))
 
 # -- fan wire pass-through, UNDER THE SHROUD -------------------------------
@@ -1322,7 +1410,17 @@ for sx in (-1, 1):
         _yf = _ty + _gs*TRUN_R
         _tri = Polygon((_yf - _gs*0.3, 0.3), (_yf + _gs*TRUN_GUSSET, 0.3),
                        (_yf - _gs*0.3, -TRUN_GUSSET), align=None)
-        c += Pos(_tx - TRUN_WEB_T/2, 0, 0) * extrude(Plane.YZ * _tri, amount=TRUN_WEB_T)
+        # The gusset has to land ON the web, and the first two attempts put it
+        # 8 mm either side of it - outboard, where it overhung the brim screw at
+        # (-164,-2) and stood in its driver's path. Built from the web's own
+        # centre and asserted, rather than offset by a sign nobody can predict.
+        _g = extrude(Plane.YZ * _tri, amount=TRUN_WEB_T, both=True)
+        _g = Pos(_tx, 0, 0) * scale(_g, (0.5, 1, 1))
+        _gb = _g.bounding_box()
+        assert abs(_gb.min.X - (_tx - TRUN_WEB_T/2)) < 1e-6, (
+            f"gusset sits at x {_gb.min.X:.1f}..{_gb.max.X:.1f}, not on the web at "
+            f"{_tx - TRUN_WEB_T/2:.1f}..{_tx + TRUN_WEB_T/2:.1f}")
+        c += _g
     c += (Pos(sx*TRUN_X, _ty, -TRUN_STAND) * Rot(0, 90*sx, 0)
           * Cylinder(TRUN_R, TRUN_LAND, align=(Align.CENTER, Align.CENTER, Align.MIN)))
     _v0 = c.volume
@@ -1334,7 +1432,10 @@ for sx in (-1, 1):
     # an oval. A 45 deg apex above the axis turns the crown into two walls that
     # bridge themselves. "Above" in the print is -z here (the part is flown
     # upside down onto the bed), so the apex points toward the bump backs.
-    c -= (Pos(sx*(TRUN_X + TRUN_LAND), _ty, -TRUN_STAND - TRUN_BORE*0.25)
+    # +, not -. The cover prints BUMPS DOWN, so the bed is at -z and "up" in
+    # the print is increasing z. The apex was below the bore, which is not a
+    # teardrop, it is a drip.
+    c -= (Pos(sx*(TRUN_X + TRUN_LAND), _ty, -TRUN_STAND + TRUN_BORE*0.25)
           * Rot(0, -90*sx, 0) * Rot(0, 0, 45)
           * Box(TRUN_BORE*0.707, TRUN_BORE*0.707, TRUN_BORE_D,
                 align=(Align.CENTER, Align.CENTER, Align.MIN)))
@@ -1410,6 +1511,11 @@ for _n, _sx, _sy, _py, _px in SENSORS:
 for _xs, _sgn in ((TIE_TOP, 1), (TIE_BOT, -1)):
     for _tx in _xs:
         _seal_ok(_tx, _sgn*TIE_Y, TIE_L/2 + 1, TIE_W/2 + 1, "tie-wrap anchor")
+        assert abs(_tx) - TIE_L/2 > HS_L/2 + HS_SEAT_FIT + 1.0, (
+            f"tie anchor at x={_tx:.0f} reaches {abs(_tx) - TIE_L/2:.1f}, inside the "
+            f"heatsink seat at {HS_L/2 + HS_SEAT_FIT:.1f} - the sink hits it going in")
+        assert abs(_tx) + TIE_L/2 < abs(PI_BUMP_CX) - PI_BUMP_L/2 - 1.0, (
+            f"tie anchor at x={_tx:.0f} runs into the bay wall")
 for _px_, _py_ in DSP_POSTS:
     _seal_ok(_px_, _py_, DSP_POST_D/2, None, "display post")
 for _bs in (-1, 1):
@@ -1443,16 +1549,19 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "HS_SPAN":HS_SPAN,"HS_HOLES":HS_HOLES,"HS_PLATE_X":HS_PLATE_X,
            "HS_PLATE_Y":HS_PLATE_Y,"SHROUD_H":SHROUD_H,
            "HS_FIT":HS_FIT,"SHROUD_PILOT_D":SHROUD_PILOT_D,
-           "SHROUD_PILOT_DEEP":SHROUD_PILOT_DEEP,
+           "SHROUD_PILOT_DEEP":SHROUD_PILOT_DEEP,"SHROUD_PILOT_BOSS":SHROUD_PILOT_BOSS,
+           "SHROUD_PILOT_TOTAL":SHROUD_PILOT_TOTAL,
            "WIRE_D":WIRE_D,"WIRE_X":WIRE_X,"WIRE_Y":WIRE_Y,
            "FIN_GAP":FIN_GAP,"GASKET_OUT":GASKET_OUT,
            "APER_W":APER_W,"APER_H":APER_H,"APER_X":APER_X,"APER_Y":APER_Y,
            "BTN_X":BTN_X,"ENC_X":ENC_X,"ROW_CY":ROW_CY,"BTN_D":BTN_D,"ENC_D":ENC_D,
-           "SMA_X":SMA_X,"SMA_D":SMA_D,"GL_X":GL_X,"GL_TAP":GL_TAP,"CABLE_D":CABLE_D,
+           "SMA_X":SMA_X,"SMA_D":SMA_D,"SMA_CB_D":SMA_CB_D,"GL_X":GL_X,"GL_TAP":GL_TAP,
+           "CABLE_D":CABLE_D,"SEAT_LAND":SEAT_LAND,
            "VENT_X":VENT_X,"VENT_TAP":VENT_TAP,"BORE_Z":BORE_Z,
            "BLK_X0":BLK_X0,"BLK_X1":BLK_X1,"BLK_Y0":BLK_Y0,"BLK_Y1":BLK_Y1,
            "PI_BUMP_H":PI_BUMP_H,"PI_BUMP_L":PI_BUMP_L,"PI_BUMP_W":PI_BUMP_W,
-           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,
+           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,"DRV_BOARD_CX":DRV_BOARD_CX,
+           "PI_BOARD_CX":PI_BOARD_CX,"PI_HOLES":PI_HOLES,"DRV_HOLES":DRV_HOLES,
            "PIV_X":PIV_X,"PIV_Y":PIV_Y,"PIV_Z":PIV_Z,
            # mating dimensions - the visor and the bracket read these rather
            # than keeping their own copies, which is how rev B ended up with
@@ -1558,9 +1667,9 @@ print(f"       seat: rail at y={APER_Y - MOD_H/2 - MOD_FIT:.2f}, side pads "
 print(f"       order: bond panel into the seat (top open, swing it in) -> cure "
       f"-> foam on brim -> cover -> {len(DSP_POSTS)}x M{3} x {DSP_SCREW_L:.0f} "
       f"into the panel standoffs -> {len(BOLTS)}x M3 brim screws")
-print(f"       through the pressure boundary: {len(DSP_POSTS)} panel screws on bonded "
-      f"washers + 1 potted fan-lead pass; the {len(BOLTS)} brim screws are outboard "
-      f"of the cord into blind pilots and need none")
+print(f"       through the pressure boundary: {len(DSP_POSTS)} panel screws + 1 potted "
+      f"fan-lead pass. The {len(BOLTS)} brim screws are outboard of the cord in blind "
+      f"pilots - washered and Tef-Gelled to keep the crevice dry, not to seal")
 print(f"THERM  panel back {_z_panel} -> cover inner {DEPTH + GASKET_C}: "
       f"{FIN_GAP:.1f} mm of dead air, all of it")
 print(f"       heatsink {HS_L:.0f} x {HS_W:.0f} x {HS_H:.0f} bonded base-out in the "

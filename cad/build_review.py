@@ -329,8 +329,8 @@ a{{color:var(--accent)}}
     <tr><td class="m">23</td><td>M5 316 SS</td><td>8</td><td>LP-24 shroud to the dash</td></tr>
     <tr><td class="m">24</td><td>M2.5 &times; 8</td><td>{H["N_SENSOR_SCREWS"]}</td><td>Breakouts onto the cover&rsquo;s {H["STANDOFF_H"]} mm standoffs</td></tr>
     <tr><td class="m">25</td><td>CNLINKO LP-24</td><td>1</td><td>&Oslash;24.4 bore, 26.0 sq pattern</td></tr>
-    <tr><td class="m">26</td><td>M20&times;1.5 90&deg; elbow gland</td><td>1</td><td>Tapped boss in the cover, tapping drill &Oslash;18.5. <b>Position relocating</b> &mdash; see open items</td></tr>
-    <tr><td class="m">27</td><td>M12&times;1.5 Gore vent</td><td>1</td><td>&Oslash;{H["VENT_D"]} bore. Equalises pressure so the cord only has to stop water. <b>Position relocating.</b> Do not paint or block</td></tr>
+    <tr><td class="m">26</td><td><b>M16&times;1.5 straight gland</b>, 316 or IP68 nylon</td><td>1</td><td>Tapped into the &minus;x fitting block at x={H["GL_X"]:.0f}, <b>bore along &minus;y, facing DOWN</b>. Tapping drill &Oslash;{H["GL_TAP"]}, {abs(H["BLK_Y1"]-H["BLK_Y0"]):.0f} mm of thread. Clamps &le;&Oslash;{H["CABLE_D"]:.0f} cable &mdash; was an M20 elbow, which fits nowhere on this part and whose elbow the &minus;y bore makes redundant</td></tr>
+    <tr><td class="m">27</td><td>M12&times;1.5 Gore screw-in vent</td><td>1</td><td><b>Tapped</b> into the +x block at x={H["VENT_X"]:.0f}, drill &Oslash;{H["VENT_TAP"]}, facing DOWN. Tapped not clearance: a &Oslash;19 locknut pocket there reaches the bay wall with 0.00 mm to spare. Equalises pressure so the cord only has to stop water. Do not paint or block</td></tr>
     <tr><td class="m">28</td><td>SMA female bulkhead, M16</td><td>1</td><td>&Oslash;{H["SMA_D"]} bore straight through the {COVER_T:.0f} mm cover, on a raised sealing pad. <b>Position relocating</b></td></tr>
     <tr><td class="m">29</td><td><b>{GASKET_T:.0f} mm round rubber cord</b></td><td>~{CORD_L/1000:.2f} m</td><td>In a {GASKET_W:.2f} &times; {H["GASKET_D"]:.2f} groove in the brim. Cut long, scarf the splice with CA, keep the joint <b>off the bottom rail</b></td></tr>
     <tr><td class="m">30</td><td>Belden 1058A</td><td>as needed</td><td>12 pair 20 AWG PLTC</td></tr>
@@ -339,15 +339,15 @@ a{{color:var(--accent)}}
     <tr><td class="m">32</td><td>Fan shroud</td><td>1</td><td>ASA {g(S.get("SHROUD_CM3"))}. {SH_BOX} box, louvres {S["LOUV_H"]:.0f} proud &mdash; {S["REAR_PROUD"]:.0f} behind the cover</td></tr>
     <tr><td class="m">34</td><td>Aluminium heatsink {H["HS_W"]:.0f} &times; {H["HS_L"]:.0f} &times; {H["HS_H"]:.0f}</td><td>1</td><td><b>Bonded base-out</b> into the {H["HS_BASE"]:.0f} mm seat in the cover&rsquo;s INNER face. Trim the fins back <b>{H["AP_SEAL"]:.0f} mm all round</b> to leave a sealing land</td></tr>
     <tr><td class="m">35</td><td><b>Coolerguys CG8025H12-IP67</b></td><td>{S["FAN_N"]}</td><td>{S["FAN_W"]:.0f} &times; {S["FAN_W"]:.0f} &times; {S["FAN_T"]:.0f}, {S["FAN_PITCH"]} pitch, dual ball, &minus;40..+70 &deg;C. Every IP-rated 80 is {S["FAN_T"]:.0f} thick</td></tr>
-    <tr><td class="m">36</td><td>HYS whip antenna</td><td>1</td><td>185 mm, <b>SMA male</b>, 136&ndash;174 / 400&ndash;470 MHz</td></tr>
-    <tr><td class="m">38</td><td>SMA pigtail, RG316</td><td>1</td><td>150 mm, M16 bulkhead to SMA male &mdash; feeds the RTL-SDR</td></tr>
+    <tr><td class="m">36</td><td>HYS whip antenna + rail/hardtop mount</td><td>1</td><td>185 mm, <b>SMA male</b>, 136&ndash;174 / 400&ndash;470 MHz. <b>Not on the housing</b> &mdash; it mounts remotely and feeds in by coax, the same call the GPS puck got</td></tr>
+    <tr><td class="m">38</td><td>SMA pigtail, RG316</td><td>1</td><td>150 mm, bulkhead to SMA male &mdash; feeds the RTL-SDR. Plus an outside run from the bulkhead to wherever the whip is mounted</td></tr>
     <tr><td class="m">40</td><td>Adhesive copper or alloy foil</td><td>1 sheet</td><td>Shield between the antenna feed and the display ribbon. <b>Bond to system ground</b> &mdash; ungrounded foil does almost nothing</td></tr>
-    <tr><td class="m">41</td><td>316 woven mesh sheet</td><td>1</td><td>{S["FILT_LX"]:.0f} &times; {S["FILT_LY"]:.0f} &times; {S["FILT_MESH"]}, ~20&ndash;40 mesh. In the recess on the shroud&rsquo;s <b>inner</b> face, clamped by the fans&rsquo; own screws. <b>Not foam</b> &mdash; foam holds salt against the fins</td></tr>
+    <tr><td class="m">41</td><td>316 woven mesh sheet</td><td>1</td><td>{S["FILT_LX"]:.0f} &times; {S["FILT_LY"]:.0f} &times; {S["FILT_MESH"]}, ~20&ndash;40 mesh. Lies on the eight fan bosses and is clamped by the two fan frames &mdash; there is no recess. On the shroud&rsquo;s <b>inner</b> face, clamped by the fans&rsquo; own screws. <b>Not foam</b> &mdash; foam holds salt against the fins</td></tr>
     <tr><td class="m">42</td><td>M3 &times; {S["SCREW_L"]:.0f} 316 SS</td><td>4</td><td>Shroud corner bosses. Enter at the <b>louvred face</b>, stop in blind pilots {H["SHROUD_PILOT_DEEP"]} deep &mdash; they never pass through the cover</td></tr>
     <tr><td class="m">43</td><td>316 serrated washer pair, M5</td><td>2 pairs</td><td>One pair per bail joint, {H["FRIC_SHIM"]:.1f} mm. Teeth, not friction &mdash; they hold mechanically instead of on an unmeasured &mu;</td></tr>
     <tr><td class="m">44</td><td>Marine potting compound</td><td>1 tube</td><td>Fills the dam over the &Oslash;{H["WIRE_D"]:.0f} fan-lead pass. The <b>only</b> penetration that is not a screw</td></tr>
     <tr><td class="m">45</td><td>M3 &times; {int(math.ceil(H["DSP_SCREW_L"]/2)*2)} 316 SS</td><td>{H["N_DSP_POSTS"]}</td><td>Through the cover&rsquo;s bearing posts into the panel&rsquo;s own standoffs, so the silicone only seals. Bonded washer each</td></tr>
-    <tr><td class="m">46</td><td>M3 bonded sealing washers</td><td>{NBOLT + H["N_DSP_POSTS"]}</td><td>Every through-hole in the weather face: {NBOLT} brim + {H["N_DSP_POSTS"]} panel screws</td></tr>
+    <tr><td class="m">46</td><td>M3 bonded sealing washers</td><td>{NBOLT + H["N_DSP_POSTS"]}</td><td>{H["N_DSP_POSTS"]} panel screws (the only through-holes) plus {NBOLT} brim screws &mdash; those are blind, and the washer is there to keep a horizontal blind pilot from holding seawater against a 316 thread. <b>Tef-Gel every pilot</b></td></tr>
   </table></div>
   <div class="flag">
     <h3>The 8 M3 holes around the aperture are DELETED &mdash; do not drill them</h3>
@@ -415,13 +415,34 @@ a{{color:var(--accent)}}
        Base fixes with {B["N_DASH"]} &Oslash;{B["DASH_D"]} &times; {B["DASH_SLOT"]:.0f} slots in two rows
        {B["DASH_ROWS"]:.0f} apart, so the rows take the peel moment; the arm feet take
        {B["N_FOOT_BOLTS"]} M5 fore-and-aft, which is what resists each arm rotating about its own foot.</p>
-    <p><b>Three parts, not a U</b>, and that is forced: assembled width is {2*(B["ARM_FACE"]+B["ARM_T"]):.0f} mm
-       against a {H["BED"]:.0f} bed. Split at the feet, each part prints flat in its strongest orientation.</p>
-    <p><b>Cable entry, vent and antenna are mid-move.</b> The gland, the Gore vent and the SMA bulkhead are being
-       relocated in a parallel pass, so this page states <b>no coordinates</b> for them &mdash; see open items.
-       What is settled: all three are on the rear <b>cover</b>, which is a flat plate whose {COVER_T:.0f} mm is
-       already inside an M16 bulkhead&rsquo;s grip, with both faces parallel by construction and a raised pad
-       under any nut so it does not bear on layer lines.</p>
+    <p><b>Tilt runs one way: {B["TILT_DOWN"]:.0f}&deg; to {B["TILT_UP"]:.0f}&deg;, face UP.</b> That is the price
+       of the arms staying inside the bezel width. They run at x&thinsp;{B["ARM_FACE"]:.0f}&ndash;{B["ARM_FACE"]+B["ARM_T"]:.0f}
+       while the cover is {OUT_W:.0f} wide, so they share the unit&rsquo;s own footprint and can only do it by
+       staying <em>behind</em> the cover. Tilting the face up swings the bottom edge forward, away from them
+       &mdash; probed clear across the whole range. Tilting it down swings that edge into the blades:
+       1,487&nbsp;mm&sup3; at 5&deg;, 16,174 at 20&deg;. Face-up is the direction a dash display below eye level
+       is tilted anyway, so this is a range and not a consolation &mdash; but face-down would need the arms
+       outboard of the bezel, and that is the constraint you set.</p>
+    <p><b>Three parts, not a U</b> &mdash; for orientation, not for bed size. At {2*(B["ARM_FACE"]+B["ARM_T"]):.0f} mm
+       a one-piece U would fit the {H["BED"]:.0f} bed; what it could not do is lie flat, because the base is
+       horizontal and the arms are vertical. Split at the feet, each part prints flat in its strongest
+       orientation and nothing is in cross-layer bending.</p>
+    <p><b>Cable entry, vent and coax all face DOWN, in blocks beside the bumps.</b> They used to be on the
+       cover&rsquo;s flat face, and they could not be: the two bay bumps own that face from |x|&nbsp;58 to 146
+       and are hollowed right through, so two of the three bosses were built <em>inside a void</em>, fused to
+       a bay wall by whatever part of them happened to overlap it. Outside the bays and inside the seal the
+       flat face has a 10&nbsp;mm strip and a 15&nbsp;mm band left; the smallest of these fittings needs 19.</p>
+    <p>The face is full &mdash; the part is not. Each bump stops at |y|&nbsp;62.5 while the cover runs to
+       {OUT_H/2:.1f}, so beside each bump end there is a pocket 88 wide &times; 13.5 deep &times; {H["PI_BUMP_H"]:.0f} tall
+       with nothing in it. A block fills the two bottom pockets and the three bores run <b>horizontally</b>
+       through it and exit <b>downward</b>: no standing water, no sun on a nylon gland, an automatic drip loop
+       on the cable, and zero cost in width or depth because nothing reaches past the bumps&rsquo; back plane.
+       Every seat and every nut is in open air with the cover on the bench, which is when you fit them.</p>
+    <p><b>The teardrops stop {H["SEAT_LAND"]:.0f} mm short of each face.</b> A horizontal bore&rsquo;s crown sags, so
+       each has a 45&deg; apex above it &mdash; but an apex is a notch, and run full-length it cut a V-groove
+       straight across the flange&rsquo;s O-ring land on all three. The last {H["SEAT_LAND"]:.0f} mm is round crown, which
+       the tap trues anyway, and the build now probes a thin annulus at each face and refuses to export if it
+       is not solid all the way round.</p>
     <p><b>{H["TIE_N"]} tie-wrap anchors</b> on the cover&rsquo;s inner face, {H["TIE_SLOT"]} mm slots for a
        standard 2.5 mm tie. They are on the cover because that is where the harness runs &mdash; the boards, the
        sensors and the gland are all on this part, and you dress cables before closing it up.</p>

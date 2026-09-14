@@ -84,7 +84,19 @@ assert ARM_FACE + ARM_T <= OUT_W/2 + 0.01, (
 # a corner at (dy, dz) from the axis, rotating by theta puts it at
 #     dy' = dy*cos(theta) - dz*sin(theta)
 # and the axis must sit high enough that dy' never reaches the dash.
-TILT_MAX = 20.0
+# TILT IS ONE-SIDED, AND THAT IS THE ARMS' PRICE. The owner asked for the
+# bracket to stay inside the bezel width, so the arms run at x 160..167 while
+# the cover is 334 wide - they share the unit's own footprint, and they can only
+# do that by staying BEHIND the cover. Tilting the face UP swings the unit's
+# bottom edge forward, away from them: clear through 20 deg, probed at 3 mm3
+# (contact on the shim land, i.e. nothing). Tilting the face DOWN swings that
+# edge back INTO the blades - 1,487 mm3 at 5 deg, 16,174 at 20.
+#
+# Face-up is the direction a dash display below eye level is actually tilted,
+# so this is a real range, not a consolation. Face-down needs arms outboard of
+# the bezel, which is the constraint the owner set.
+TILT_UP, TILT_DOWN = 20.0, 0.0
+TILT_MAX = TILT_UP                  # what the rise has to clear
 BASE_T_MIN = 8.0
 DASH_CLEAR = 10.0                   # air under the lowest corner at full tilt
 
@@ -98,14 +110,18 @@ def _drop(deg):
                (SH["OH"]/2, REAR), (-SH["OH"]/2, REAR)]    # shroud
     for cy, cz in corners:
         dy, dz = cy - TILT_Y, cz - AXIS_Z
-        for t in (-deg, 0.0, deg):
+        for t in (-TILT_DOWN, 0.0, deg):
             r = math.radians(t)
             worst = max(worst, -(dy*math.cos(r) - dz*math.sin(r)))
     return worst
 
-RISE = _drop(TILT_MAX) + DASH_CLEAR
-# and the eye has to clear the plate it is bolted to, whatever the swing says
-RISE = max(RISE, EYE_R + BASE_T_MIN + 6.0)
+# THREE THINGS WANT A HEIGHT and the rise is whichever wants most. Writing it
+# as one of them and patching the others later is how the arm ended up with
+# 10 mm of blade below the unit to flare a 54 mm foot into.
+FOOT_FLARE = 16.0                   # blade below the unit's bottom edge
+RISE = max(_drop(TILT_MAX) + DASH_CLEAR,        # nothing touches the dash
+           EYE_R + BASE_T_MIN + 6.0,            # the eye clears its own plate
+           TILT_Y + OUT_H/2 + FOOT_FLARE)       # room to flare the foot
 assert RISE < 190.0, (
     f"the axis would sit {RISE:.0f} mm above the dash for {TILT_MAX:.0f} deg of "
     f"tilt - that is a tall bracket, cut the tilt range")
@@ -116,6 +132,20 @@ assert RISE < 190.0, (
 # previous 59 mm of lean came out of the rear-sweep calculation that should not
 # have existed.
 STANDOFF = 0.0
+
+# ---- the arm's foot pad, declared here because the plate is drilled to it --
+# The pad hangs INBOARD, into the space under the unit - so it has to stay
+# BELOW the unit, or it is inside the housing. Its height is therefore the
+# blade's clearance under the unit, less a margin, not a number of its own.
+FOOT_PAD_T = 14.0
+FOOT_PAD_H = FOOT_FLARE - 2.0
+INSERT_D, INSERT_L = 6.4, 10.0      # M5 316 heat-set
+assert FOOT_PAD_T - INSERT_D > 6.0, (
+    f"an M5 insert in a {FOOT_PAD_T} mm pad leaves "
+    f"{(FOOT_PAD_T - INSERT_D)/2:.1f} mm of wall")
+assert INSERT_L < FOOT_PAD_H - 1.0, (
+    f"a {INSERT_L} mm insert does not fit a {FOOT_PAD_H} mm pad")
+FOOT_BOLT_X = 17.0
 
 # ---- base plate ----------------------------------------------------------
 # 2*ARM_FACE - 2*ARM_T was 306 and put the foot bolts 14 mm inboard of each
@@ -137,11 +167,11 @@ for sx in DASH_X:
         for e in (-1, 1):
             b -= Pos(sx, sy + e*DASH_SLOT/2, -1) * Cylinder(
                 DASH_D/2, BASE_T + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
-# arm feet bolt down at the ends, two each
-# The arm foot straddles the base's short edge, so its two bolts run fore-and-
-# aft along y. Same pair spacing the arm uses - both read FOOT_BOLT_X.
-FOOT_BOLT_X = 17.0
-FOOT_X = BASE_L/2 - ARM_T/2
+# arm feet bolt down at the ends, two each. Same pair spacing the arm uses -
+# both read FOOT_BOLT_X, declared once above.
+# The pad is centred here, not the blade: the bolt goes into the pad, and the
+# pad hangs inboard of the arm's inner face.
+FOOT_X = ARM_FACE + ARM_T - FOOT_PAD_T/2
 for sx in (-1, 1):
     for sy in (-1, 1):
         b -= Pos(sx*FOOT_X, sy*FOOT_BOLT_X, -1) * Cylinder(
@@ -165,9 +195,9 @@ FOOT_L = 54.0
 # the unit's bottom edge.
 HW_MID = AXIS_Z - BACK - 2.0        # keeps the blade 2 mm clear of the cover
 Z_CLEAR = RISE - TILT_Y - OUT_H/2   # local height of the unit's bottom edge
-assert Z_CLEAR > 12.0, (
+assert Z_CLEAR >= FOOT_FLARE - 1e-6, (
     f"the unit's bottom edge is only {Z_CLEAR:.0f} mm up the arm - there is no "
-    f"room below it to flare a foot")
+    f"room below it to flare a foot; RISE is not being driven by FOOT_FLARE")
 assert HW_MID > EYE_R*0.55 + 2.0, (
     f"the trunnion stands {AXIS_Z - BACK:.0f} mm off the cover, which leaves a "
     f"{HW_MID:.0f} mm blade - too thin to carry the unit")
@@ -185,24 +215,59 @@ a += Pos(STANDOFF, 0, RISE) * Rot(90, 0, 0) * Cylinder(
 # the pivot bore - the thread is a 316 insert in the SHELL, this is clearance
 a -= Pos(STANDOFF, 0, RISE) * Rot(90, 0, 0) * Cylinder(
         BOLT_D/2, 3*ARM_T, align=(Align.CENTER, Align.CENTER, Align.CENTER))
-# two bolts down through the foot into the base plate. They sit fore-and-aft of
-# each other so the pair resists the arm rotating about its own foot, which is
-# the load that actually arrives here - the unit's weight is a moment on the
-# arm, not a shear.
+# ---- the foot pad, and why the joint needed one --------------------------
+# The foot bolts used to be O5.4 straight through the 7 mm blade: 0.8 mm of ASA
+# either side of the hole, on the joint that carries the whole unit. And they
+# were drawn as through-bolts with nowhere for a nut - the plate's underside
+# sits on the dash, so nothing can be held under it.
+#
+# The blade therefore thickens to FOOT_PAD_T over its bottom FOOT_PAD_H, and it
+# thickens INBOARD, where there is nothing (the pad is below the unit). The
+# bolt then comes UP from under the plate into an M5 insert in the pad, which
+# is a joint you can actually build: the arms bolt to the plate face-down on
+# the bench, and the plate goes on the dash afterwards.
+# local +y is INBOARD of the arm's inner face, which is where the room is
+a += Pos(0, (FOOT_PAD_T - ARM_T), 0) * extrude(
+    Plane.XZ * Rectangle(FOOT_L, FOOT_PAD_H, align=(Align.CENTER, Align.MIN)),
+    amount=FOOT_PAD_T)
+# the pad is centred on the plate's own foot-bolt line, so the two agree by
+# construction rather than by a number typed in both files
+FOOT_MID_Y = (FOOT_PAD_T - ARM_T) - FOOT_PAD_T/2
+
+# two bolts UP into the foot pad. They sit fore-and-aft of each other so the
+# pair resists the arm rotating about its own foot, which is the load that
+# actually arrives here - the unit's weight is a moment on the arm, not a shear.
 # extrude(Plane.XZ, amount) runs in -Y, so the arm occupies y -ARM_T..0 and its
 # centreline is at -ARM_T/2. The cut was at +ARM_T/2 - the whole thickness away -
 # so the arm came out with NO FOOT HOLES and four bores in the air beside it.
 # solids==1 passed, the bbox passed, and the part cannot be bolted down.
 for sx in (-1, 1):
-    a -= Pos(sx*FOOT_BOLT_X, -ARM_T/2, -1) * Cylinder(
-        BOLT_D/2, BASE_T + 12, align=(Align.CENTER, Align.CENTER, Align.MIN))
-_holes = len([f for f in a.faces() if f.geom_type == GeomType.CYLINDER])
-assert _holes >= 3, f"arm has {_holes} cylindrical faces - the bores missed it again"
+    a -= Pos(sx*FOOT_BOLT_X, FOOT_MID_Y, -1) * Cylinder(
+        INSERT_D/2, INSERT_L + 1, align=(Align.CENTER, Align.CENTER, Align.MIN))
+_v0 = a.volume
+_probe = None
+for sx in (-1, 1):
+    _c = Pos(sx*FOOT_BOLT_X, FOOT_MID_Y, 0) * Cylinder(
+        INSERT_D/2, INSERT_L, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    _probe = _c if _probe is None else _probe + _c
+assert (a & _probe) is None or (a & _probe).volume < 1.0, (
+    "the foot-bolt pockets are still solid - the cut is in the wrong Y band "
+    "again, which is exactly how this part shipped with no foot holes at all")
 assert len(a.solids()) == 1, f"arm is {len(a.solids())} solids, not 1"
 _ab = a.bounding_box()
-assert abs(_ab.size.Y - ARM_T) < 1e-6, (
-    f"arm is {_ab.size.Y:.1f} thick, not {ARM_T} - the eye and the blade are in "
-    f"different Y bands and it has come out a Z-section")
+# THE BLADE is one thickness and the FOOT PAD is another, so the old
+# "whole part is ARM_T thick" check would fail by design now. Slice above the
+# pad instead: that is the region the Z-section bug used to show up in, where
+# the eye and the blade landed in different Y bands and the part came out as
+# two plates joined along a seam.
+_blade = a & (Pos(0, 0, FOOT_PAD_H + 20.0) * Box(400, 400, 20.0, align=(Align.CENTER,)*3))
+_bb2 = _blade.bounding_box()
+assert abs(_bb2.size.Y - ARM_T) < 1e-6, (
+    f"the blade is {_bb2.size.Y:.1f} thick, not {ARM_T} - the eye and the blade "
+    f"are in different Y bands and it has come out a Z-section")
+_pad = a & (Pos(0, 0, FOOT_PAD_H/2) * Box(400, 400, FOOT_PAD_H - 2.0, align=(Align.CENTER,)*3))
+assert abs(_pad.bounding_box().size.Y - FOOT_PAD_T) < 1e-6, (
+    f"the foot pad is {_pad.bounding_box().size.Y:.1f} thick, not {FOOT_PAD_T}")
 export_step(a, "cad/out/bail_arm_revA.stp")
 
 # ---- where the arms actually go, published so nothing re-derives it -------
@@ -229,22 +294,30 @@ def arm_at(sx):
 _SHELL = import_step("cad/out/helm_shell_revC.stp")
 _COVER = import_step("cad/out/helm_cover_revC.stp")
 _UNIT = Compound([_SHELL, Pos(0, 0, BACK) * Rot(180, 0, 0) * _COVER])
-for _sx in (-1, 1):
-    _hit = arm_at(_sx) & _UNIT
+# SWEPT, not checked at rest. At 0 deg the arms clear by construction; the
+# question is whether they still clear at the ends of the range, and the answer
+# decided the range. Rotate the UNIT about the axis, as it actually moves.
+_ARMS = Compound([arm_at(-1), arm_at(1)])
+for _t in (-TILT_DOWN, 0.0, TILT_UP/2, TILT_UP):
+    _u = (Pos(0, TILT_Y, AXIS_Z) * Rot(_t, 0, 0) * Pos(0, -TILT_Y, -AXIS_Z)) * _UNIT
+    _hit = _u & _ARMS
     _v = 0.0 if _hit is None else _hit.volume
-    # The trunnion LAND is what the arm clamps, so a touch there is correct;
-    # anything with volume is the arm inside the housing.
+    # The trunnion LAND is what the arm clamps, so a face touch there is
+    # correct; anything with real volume is the arm inside the housing.
     assert _v < 50.0, (
-        f"the {'+' if _sx > 0 else '-'}x bail arm is {_v:.0f} mm3 inside the "
-        f"housing - it cannot be assembled")
-print(f"       arms clear the housing on both sides")
+        f"at {_t:+.0f} deg the bail arms are {_v:.0f} mm3 inside the housing - "
+        f"cut TILT_UP/TILT_DOWN, or move the arms outboard of the bezel")
+print(f"       arms clear the housing across {TILT_DOWN:+.0f}..{TILT_UP:+.0f} deg")
 
 json.dump({"ARM_FACE": ARM_FACE, "ARM_T": ARM_T, "STANDOFF": STANDOFF,
            "RISE": RISE, "EYE_R": EYE_R, "AXIS_Z": AXIS_Z,
            "BASE_L": BASE_L, "BASE_W": BASE_W, "BASE_T": BASE_T,
            "N_DASH": 2*len(DASH_X), "DASH_D": DASH_D, "DASH_SLOT": DASH_SLOT,
            "DASH_ROWS": DASH_ROWS, "N_FOOT_BOLTS": 4, "BOLT_D": BOLT_D,
-           "TILT_MAX": TILT_MAX, "FOOT_BOLT_X": FOOT_BOLT_X,
+           "TILT_MAX": TILT_MAX, "TILT_UP": TILT_UP, "TILT_DOWN": TILT_DOWN,
+           "FOOT_PAD_T": FOOT_PAD_T, "FOOT_PAD_H": FOOT_PAD_H,
+           "INSERT_D": INSERT_D, "INSERT_L": INSERT_L, "FOOT_FLARE": FOOT_FLARE,
+           "FOOT_BOLT_X": FOOT_BOLT_X,
            "FACE_STANDOFF": AXIS_Z + STANDOFF,
            # the build page states this part's size, mass and why the standoff
            # is what it is; all three come from here, never typed into the page
@@ -264,6 +337,8 @@ print(f"       eye r{EYE_R:.0f} on the r{H['TRUN_R']:.0f} trunnion land, {FRIC_S
 print(f"       axis {RISE:.0f} mm above the dash, arms vertical; the unit's bottom "
       f"edge clears the dash by {RISE - TILT_Y - OUT_H/2:.0f} at rest and "
       f"{DASH_CLEAR:.0f} at {TILT_MAX:.0f} deg")
+print(f"       tilt range {TILT_DOWN:+.0f} to {TILT_UP:+.0f} deg (FACE UP only) - the arms "
+      f"run inside the bezel, so face-down swings the unit into them")
 print(f"       whole thing stands {RISE + OUT_H/2 - TILT_Y:.0f} tall and "
       f"{SH['OH'] if SH['OH'] > OUT_H else OUT_H:.0f} wide on the dash")
 # What the tilt range actually costs, so the trade is visible rather than argued.
