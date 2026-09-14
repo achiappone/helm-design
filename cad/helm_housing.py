@@ -481,7 +481,9 @@ AP_PITCH = 30.0
 # quoting a part that is not in the model, is not in the BOM and cannot be
 # fitted - there is nothing for it to bolt to. Only the GAP is real, and it is
 # the space the fins stand in.
-FIN_GAP = (DEPTH + GASKET_C + COVER_T) - (FACE_T + MOD_D)
+# TWO DIFFERENT NUMBERS, and quoting the wrong one has misled every review.
+# AIR_GAP is what a cable can actually use behind the panel; FIN_GAP runs on
+# through the cover to its outer face and is only useful for the thermal stack.
 
 # -- heatsink on the plate's outer face ------------------------------------
 # ONE 150 x 74 x 10, turned 90 deg so the 150 runs vertically. Four 100x25x10
@@ -788,6 +790,23 @@ DSP_POST_D = 8.0
 # the panel is derived from the same stack, so the posts follow.
 GLUE_T = 0.5
 DSP_POST_H = DEPTH + GASKET_C - FACE_T - GLUE_T - MOD_D
+
+AIR_GAP = (DEPTH + GASKET_C) - (FACE_T + GLUE_T + MOD_D)
+FIN_GAP = (DEPTH + GASKET_C + COVER_T) - (FACE_T + MOD_D)
+# The real cable route is NOT behind the panel. The panel is 130 tall in a
+# cavity 155 tall and it sits high, so what is left under it is a raceway the
+# full width of the unit at the cavity's full depth - two orders more room than
+# the 4 mm behind the glass, and it reaches into both bays.
+RACE_Y0 = -(OUT_H/2 - RIM)
+RACE_Y1 = APER_Y - MOD_H/2
+RACE_H, RACE_D = RACE_Y1 - RACE_Y0, DEPTH - FACE_T
+assert RACE_H > 15.0, (
+    f"the bottom raceway is only {RACE_H:.1f} mm tall - every cable in the unit "
+    f"has to cross between the bays somewhere, and {AIR_GAP:.1f} mm behind the "
+    f"panel is not somewhere")
+assert RACE_Y1 > -PI_BUMP_W/2, (
+    f"the raceway tops out at y={RACE_Y1:.1f} and the bays start at "
+    f"{-PI_BUMP_W/2:.1f} - cables could not get from the raceway into a bay")
 assert DSP_POST_H > 0, (
     f"cover inner face is {-DSP_POST_H:.2f} mm INSIDE the panel - the panel, "
     f"the foam and the case depth do not fit together")
@@ -1772,7 +1791,8 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "SHROUD_PILOT_DEEP":SHROUD_PILOT_DEEP,"SHROUD_PILOT_BOSS":SHROUD_PILOT_BOSS,
            "SHROUD_PILOT_TOTAL":SHROUD_PILOT_TOTAL,
            "WIRE_D":WIRE_D,"WIRE_X":WIRE_X,"WIRE_Y":WIRE_Y,
-           "FIN_GAP":FIN_GAP,"GASKET_OUT":GASKET_OUT,
+           "FIN_GAP":FIN_GAP,"AIR_GAP":AIR_GAP,"RACE_Y0":RACE_Y0,"RACE_Y1":RACE_Y1,
+           "RACE_H":RACE_H,"RACE_D":RACE_D,"GASKET_OUT":GASKET_OUT,
            "APER_W":APER_W,"APER_H":APER_H,"APER_X":APER_X,"APER_Y":APER_Y,
            "BTN_X":BTN_X,"ENC_X":ENC_X,"ROW_CY":ROW_CY,"BTN_D":BTN_D,"ENC_D":ENC_D,
            "GPS_X":GPS_X,"GPS_Z":GPS_Z,"GPS_L":GPS_L,"GPS_W":GPS_W,"GPS_T":GPS_T,"GPS_WIN_T":GPS_WIN_T,
@@ -1874,9 +1894,9 @@ if _hit > 1e-6:
 #    sealing land is very nearly the right part.
 assert HS_BASE < COVER_T, "the heatsink base is thicker than the plate it sits in"
 _plate_in_cm2 = HS_L * HS_W / 100.0
-assert FIN_GAP > 6.0, (
-    f"only {FIN_GAP:.1f} mm of air behind the panel - the fins' seat is eating "
-    f"into the display")
+assert AIR_GAP > 3.0, (
+    f"only {AIR_GAP:.1f} mm of air behind the panel - the seat is eating into "
+    f"the display")
 
 # 4. the panel screws have to be long enough to reach, and not bottom out
 _grip = (COVER_T - DSP_CB_DEEP) + DSP_POST_H     # material the screw passes
@@ -1894,7 +1914,10 @@ print(f"       through the pressure boundary: {len(DSP_POSTS)} panel screws + 1 
       f"fan-lead pass. The {len(BOLTS)} brim screws are outboard of the cord in blind "
       f"pilots - washered and Tef-Gelled to keep the crevice dry, not to seal")
 print(f"THERM  panel back {_z_panel} -> cover inner {DEPTH + GASKET_C}: "
-      f"{FIN_GAP:.1f} mm of dead air, all of it")
+      f"{AIR_GAP:.1f} mm of air ({FIN_GAP:.1f} on through to the cover's outer face)")
+print(f"CABLE  raceway UNDER the panel: {RACE_H:.0f} mm tall x {RACE_D:.1f} deep, "
+      f"full width, y {RACE_Y0:.0f}..{RACE_Y1:.0f} - and it opens into both bays. "
+      f"Behind the panel there is {AIR_GAP:.1f}, which is for ribbon, not bundles")
 print(f"       heatsink {HS_L:.0f} x {HS_W:.0f} x {HS_H:.0f} bonded base-out in the "
       f"seat: base flush INSIDE, {HS_PROUD:.0f} mm of fin proud OUTSIDE under the shroud")
 print(f"       inside face is a bare {_plate_in_cm2:.0f} cm2 plate - the internal "
