@@ -1650,7 +1650,7 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "RIM":RIM,"BOLT_INSET":BOLT_INSET,"GASKET_W":GASKET_W,
            "LAND_OUT":LAND_OUT,"LAND_WEB":LAND_WEB,"LAND_IN":LAND_IN,
            "GASKET_T":GASKET_T,"GASKET_C":GASKET_C,"GASKET_D":GASKET_D,
-           "N_BRIM_BOLTS":len(BOLTS),"BRIM_BOLT":M3_PILOT,"BOLTS":[[round(x,3),round(y,3)] for x,y in BOLTS],
+           "N_BRIM_BOLTS":len(BOLTS),"BOLT_PITCH":BOLT_PITCH,"AP_SEAL":AP_SEAL,"BRIM_BOLT":M3_PILOT,"BOLTS":[[round(x,3),round(y,3)] for x,y in BOLTS],
            "M3_HEAD_R":M3_HEAD_R,
            "AP":AP,"AP_L":AP_L,"AP_W":AP_W,"AP_CX":AP_CX,"AP_PITCH":AP_PITCH,"HS_PLATE":HS_PLATE,
            "HS_L":HS_L,"HS_W":HS_W,"HS_H":HS_H,"HS_PROUD":HS_PROUD,"HS_CY":HS_CY,"HS_N":HS_N,

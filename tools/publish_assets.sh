@@ -13,6 +13,7 @@ mkdir -p assets/renders assets/drawings
 cp -f cad/out/*.png assets/renders/ 2>/dev/null || true
 cp -f cad/out/*.svg assets/drawings/ 2>/dev/null || true
 cp -f docs/index.html assets/build-review.html
+cp -f docs/manual.html assets/build-manual.html
 printf '%s renders, %s drawings\n' \
   "$(ls assets/renders | wc -l | tr -d ' ')" \
   "$(ls assets/drawings | wc -l | tr -d ' ')"

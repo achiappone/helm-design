@@ -10,7 +10,7 @@ PY=.venv/bin/python
 for s in helm_housing heatsink_shroud bail assembly_check print_check helm_visor sensor_tray fit_coupon \
          lp24_mount lp24_shroud lp24_upright_mount lp24_wedge_mount \
          export_mesh render assembly exploded annotate assembly_dims \
-         measured_parts seal_detail subassemblies build_review; do
+         measured_parts seal_detail subassemblies build_review build_manual; do
   if out=$($PY "cad/$s.py" 2>&1); then
     printf '%-18s ok\n' "$s"
   else
@@ -19,6 +19,7 @@ for s in helm_housing heatsink_shroud bail assembly_check print_check helm_visor
   fi
 done
 cp cad/out/review.html docs/index.html
+cp cad/out/manual.html docs/manual.html
 echo "docs/index.html updated"
 # and out of the gitignored build directory into the tracked one
 ./tools/publish_assets.sh
