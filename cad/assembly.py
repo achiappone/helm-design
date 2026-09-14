@@ -106,7 +106,8 @@ BRK = (Plane(origin=(0, _DASH_Y - _BJ["BASE_T"], _AXIS_Z),
 # page calls "Assembled", and until now they drew shell, cover, visor and bail
 # and stopped - no shroud, no fans, no heatsink, no boards. A reader could not
 # tell from them that the fan had changed, which is exactly what happened.
-from parts_lib import finned, pi4, armor_lite, pcb, nyloc, cap_screw
+from parts_lib import (finned, pi4, armor_lite, pcb, nyloc, cap_screw,
+                       driver_board, rtl_sdr, sensor_breakout, push_button)
 _BACK = H["DEPTH"] + H["COVER_T"] + H["GASKET_C"]
 # The LANDING FACE is shroud-local z = OD, not the part's bounding box: the
 # louvres stand LOUV_H proud on the other side, so using the bbox floated the
@@ -131,7 +132,13 @@ _HS = (Pos(H["AP_CX"], 0, _HS_Z0) * Box(H["HS_L"], H["HS_W"], 3.0, align=(Align.
 _BAY_FLOOR = _BACK + H["PI_BUMP_H"] - 3.0                 # inside face of the bump skin
 _PI  = Pos(H["PI_BUMP_CX"], 0, _BAY_FLOOR - 1.6) * Rot(180, 0, 0) * Rot(0, 0, 90) * pi4()
 _ARM = Pos(H["PI_BUMP_CX"], 0, _BAY_FLOOR - 1.6 - 2.4) * Rot(180, 0, 0) * Rot(0, 0, 90) * armor_lite()
-_DRV = Pos(H["DRV_CX"], 0, _BAY_FLOOR - 1.6) * Rot(180, 0, 0) * pcb(55.25, 113.25)
+# the RTL-SDR, on edge in the driver bay under the bulkhead it feeds
+_SDR = (Pos(H["SDR_X"], 0, _BAY_FLOOR - H["SDR_W"]/2) * Rot(0, 90, 0) * Rot(0, 0, 90)
+        * rtl_sdr())
+# the real board, from the owner's dimensioned photos, turned so its 113 runs
+# along the bay's long axis the way it is actually fitted
+_DRV = (Pos(H["DRV_BOARD_CX"], 0, _BAY_FLOOR - 1.6) * Rot(180, 0, 0) * Rot(0, 0, 90)
+        * driver_board())
 # The three bulkhead fittings, drawn as bodies hanging BELOW their blocks. The
 # whip that used to be drawn here has come off the housing (see helm_housing.py
 # at SMA_X) - what the housing has is a coax entry.
@@ -185,6 +192,23 @@ _ANT = Pos(H["SMA_X"], _SMA_Y, _SMA_Z) * Rot(-90, 0, 0) * (
 _SMA = (Pos(H["SMA_X"], _SMA_Y, _SMA_Z) * Rot(-90, 0, 0)
         * Cylinder(6.35, 5.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
 
+# ---- THE CONTROLS, in the assembled views for the first time -------------
+# Four buttons and the encoder are the only things on this unit a person
+# touches, and no assembled render has ever drawn them - they existed in the
+# exploded sheet and nowhere else.
+_BTN = None
+for _bx in H["BTN_X"]:
+    _b = Pos(_bx, H["ROW_CY"], 0) * Rot(180, 0, 0) * push_button(H["BTN_D"], 17.5)
+    _BTN = _b if _BTN is None else _BTN + _b
+_ENC = (Pos(H["ENC_X"], H["ROW_CY"], -17.5) * Cylinder(10.25, 17.5,
+        align=(Align.CENTER, Align.CENTER, Align.MIN)))
+# and the four sensor breakouts on their standoffs, inner face
+_SENS = None
+for _sn in H["SENSORS"]:
+    _s = (Pos(_sn["x"], _sn["y"], H["DEPTH"] + H["GASKET_C"] - H["STANDOFF_H"] - 1.2)
+          * Rot(180, 0, 0) * sensor_breakout(_sn["pitch_x"] + 12.0, _sn["pitch_y"] + 10.0))
+    _SENS = _s if _SENS is None else _SENS + _s
+
 ALLOY, PI_G, DARK = (0.66, 0.68, 0.72), (0.11, 0.46, 0.26), (0.20, 0.20, 0.22)
 # The display itself. Without it the front view looks straight through the
 # aperture at the cover's inner face, and every reader took the bays for the
@@ -200,10 +224,12 @@ asm = [
     (_SHROUD_ASM, (0.10, 0.26, 0.52)),
     (_FANS_ASM, DARK),
     (_HS, ALLOY),
-    (_PI, PI_G), (_ARM, ALLOY), (_DRV, (0.12, 0.43, 0.47)),
+    (_PI, PI_G), (_ARM, ALLOY), (_DRV, (0.12, 0.43, 0.47)), (_SDR, (0.20, 0.55, 0.35)),
     (_FITS, (0.55, 0.56, 0.58)),
     (_NUTS, _STEEL), (_BOLTS, _STEEL),
     (_ANT, DARK), (_SMA, (0.80, 0.68, 0.24)),
+    (_BTN, (0.13, 0.13, 0.15)), (_ENC, (0.72, 0.60, 0.25)),
+    (_SENS, (0.76, 0.47, 0.12)),
 ]
 # Camera solved rather than guessed: az=198, el=-112 gives depth.z>0 (front
 # face nearest), up.y>0 (+Y up) and explode.z<0 (front of the stack on top).

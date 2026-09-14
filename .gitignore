@@ -16,3 +16,8 @@ NF-F12_iPPC_Public-CAD.*
 
 # agent worktrees and session state
 .claude/
+
+# assets/ is the EXCEPTION to cad/out being ignored: tools/publish_assets.sh
+# copies the finished renders and drawings there so the design is readable from
+# a phone, from another machine, and after the toolchain has moved on.
+!assets/

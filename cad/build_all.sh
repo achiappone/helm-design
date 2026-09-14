@@ -20,3 +20,5 @@ for s in helm_housing heatsink_shroud bail assembly_check print_check helm_visor
 done
 cp cad/out/review.html docs/index.html
 echo "docs/index.html updated"
+# and out of the gitignored build directory into the tracked one
+./tools/publish_assets.sh

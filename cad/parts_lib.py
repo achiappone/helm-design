@@ -148,3 +148,59 @@ def push_button(bore=11.8, dome=17.5, barrel=13.0):
     s = Cylinder(dome / 2, 5.7, align=MIN)
     s += Pos(0, 0, -barrel) * Cylinder(bore / 2 - 0.4, barrel, align=MIN)
     return s
+
+
+# ═══════════════════════════════════════════════ boards drawn from the real thing
+
+def driver_board():
+    """The 12.3in panel's LVDS/HDMI driver board, from the owner's dimensioned
+    photos (reference/photos/PXL_20260827_*): 113.25 x 55.25, 17 mm over the
+    tallest connector, 4 x M3 at 3.75 from the edges.
+
+    It was a bare 55 x 113 rectangle before. That is the right OUTLINE and it
+    tells you nothing about the thing the +x bay is built around - which way the
+    HDMI faces, where the LVDS ribbon leaves, which edge you have to keep clear.
+    All four of those are packaging decisions this enclosure has already made."""
+    L, W, T = 113.25, 55.25, 1.6
+    s = Box(L, W, T, align=MIN)
+    # --- the connector edge, +y: DC jack, audio, VGA, HDMI -----------------
+    s += Pos(-38, W/2 - 7, T) * Box(14, 14, 11, align=MIN)          # DC barrel jack
+    s += Pos(-22, W/2 - 6, T) * Box(11, 12, 13, align=MIN)          # audio / aux
+    s += Pos(-2, W/2 - 8, T) * Box(32, 16, 15.4, align=MIN)         # VGA shell, the tall one
+    s += Pos(34, W/2 - 6, T) * Box(16, 12, 7, align=MIN)            # HDMI
+    # --- the harness edge, -y: JSTs and the panel header -------------------
+    for dx in (-40, -30, -18):
+        s += Pos(dx, -W/2 + 4, T) * Box(9, 8, 6, align=MIN)         # white JSTs
+    s += Pos(18, -W/2 + 4, T) * Box(44, 5, 8, align=MIN)            # pin header
+    s += Pos(46, -W/2 + 10, T) * Box(8, 20, 7, align=MIN)           # LVDS ribbon
+    # --- the tall parts, which are what set the 17 --------------------------
+    s += Pos(-34, 6, T) * Cylinder(5.5, 11, align=MIN)              # toroid
+    s += Pos(-20, -6, T) * Cylinder(4.0, 12, align=MIN)             # electrolytic
+    s += Pos(4, 2, T) * Cylinder(4.0, 12, align=MIN)                # electrolytic
+    s += Pos(14, -4, T) * Box(15, 15, 2.5, align=MIN)               # scaler IC
+    s += Pos(-6, -10, T) * Box(10, 10, 5, align=MIN)                # inductor
+    return s
+
+
+def rtl_sdr():
+    """RTL-SDR Blog V3: an extruded aluminium tube 68 x 27 x 12 with an SMA
+    female at one end and a USB-A plug at the other. Drawn as a case rather
+    than a brick because which END is which decides where it can sit - the SMA
+    has to point at the bulkhead and the USB at the Pi."""
+    L, W, T = 68.0, 27.0, 12.0
+    s = Box(L, W, T, align=MIN)
+    # the SMA stands off the +x end; Rot before Pos, or the rotation walks the
+    # part off its own position and the dongle comes back as two solids
+    s += Pos(L/2 - 1, 0, 0) * Rot(0, 90, 0) * Cylinder(3.2, 10, align=MIN)
+    s += Pos(-L/2 - 5, 0, 0) * Box(11, 12, 4.5, align=CEN)          # USB-A plug
+    return s
+
+
+def sensor_breakout(l, w, name=""):
+    """An Adafruit-style breakout: board, the part in the middle, and the
+    header along one edge that decides which way round it goes on its
+    standoffs. Four M2.5 in the corners, 2.5 in from each edge."""
+    s = pcb(l, w, 1.2)
+    s += Pos(0, 0, 1.2) * Box(min(8, l/3), min(8, w/2), 1.6, align=MIN)
+    s += Pos(0, w/2 - 2.0, 1.2) * header(max(2, int(l/2.54) - 2), rows=1, h=3.0)
+    return s

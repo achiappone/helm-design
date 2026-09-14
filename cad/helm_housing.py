@@ -1303,7 +1303,23 @@ for _n, _x, _d, _fl, _need, _face in _FITTINGS:
 # OVER a board - what matters is the gap between where it emerges and where the
 # board starts. Nothing in this file had ever compared a cover feature to a
 # board envelope at all.
-_BOARDS = [("Pi 4", PI_BOARD_CX, 56.0, 85.0), ("driver board", DRV_BOARD_CX, 55.25, 113.25)]
+# The RTL-SDR belongs on this list too. It is a 68 x 27 x 12 dongle with no
+# mounting holes, and it had no home in the model at all - a BOM line and
+# nothing else - so nothing ever checked whether the bay still had room for it.
+# It STANDS ON EDGE in the +x bay beside the driver board, strapped to the two
+# tie anchors on that bay's floor, directly under the SMA it feeds.
+SDR_L, SDR_W, SDR_T = 68.0, 27.0, 12.0
+SDR_X = DRV_CX + 30.0
+_void_out = abs(DRV_CX) + PI_BUMP_L/2 - WALL
+assert SDR_X + SDR_T/2 < _void_out - 1.0, (
+    f"the SDR reaches x={SDR_X + SDR_T/2:.1f} and the bay wall is at "
+    f"{_void_out:.1f}")
+assert SDR_X - SDR_T/2 > abs(DRV_BOARD_CX) + 55.25/2 + 1.0, (
+    f"the SDR overlaps the driver board it stands beside")
+assert SDR_W < PI_BUMP_H - WALL - 1.0, (
+    f"a {SDR_W:.0f} mm dongle on edge does not fit a {PI_BUMP_H - WALL:.1f} mm bay")
+_BOARDS = [("Pi 4", PI_BOARD_CX, 56.0, 85.0), ("driver board", DRV_BOARD_CX, 55.25, 113.25),
+           ("RTL-SDR", SDR_X, SDR_T, SDR_L)]
 for _n, _x, _d, _fl, _need, _face in _FITTINGS:
     for _bn, _bcx, _bl, _bw in _BOARDS:
         if (_x < 0) != (_bcx < 0):
@@ -1653,7 +1669,7 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "BLK_X0":BLK_X0,"BLK_X1":BLK_X1,"BLK_Y0":BLK_Y0,"BLK_Y1":BLK_Y1,
            "BLK_TY0":BLK_TY0,"BLK_TY1":BLK_TY1,
            "PI_BUMP_H":PI_BUMP_H,"PI_BUMP_L":PI_BUMP_L,"PI_BUMP_W":PI_BUMP_W,
-           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,"DRV_BOARD_CX":DRV_BOARD_CX,"PI_STANDOFF_H":PI_STANDOFF_H,
+           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,"DRV_BOARD_CX":DRV_BOARD_CX,"SDR_X":SDR_X,"SDR_L":SDR_L,"SDR_W":SDR_W,"SDR_T":SDR_T,"PI_STANDOFF_H":PI_STANDOFF_H,
            "PI_BOARD_CX":PI_BOARD_CX,"PI_HOLES":PI_HOLES,"DRV_HOLES":DRV_HOLES,
            "PIV_X":PIV_X,"PIV_Y":PIV_Y,"PIV_Z":PIV_Z,
            # mating dimensions - the visor and the bracket read these rather

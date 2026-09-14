@@ -3,7 +3,8 @@ import sys, json, base64
 sys.path.insert(0, "cad")
 from build123d import *
 from parts_lib import (pi4, armor_lite, pican_m, drok as _drok, breakout, finned,
-                       nyloc, cap_screw, push_button)
+                       nyloc, cap_screw, push_button, driver_board, rtl_sdr,
+                       sensor_breakout)
 
 def _solid(path):
     """import_step may return a Compound; a Location on the wrapper is
@@ -47,6 +48,7 @@ SDR_G  = (0.20, 0.55, 0.35)     # RTL-SDR
 # drawing; the name is the thing you actually wanted.
 NAMES = {
     1: "Visor",            2: "Front shell",      3: "12.3in display",
+    4: "LCD driver board",
     5: "DROK buck",        6: "Raspberry Pi 4",   7: "PiCAN-M HAT",
     8: "Rear cover",       9: "LP-24 shroud",    10: "Strain clamp",
     12: "MCP23017",       13: "Sensor breakout", 15: "RTL-SDR",
@@ -64,9 +66,14 @@ NAMES = {
 disp = Box(305, 125, 10, align=(Align.CENTER, Align.CENTER, Align.MIN))
 
 # sensor breakouts, from the Adafruit fab prints
-mcp23017 = breakout(35.0, 25.4)   # expander, a bit bigger than a breakout
-brk      = breakout(25.40, 17.78)
-sdr      = Box(68, 27, 12, align=(Align.CENTER, Align.CENTER, Align.MIN))
+mcp23017 = sensor_breakout(35.0, 25.4)   # expander, a bit bigger than a breakout
+brk      = sensor_breakout(25.40, 17.78)
+# RTL-SDR, 68 x 27 x 12. It STANDS ON EDGE in the driver bay: the bay's void is
+# 75 x 118 and the driver board takes 55 of the width, which leaves a 19 mm
+# strip down one side - too narrow to lay a dongle flat, wide enough to stand
+# one in. The two tie anchors on that bay's floor are what strap it down, and
+# the SMA bulkhead it feeds is directly above it in the top block.
+sdr      = Rot(0, 90, 0) * Rot(0, 0, 90) * rtl_sdr()
 # SMA bulkhead + whip. Antenna is 185 mm; shown truncated so the sheet fits.
 # SMA female bulkhead, M16 waterproof box: hex body, O-ring, threaded shank
 sma_bulk = (Cylinder(10.0, 9, align=(Align.CENTER, Align.CENTER, Align.MIN))
@@ -93,6 +100,8 @@ ITEMS = [
     (1, Pos(0, 0, -390) * VISOR,             BLUE,   (0, 30, -390)),
     (2, Pos(0, 0, -150) * SHELL,             BLUE,   (-160, 40, -130)),
     (3, Pos(DISP_CX, H["DISP_CY"], 110) * disp,         GLASS,  (DISP_CX-120, H["DISP_CY"], 115)),
+    (4, Pos(140, 0, 470) * Rot(0, 0, 90) * driver_board(), (0.12,0.43,0.47),
+        (200, 0, 474)),
     (5, Pos(-140, 45, 470) * drok,           DROK_T,  (-160, 45, 480)),
     (6, Pos(80, -25, 460) * pi,              PI_G,  (120, -25, 462)),
     (6, Pos(80, -25, 496) * armor,            ALLOY,  None),
@@ -120,6 +129,12 @@ ITEMS = [
     (32, Pos(118, 0, 1120) * SHROUD_F, BLUE2, (200, 0, 1150)),
     (9,  Pos(-150, -230, 1290) * LP24_SH, BLUE, (-215, -230, 1300)),
     (10, Pos(-150, -230, 1230) * LP24_CL, BLUE2, None),
+    # ITEM 15 WAS DELETED BY ACCIDENT when the old antenna block came out of
+    # this list, and it had been wrong before that anyway - drawn as an
+    # 18 x 18 x 8.6 box, which is the GPS module's envelope, at the rev B
+    # antenna position on the shell's top wall. It is a 68 x 27 x 12 dongle and
+    # it lives in the driver bay, under the bulkhead it feeds.
+    (15, Pos(H["DRV_CX"] + 30, 0, 690) * sdr, SDR_G, (H["DRV_CX"] + 80, 0, 686)),
     (12, Pos(-155, 42, 690) * mcp23017,      MCP_P, (-200, 42, 686)),
     (13, Pos(-155, 4, 690) * brk,            BRK_A, (-200, 4, 686)),
     (13, Pos(-72, -50, 690) * brk,           BRK_A, None),
@@ -150,8 +165,13 @@ ITEMS = [
 parts = [(sh, col) for _n, sh, col, _a in ITEMS]
 BALLOONS = [(n, a) for n, _sh, _c, a in ITEMS if a is not None]
 
+# exp_c is the SAME stack seen from BEHIND. The two front views show the
+# display side of every part, which is the wrong side for the half of this BOM
+# that lives on the cover - the bumps, the blocks, the three fittings, the
+# shroud's louvres and all four bail parts only read from the back.
 for name, az, el in (("cad/out/exp_a.png", 205, -126),
-                     ("cad/out/exp_b.png", 248, -118)):
+                     ("cad/out/exp_b.png", 248, -118),
+                     ("cad/out/exp_rear.png", 25, -126)):
     png(name, render_multi(parts, az, el, W=1200, H=1900)[0])
     print(f"  {name}")
 
