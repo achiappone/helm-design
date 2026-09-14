@@ -273,27 +273,39 @@ PIV_X = [-148.0, 148.0]
 # friction land plus an edge, so it comes down to FRIC_R1 + 1.5 = 11.5 - an ear
 # O29 -> O23. UPS_T was 9.0 to give a thread-forming M5 enough ASA; the thread
 # is in a nut now, so it only has to carry bearing, and 6.0 does that.
-UPS_T, R_EAR = 6.0, FRIC_R1 + 1.5
-# The axis has to stand at least the EAR RADIUS clear of the wall, or the
-# bottom of every ear - the housing's and the visor's alike - is buried in the
-# top wall. rev B had it at +4.5 against a 9.5 ear and got away with it only
-# because the visor carried its own axis height (94) and never agreed with the
-# shell. Now both read this number, so it has to be right.
-PIV_Y, PIV_Z = OUT_H/2 + R_EAR + 1.5, 9.0
-assert PIV_Y - OUT_H/2 > R_EAR, "pivot ears would sink into the top wall"
-# CLEARANCE, with the thread in a 316 SS NYLOC on the outboard face - the same
-# move the bottom pivot made, and for a sharper reason here. This joint is meant
-# to be SET BY HAND: firm enough that the visor stays where you put it, loose
-# enough to click over the detent under bare-hand pressure. That is a preload
-# you dial in by feel, so the nut IS the adjustment - and a thread formed in ASA
-# gives up a little grip every time you work it, so the setting drifts.
+# TWO CHANGES HERE AND BOTH OF THEM ARE THE FOLD-FLAT VISOR.
 #
-# NYLOC here, where the bottom pivot took a plain hex. Different jobs: down there
-# the Bellevilles are the locking element and a nyloc's nylon would only relax
-# under their sustained load. Up here there is no sustained spring load to fight,
-# just a hand-set torque that vibration must not walk out - which is exactly what
-# a nylon insert is for. All 316 through the joint; brass against 316 is a
-# galvanic couple in salt water. Tef-Gel the threads - 316 galls on 316.
+# 1. THE HOOD HANGS ABOVE ITS AXIS, NOT BELOW IT. A plate slung under its pivot
+#    can only ever swing round to the BACK of the front face - work the rotation
+#    both ways and it lands at z = PIV_Z + 12, inside the box. That is geometry,
+#    not tuning. Hung ABOVE the axis it swings down to z = PIV_Z - 12, in front
+#    of the glass, which is where a folded visor belongs. See cad/helm_visor.py.
+#
+# 2. R_EAR 12 -> 8, because the ear is no longer sized round a FRICTION land.
+#    The visor joint takes the same 316 SERRATED WASHER PAIR as the bail: teeth
+#    hold mechanically, so the land does not have to be big enough to hold by
+#    friction. The smaller ear is what lets PIV_Z rise far enough to clear the
+#    glass when folded while its own rim stays above the bed - at r12 the ear
+#    dipped below the front face, which is the surface this part prints on.
+UPS_T, R_EAR = 6.0, 8.0
+# The axis still sits ABOVE the top wall: the front face has to stay dead flat
+# (it is the bed) so nothing can stand proud of it, which rules out mounting the
+# pivot on the bezel. z is set by where the hood has to come to rest.
+PIV_Y, PIV_Z = OUT_H/2 + R_EAR + 1.5, 8.0
+assert PIV_Y - OUT_H/2 > R_EAR, "pivot ears would sink into the top wall"
+assert PIV_Z >= R_EAR, (
+    f"an r{R_EAR} ear on a {PIV_Z} axis dips {R_EAR - PIV_Z:.1f} mm in front of "
+    f"the face - which is the bed this part prints on")
+# WHERE THE HOOD COMES TO REST when it is folded down. The plate is tangent to
+# the ear, so its underside stops PIV_Z - R_EAR off the bezel; the glass sits at
+# FACE_T + the bond line. A visor that rests ON the screen is how you scratch one.
+# z INCREASES INTO THE BOX - the front face is 0 and the glass sits BEHIND it at
+# FACE_T + the bond line. So a folded visor has to come to rest at NEGATIVE z,
+# in front of the bezel, and the first cut of this folded it to z=+7, which is
+# inside the housing. The visor's own HOOD_RISE is set from this number.
+VIS_STOW_Z = -2.0                   # hood's inner face, in front of the bezel
+assert PIV_Z >= 5.4/2 + 2.0, (
+    f"a O5.4 bolt on a {PIV_Z} axis breaks out through the front face")
 PIV_BOLT = 5.4                      # clearance both sides
 # THE NUT MOVED TO THE VISOR. It used to be pocketed in this upstand, which was
 # fine at UPS_T 9.0 but leaves 0.7 mm behind a 5.3 deep nyloc pocket at 6.0.
@@ -610,6 +622,12 @@ assert HS_PLATE_X >= AP and HS_PLATE_Y >= AP, "plate does not cover the aperture
 BLK_X0 = abs(PI_BUMP_CX) - PI_BUMP_L/2 + 34.0
 BLK_X1 = abs(PI_BUMP_CX) + PI_BUMP_L/2 + 6.0
 BLK_Y0, BLK_Y1 = -76.0, -62.5       # from the bump's end wall outward
+# AND THE SAME AGAIN AT THE TOP. Each bump leaves a pocket at BOTH ends, and
+# only the bottom pair was being used. The top pair is where the aerial belongs:
+# a bore through it exits UPWARD, so a whip screwed straight onto the bulkhead
+# stands up at the sky instead of pointing into the dash - which is the whole
+# reason it came off the flat cover face in the first place.
+BLK_TY0, BLK_TY1 = 76.0, 62.5
 BLK_CHAM = 2.0
 BORE_Z = -PI_BUMP_H/2               # bores on the block's mid-height
 
@@ -636,9 +654,18 @@ VENT_X, VENT_TAP, VENT_FLANGE = 133.0, 10.5, 19.0
 # smallest: a plain M8x0.75 IP67 SMA bulkhead in a sheltered, downward-facing
 # seat, with no raised sealing pad needed on either side because the block's
 # faces are flat by construction.
-# 134 -> 131: the O15 nut counterbore has to stay inside the bay void, and the
-# void's outer wall came in with the narrower bump.
-SMA_X, SMA_D, SMA_CB_D, SMA_CB_Y = -131.0, 8.2, 15.0, -59.0
+# ON TOP OF THE DRIVER BUMP, pointing UP. It was on the -x block's underside,
+# alongside the gland, where a whip could not have been fitted to it at all -
+# it would have gone straight down into the dash. +x rather than -x because
+# that is the far side from the Pi and the display's ribbon, which is the RF
+# argument that has been in this file since the GPS went external.
+# ITS NUT IS CAPTIVE, like the trunnion's. A plain counterbore put the nut in
+# the bay, where the driver board leaves 5.9 mm of clear air - you cannot turn a
+# spanner in that, and moving the bulkhead to where you could put it through the
+# bay's own wall. A hex pocket in the block's INNER face holds the nut instead:
+# drop it in, screw the bulkhead down from outside, nothing to hold.
+SMA_X, SMA_D = 120.0, 8.2
+SMA_NUT_AF, SMA_NUT_DEEP = 12.0, 4.0
 ANT_MOUNT = True                    # now means "coax entry", not "whip mount"
 # All of these lie in the 4.5 mm behind the display panel (1.5 standoff +
 # 1.6 board = 3.1), and all must stay INBOARD of the cover's sealing face.
@@ -1087,8 +1114,11 @@ _T, _B = APER_Y + MOD_H/2, APER_Y - MOD_H/2
 # is decided by what is behind them on the cover, and two things are behind
 # large parts of it: the heat aperture and the two board bays. A post over
 # either has no inner face to stand on.
-DSP_CAND = [(_L + 15.0,   _T - 8.25),    # top outboard, over the top band
-            (_R - 12.0,   _T - 8.25),
+# The two top candidates were at x -140 / +143, which is under the TOP fitting
+# blocks now that those exist - a screw driven from behind would hit 1158 mm3
+# of block. Inboard of BLK_X0 instead, where the band is still open face.
+DSP_CAND = [(-85.0,        _T - 8.25),    # top band, inboard of the blocks
+            ( 85.0,        _T - 8.25),
             (_L + 30.5,   _B + 13.0),    # lower - these two were IN THE BAYS
             (_R - 26.5,   _B + 13.0),
             (-53.0, APER_Y - 51.0),      # strip between the seat and the bay
@@ -1106,6 +1136,11 @@ def _post_problem(px, py):
         return "inside the heat aperture"
     if _bay_hit(px, py):
         return "over a board bay"
+    for _b0, _b1 in ((BLK_Y0, BLK_Y1), (BLK_TY0, BLK_TY1)):
+        if (BLK_X0 - DSP_POST_D/2 < abs(px) < BLK_X1 + DSP_POST_D/2
+                and min(abs(_b0), abs(_b1)) - DSP_POST_D/2 < abs(py)
+                    < max(abs(_b0), abs(_b1)) + DSP_POST_D/2):
+            return "under a fitting block"
     if abs(px) + DSP_POST_D/2 > OUT_W/2 - BRIM_CAVITY:
         return "across the sealing face"
     return None
@@ -1156,17 +1191,19 @@ for _px, _py in DSP_POSTS:
 # Each is fused to the cover plate above it and to its bump's end wall inboard,
 # and its underside is coplanar with the bump's back. Every face is vertical in
 # print, on the bed, or fused to the plate: no support, no overhang.
-_BORE_R_MAX = max(GL_TAP, VENT_TAP, SMA_CB_D) / 2
-for _bs in (-1, 1):
-    _blk = Pos(_bs*(BLK_X0 + BLK_X1)/2, cy((BLK_Y0 + BLK_Y1)/2), -PI_BUMP_H) * Box(
-        BLK_X1 - BLK_X0, BLK_Y1 - BLK_Y0, PI_BUMP_H,
-        align=(Align.CENTER, Align.CENTER, Align.MIN))
-    c += _blk
+_BORE_R_MAX = max(GL_TAP, VENT_TAP, SMA_NUT_AF) / 2
+BLOCKS = [(BLK_Y0, BLK_Y1), (BLK_TY0, BLK_TY1)]     # bottom pair, top pair
+for _by0, _by1 in BLOCKS:
+    for _bs in (-1, 1):
+        c += Pos(_bs*(BLK_X0 + BLK_X1)/2, cy((_by0 + _by1)/2), -PI_BUMP_H) * Box(
+            BLK_X1 - BLK_X0, abs(_by1 - _by0), PI_BUMP_H,
+            align=(Align.CENTER, Align.CENTER, Align.MIN))
 # the block's outboard corners are chamfered so water runs off rather than
 # collecting in the step between block and bump
-for _bs in (-1, 1):
+for _by0, _by1 in BLOCKS:
+  for _bs in (-1, 1):
     for _ex in (BLK_X0, BLK_X1):
-        c -= (Pos(_bs*_ex, cy(BLK_Y0), -PI_BUMP_H/2) * Rot(0, 0, 45)
+        c -= (Pos(_bs*_ex, cy(_by0), -PI_BUMP_H/2) * Rot(0, 0, 45)
               * Box(BLK_CHAM*1.42, BLK_CHAM*1.42, PI_BUMP_H + 2,
                     align=(Align.CENTER, Align.CENTER, Align.CENTER)))
 
@@ -1201,8 +1238,22 @@ c -= _ybore(GL_X, GL_TAP, BLK_Y0, BLK_Y1)
 c -= _ybore(VENT_X, VENT_TAP, BLK_Y0, BLK_Y1)
 # SMA coax entry: a short threaded section, then a counterbore so the inner nut
 # lands in open bay rather than being buried in the block
-c -= _ybore(SMA_X, SMA_D, BLK_Y0, BLK_Y1)
-c -= _ybore(SMA_X, SMA_CB_D, SMA_CB_Y, BLK_Y0 + 6.0, teardrop=False)
+# the coax entry bores the OTHER way, out through the TOP block, so a whip
+# screwed straight onto it stands up
+c -= _ybore(SMA_X, SMA_D, BLK_TY0, BLK_TY1)
+_v0 = c.volume
+_sma_cr = SMA_NUT_AF/2/math.cos(math.pi/6)
+# cut from the block's INNER face going OUTWARD into the block. Rot(-90) sent
+# it the other way, into the bay, where the whole point was not to be.
+c -= (Pos(SMA_X, cy(BLK_TY1), BORE_Z) * Rot(90, 0, 0)
+      * extrude(RegularPolygon(_sma_cr, 6), SMA_NUT_DEEP))
+_want = (math.sqrt(3)/2*SMA_NUT_AF**2 - math.pi*(SMA_D/2)**2) * SMA_NUT_DEEP
+assert abs((_v0 - c.volume) - _want) < 0.3*_want, (
+    f"the SMA nut pocket removed {_v0 - c.volume:.0f} mm3, expected {_want:.0f} "
+    f"- it is cutting into the bay instead of into the block")
+assert SMA_NUT_DEEP < abs(BLK_TY0 - BLK_TY1) - 6.0, (
+    f"a {SMA_NUT_DEEP} mm nut pocket leaves too little thread in a "
+    f"{abs(BLK_TY0 - BLK_TY1):.1f} mm block")
 
 # THE SEATING FACES MUST BE FLAT ANNULI. Probed, not reasoned about: take a
 # thin slab at the block's outer face, intersect it with the ring the flange's
@@ -1233,10 +1284,11 @@ _VOID_X0, _VOID_X1 = abs(PI_BUMP_CX) - PI_BUMP_L/2 + WALL, abs(PI_BUMP_CX) + PI_
 # nut and a coax bend, and the vent needs nothing at all - it only has to
 # breathe. One shared number failed the vent for a reason that does not apply
 # to it.
-_FITTINGS = [("cable gland",    GL_X,   GL_TAP,   GL_FLANGE,   12.0),
-             ("Gore vent",      VENT_X, VENT_TAP, VENT_FLANGE,  2.0),
-             ("SMA coax entry", SMA_X,  SMA_CB_D, 12.7,         10.0)]
-for _n, _x, _d, _fl, _need in _FITTINGS:
+# (name, x, bore, flange O, mm of clear bay it needs inside, which block face)
+_FITTINGS = [("cable gland",    GL_X,   GL_TAP,   GL_FLANGE,   12.0, BLK_Y0),
+             ("Gore vent",      VENT_X, VENT_TAP, VENT_FLANGE,  2.0, BLK_Y0),
+             ("SMA coax entry", SMA_X,  SMA_NUT_AF, 15.0,        3.0, BLK_TY0)]
+for _n, _x, _d, _fl, _need, _face in _FITTINGS:
     assert BLK_X0 + BLK_CHAM < abs(_x) - _fl/2 and abs(_x) + _fl/2 < BLK_X1 - BLK_CHAM, (
         f"{_n} flange O{_fl} at x={_x} hangs off its block (x {BLK_X0}..{BLK_X1})")
     assert _fl < PI_BUMP_H - 2.0, (
@@ -1252,11 +1304,11 @@ for _n, _x, _d, _fl, _need in _FITTINGS:
 # board starts. Nothing in this file had ever compared a cover feature to a
 # board envelope at all.
 _BOARDS = [("Pi 4", PI_BOARD_CX, 56.0, 85.0), ("driver board", DRV_BOARD_CX, 55.25, 113.25)]
-for _n, _x, _d, _fl, _need in _FITTINGS:
+for _n, _x, _d, _fl, _need, _face in _FITTINGS:
     for _bn, _bcx, _bl, _bw in _BOARDS:
         if (_x < 0) != (_bcx < 0):
             continue
-        _gap = abs(BLK_Y1) - _bw/2
+        _gap = abs(_face) - 13.5 - _bw/2
         assert _gap > _need, (
             f"{_n} emerges {_gap:.1f} mm from the {_bn}'s edge and needs "
             f"{_need:.0f}")
@@ -1267,16 +1319,15 @@ for _n, _x, _d, _fl, _need in _FITTINGS:
 for _i in range(len(_FITTINGS)):
     for _j in range(_i + 1, len(_FITTINGS)):
         _a, _b = _FITTINGS[_i], _FITTINGS[_j]
-        if (_a[1] < 0) != (_b[1] < 0):
+        if (_a[1] < 0) != (_b[1] < 0) or _a[5] != _b[5]:
             continue                        # different blocks
         assert abs(_a[1] - _b[1]) > (_a[3] + _b[3])/2 + 2.0, (
             f"{_a[0]} and {_b[0]} flanges overlap on the same block")
 # clear of the seal and of the brim screws
-assert abs(BLK_Y0) + 0.0 < OUT_H/2 - GASKET_OUT - GASKET_W, (
-    f"the fitting block reaches y={BLK_Y0}, into the cord's sealing land")
+for _by0, _by1 in BLOCKS:
+    assert abs(_by0) < OUT_H/2 - GASKET_OUT - GASKET_W, (
+        f"a fitting block reaches y={_by0}, into the cord's sealing land")
 for _bx, _by in BOLTS:
-    if _by > 0:
-        continue
     _dx = max(BLK_X0 - abs(_bx), abs(_bx) - BLK_X1, 0.0)
     _dy = max(abs(_by) - abs(BLK_Y0), abs(BLK_Y1) - abs(_by), 0.0)
     assert math.hypot(_dx, _dy) > 4.5 + 2.0, (
@@ -1558,9 +1609,10 @@ for _xs, _sgn in ((TIE_TOP, 1), (TIE_BOT, -1)):
             f"tie anchor at x={_tx:.0f} runs into the bay wall")
 for _px_, _py_ in DSP_POSTS:
     _seal_ok(_px_, _py_, DSP_POST_D/2, None, "display post")
-for _bs in (-1, 1):
-    _seal_ok(_bs*(BLK_X0 + BLK_X1)/2, (BLK_Y0 + BLK_Y1)/2,
-             (BLK_X1 - BLK_X0)/2, (BLK_Y1 - BLK_Y0)/2, "fitting block")
+for _by0, _by1 in BLOCKS:
+    for _bs in (-1, 1):
+        _seal_ok(_bs*(BLK_X0 + BLK_X1)/2, (_by0 + _by1)/2,
+                 (BLK_X1 - BLK_X0)/2, abs(_by1 - _by0)/2, "fitting block")
 _cb0 = c.bounding_box()
 assert _cb0.size.X <= OUT_W + 1e-6 and _cb0.size.Y <= OUT_H + 1e-6, (
     f"cover is {_cb0.size.X:.1f} x {_cb0.size.Y:.1f}, overhangs the {OUT_W:.0f} x "
@@ -1595,12 +1647,13 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "FIN_GAP":FIN_GAP,"GASKET_OUT":GASKET_OUT,
            "APER_W":APER_W,"APER_H":APER_H,"APER_X":APER_X,"APER_Y":APER_Y,
            "BTN_X":BTN_X,"ENC_X":ENC_X,"ROW_CY":ROW_CY,"BTN_D":BTN_D,"ENC_D":ENC_D,
-           "SMA_X":SMA_X,"SMA_D":SMA_D,"SMA_CB_D":SMA_CB_D,"GL_X":GL_X,"GL_TAP":GL_TAP,
+           "SMA_X":SMA_X,"SMA_D":SMA_D,"SMA_NUT_AF":SMA_NUT_AF,"SMA_NUT_DEEP":SMA_NUT_DEEP,"GL_X":GL_X,"GL_TAP":GL_TAP,
            "CABLE_D":CABLE_D,"SEAT_LAND":SEAT_LAND,
            "VENT_X":VENT_X,"VENT_TAP":VENT_TAP,"BORE_Z":BORE_Z,
            "BLK_X0":BLK_X0,"BLK_X1":BLK_X1,"BLK_Y0":BLK_Y0,"BLK_Y1":BLK_Y1,
+           "BLK_TY0":BLK_TY0,"BLK_TY1":BLK_TY1,
            "PI_BUMP_H":PI_BUMP_H,"PI_BUMP_L":PI_BUMP_L,"PI_BUMP_W":PI_BUMP_W,
-           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,"DRV_BOARD_CX":DRV_BOARD_CX,
+           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,"DRV_BOARD_CX":DRV_BOARD_CX,"PI_STANDOFF_H":PI_STANDOFF_H,
            "PI_BOARD_CX":PI_BOARD_CX,"PI_HOLES":PI_HOLES,"DRV_HOLES":DRV_HOLES,
            "PIV_X":PIV_X,"PIV_Y":PIV_Y,"PIV_Z":PIV_Z,
            # mating dimensions - the visor and the bracket read these rather
@@ -1611,7 +1664,7 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "TILT_Y":TILT_Y,"TRUN_X":TRUN_X,"TRUN_STAND":TRUN_STAND,
            "TRUN_R":TRUN_R,"TRUN_LAND":TRUN_LAND,"TRUN_WEB_T":TRUN_WEB_T,
            "TRUN_BORE":TRUN_BORE,"TRUN_NUT_AF":TRUN_NUT_AF,"TRUN_NUT_DEEP":TRUN_NUT_DEEP,"SHROUD_W":SHROUD_W,"SHROUD_ENVELOPE":SHROUD_ENVELOPE,
-           "R_EAR":R_EAR,"UPS_T":UPS_T,"PIV_BOLT":PIV_BOLT,
+           "R_EAR":R_EAR,"UPS_T":UPS_T,"VIS_STOW_Z":VIS_STOW_Z,"PIV_BOLT":PIV_BOLT,
                       "DISP_CX":DISP_CX,"DISP_CY":DISP_CY,
            # --- published for cad/build_review.py -------------------------
            # The build page used to keep its own copy of every one of these and
@@ -1717,7 +1770,8 @@ print(f"       heatsink {HS_L:.0f} x {HS_W:.0f} x {HS_H:.0f} bonded base-out in 
       f"seat: base flush INSIDE, {HS_PROUD:.0f} mm of fin proud OUTSIDE under the shroud")
 print(f"       inside face is a bare {_plate_in_cm2:.0f} cm2 plate - the internal "
       f"air-to-metal step is the bottleneck, not the fan")
-print(f"       fittings: M16 gland x{GL_X:.0f}, M12 Gore vent x{VENT_X:.0f}, "
-      f"M8 SMA coax x{SMA_X:.0f} - all bored -y through the blocks, all facing DOWN")
+print(f"       fittings: M16 gland x{GL_X:.0f} and M12 Gore vent x{VENT_X:.0f} face DOWN "
+      f"through the bottom blocks; M8 SMA coax x{SMA_X:.0f} faces UP through the top of "
+      f"the driver bump, so the whip stands at the sky")
 print(f"       fan leads cross at ({WIRE_X:.1f}, {WIRE_Y:.0f}) - O{WIRE_D:.0f} potted, "
       f"under the shroud")

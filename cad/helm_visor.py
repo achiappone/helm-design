@@ -17,7 +17,8 @@ washer keeps preload as the plastic relaxes. Same idea as an MFD bail mount.
 The leading edge turns down 8 mm. That is not styling: on two pivots the hood
 is a 310 mm cantilever, and the lip turns a floppy flat plate into a channel.
 
-Material : ASA (blue)   Orientation : HOOD UNDERSIDE ON THE BED, ears up - it lies flat now
+Material : ASA (blue)   Orientation : HOOD ON THE BED, ears up - it lies flat
+Folds : deployed 0 to -60 deg, STOWED FLAT on the bezel at -90
 """
 from build123d import *
 import math, json
@@ -51,7 +52,11 @@ PIV_NUT_WALL = EAR_T - PIV_NUT_DEEP
 assert PIV_NUT_WALL >= 4.0, (
     f"nyloc pocket leaves {PIV_NUT_WALL:.1f} mm behind the visor friction land")
 BOLT_D = 5.4                       # M5 clearance; the nut is in THIS part
-assert FRIC_R1 < R_EAR, "friction land would run off the edge of the ear"
+# The land is the SERRATED WASHER's footprint now, not a friction annulus - the
+# pair holds by tooth engagement, which is why the ear could shrink to r8 and let
+# the pivot move far enough forward to fold the hood flat.
+SERR_OD = 10.0                      # M5 316 serrated washer, across the teeth
+assert SERR_OD/2 < R_EAR, "the serrated washer would overhang the ear"
 # Neither side threads any more: the shell upstand carries a captive 316 nyloc
 # and both holes are clearance. What still has to hold is that this one is not
 # the tighter of the two, or the bolt binds here and the hand-set preload reads
@@ -76,15 +81,30 @@ EAR_X = SPAN/2 - MESH_GAP          # ears sit MESH_GAP inboard, shim between
 # shell's 16 teeth buried in it - a clash that does not vary with angle, because
 # a flat plate has no angular features. That is what made the detent read dead.
 HOOD_HALF = EAR_X
-# THE HOOD HANGS BELOW THE AXIS, not on it. With the plate centred on the pivot
-# the ears stood R_EAR - VIS_T/2 = 10 mm proud of BOTH hood faces and the part
-# could not lie on a bed at all - 58 mm2 of contact, two ear rims, the hood in
-# the air. Dropping the hood until its underside is tangent to the ear puts
-# 17,000 mm2 on the bed and changes nothing the eye can see.
-HOOD_DROP = R_EAR - VIS_T/2
-# The rear overhang behind the axis is what swings DOWN toward the housing's top
-# wall when the hood is lifted; 8 mm at the old height was fine, at the new
-# height it touched the wall at 15 deg. 3 mm clears 25 deg; asserted below.
+# THE HOOD HANGS ABOVE ITS AXIS. Two things drove that, and they are the same
+# thing seen twice:
+#
+#   IT HAS TO FOLD FLAT. Rotate a plate slung UNDER its pivot and it swings
+#   round to the BACK of the front face - z = PIV_Z + HOOD_RISE, inside the box
+#   - whichever way you turn it. Hung ABOVE the axis it swings down to
+#   z = PIV_Z - HOOD_RISE, in front of the glass, which is where a folded visor
+#   goes. No angle fixes the first case; it is geometry.
+#
+#   IT HAS TO PRINT. With the plate's face tangent to the ear rim the part lies
+#   flat on the bed either way up. Centred on the pivot it stood on two ear rims
+#   - 58 mm2 of contact on a 294 mm part.
+#
+# So the offset is the same number it always was; what changed is its sign.
+# DERIVED from where the hood has to come to rest, not from the ear. It must be
+# at least R_EAR - VIS_T/2 or the part stands on its ear rims instead of lying
+# flat on the bed; beyond that it is set by the fold.
+HOOD_RISE = PIV_Z - H["VIS_STOW_Z"] + VIS_T/2
+assert HOOD_RISE >= R_EAR - VIS_T/2, (
+    f"a {HOOD_RISE:.1f} mm rise on an r{R_EAR} ear puts the ear below the hood - "
+    f"the part will not lie flat on the bed")
+# The rear overhang behind the axis swings DOWN toward the housing's top wall
+# when the hood is lifted, and forward over the glass when it is folded. Both
+# ends are asserted below.
 Z0, Z1 = 3.0, -(VIS_D - BEV)
 OFF = VIS_T * 0.7071
 prof = [(2.0, Z0), (2.0, Z1), (2.0 - BEV, Z1 - BEV),
@@ -95,21 +115,42 @@ prof = [(2.0, Z0), (2.0, Z1), (2.0 - BEV, Z1 - BEV),
 by, bz = 2.0 - OFF, Z1 + OFF
 t = ((-2.0) - by) / (-0.7071)
 prof[4] = (-2.0, bz + t * (-0.7071))
-prof = [(py - HOOD_DROP, pz) for py, pz in prof]
-# the rear edge's lowest corner, swung by the visor's lift, must clear the top wall
-_wall = H["OUT_H"]/2 - PIV_Y                 # top wall, in this part's frame (negative)
-for _lift in (0.0, 15.0, 25.0):
+prof = [(py + HOOD_RISE, pz) for py, pz in prof]
+
+# ---- the two ends of the travel, checked as numbers ----------------------
+# STOWED at -90 deg: the hood lies across the bezel. Its lowest face must clear
+# the glass, and its tip must not foul the control row under the screen.
+_stow_z = PIV_Z - HOOD_RISE + VIS_T/2
+assert _stow_z < -1.0, (
+    f"folded down the hood's inner face is at z={_stow_z:.1f} - the bezel is at "
+    f"0 and the glass behind it, so it has to come to rest in FRONT of both")
+_stow_reach = PIV_Y - (VIS_D - BEV)          # how far down the screen it covers
+print(f"       STOWS FLAT at -90 deg: hood face {_stow_z:.1f} off the bezel, "
+      f"covering down to y={_stow_reach:.0f} (screen top {H['APER_Y'] + H['APER_H']/2:.0f})")
+# DEPLOYED: the rear edge swings toward the top wall as the hood lifts.
+_wall = H["OUT_H"]/2 - PIV_Y
+for _lift in (0.0, -30.0, -60.0, -90.0):
     _r = math.radians(_lift)
-    _cy, _cz = -HOOD_DROP - VIS_T/2, Z0
+    _cy, _cz = HOOD_RISE - VIS_T/2, Z0
     _y = _cy*math.cos(_r) - _cz*math.sin(_r)
     assert _y > _wall + 1.0, (
-        f"hood's rear edge swings to {_y:.1f} at {_lift:.0f} deg lift, wall is at "
-        f"{_wall:.1f} - shorten Z0 or raise PIV_Y")
+        f"at {_lift:.0f} deg the hood's rear edge reaches y={_y:.1f} and the top "
+        f"wall is at {_wall:.1f}")
 v = extrude(Plane.YZ * Polygon(*prof, align=None), amount=HOOD_HALF, both=True)
 
 for wx in (-EAR_X + EAR_T/2, EAR_X - EAR_T/2):
     v += Pos(wx, 0, 0) * Rot(0, 90, 0) * Cylinder(R_EAR, EAR_T,
             align=(Align.CENTER, Align.CENTER, Align.CENTER))
+# ---- the crank that joins each ear to the hood ---------------------------
+# The hood stands HOOD_RISE off the axis and the ear is only r8, so the two no
+# longer touch - the part came out as three solids, a plate and two loose rings.
+# A real folding visor has exactly this piece: a short crank from the pivot out
+# to the shade. It only ever spans local +y, which is why it never swings down
+# into the housing's top wall the way the hood's rear edge does.
+for wx in (-EAR_X + EAR_T/2, EAR_X - EAR_T/2):
+    v += Pos(wx, HOOD_RISE/2, Z0 - 7.0) * Box(
+        EAR_T, HOOD_RISE + VIS_T, 16.0, align=(Align.CENTER,)*3)
+
 for wx, outward in ((-EAR_X + EAR_T/2, -1), (EAR_X - EAR_T/2, +1)):
     v -= Pos(wx, 0, 0) * Rot(0, 90, 0) * Cylinder(BOLT_D/2, 60)
     # Nyloc pocket in the OUTBOARD face; the INBOARD face is the friction land
@@ -133,6 +174,9 @@ for wx, outward in ((-EAR_X + EAR_T/2, -1), (EAR_X - EAR_T/2, +1)):
 
 v = Rot(TILT, 0, 0) * v
 v = Pos(X_MID, PIV_Y, PIV_Z) * v
+assert len(v.solids()) == 1, (
+    f"the visor is {len(v.solids())} solids - the hood stands {HOOD_RISE:.1f} off "
+    f"the axis and the r{R_EAR} ears do not reach it without the crank")
 export_step(v, "cad/out/helm_visor_revC.stp")
 bb = v.bounding_box()
 print(f"VISOR  vol={v.volume/1000:6.1f} cm3 solids={len(v.solids())} "
@@ -146,6 +190,7 @@ json.dump({"PIV_X":PIV_X,"PIV_Y":PIV_Y,"PIV_Z":PIV_Z,"R_EAR":R_EAR,"EAR_T":EAR_T
            "BOLT_D":BOLT_D,"SPAN":SPAN,
            # published so the build page states this part's size and mass from
            # the solid rather than from a remembered number
-           "VOL_CM3":v.volume/1000.0,"HOOD_W":2*HOOD_HALF,
+           "VOL_CM3":v.volume/1000.0,"HOOD_RISE":HOOD_RISE,"STOW_Z":_stow_z,
+           "STOW_REACH":_stow_reach,"HOOD_W":2*HOOD_HALF,
            "BBOX":[bb.size.X,bb.size.Y,bb.size.Z]},
           open("cad/out/pivot.json","w"), indent=1)

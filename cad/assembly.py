@@ -238,6 +238,21 @@ print("  asm_housing_rear")
 # rot(az,el) rotates about the model Z and X only - it cannot orbit
 # horizontally. Yawing the assembly about Y is the same viewpoint change and
 # is a proper rotation, so nothing is mirrored.
+# ---- THE VISOR FOLDS ----------------------------------------------------
+# It is a hood at 0 and a screen cover at -90, and the only way to show that is
+# to draw both. Rotated about the pivot axis, which is where it actually turns.
+def visor_at(deg):
+    return (Pos(0, H["PIV_Y"], H["PIV_Z"]) * Rot(deg, 0, 0)
+            * Pos(0, -H["PIV_Y"], -H["PIV_Z"]) * VISOR)
+
+_FOLD = [(Pos(0, 0, 0) * SHELL, BLUE),
+         (Pos(0, 0, _BACK) * Rot(180, 0, 0) * COVER, BLUE2),
+         (_DISP, (0.08, 0.09, 0.11))]
+for _d, _nm in ((0, "deployed"), (-45, "half"), (-90, "stowed")):
+    png(f"cad/out/asm_visor_{_nm}.png",
+        render_multi(_FOLD + [(visor_at(_d), BLUE)], 210, -135, W=980, H=760)[0])
+print("  asm_visor_deployed / half / stowed")
+
 YAW = Rot(0, -40, 0)
 for ang, name in ((15, "up"), (0, "flat"), (-30, "down")):
     a2 = [(YAW * BRK, (0.10, 0.26, 0.52)),

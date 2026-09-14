@@ -42,6 +42,7 @@ def subpic(name, note=None):
     return _missing(name, f"cad/out/{name}.png")
 # Counted off the geometry, not retyped - the page has quoted a wrong
 # fastener count and a wrong bezel through two revisions already.
+DRV_L, DRV_W = 55.25, 113.25          # the board the cover's +x bosses are drilled to
 NBOLT = H["N_BRIM_BOLTS"]
 BEZEL = (OUT_W - H["APER_W"])/2
 BEZEL_T = OUT_H/2 - (H["APER_Y"] + H["APER_H"]/2)
@@ -304,6 +305,7 @@ a{{color:var(--accent)}}
     <tr><td class="m">1</td><td>Visor</td><td>1</td><td>ASA {g(V["VOL_CM3"])}. Hood {V["HOOD_W"]:.0f} wide, <b>friction pivots, no detent</b></td></tr>
     <tr><td class="m">2</td><td>Front shell</td><td>1</td><td>ASA {g(H["SHELL_CM3"])}. {OUT_W:.0f} &times; {OUT_H:.0f} &times; {DEPTH:.0f}, {H["FACE_T"]} mm face, prints face-down</td></tr>
     <tr><td class="m">3</td><td>12.3&Prime; 1920&times;720 LCD</td><td>1</td><td>module {H["MOD_W"]:.0f} &times; {H["MOD_H"]:.0f} &times; {H["MOD_D"]:.0f}, active {H["ACT_W"]:.0f} &times; {H["ACT_H"]:.0f} &mdash; both measured</td></tr>
+    <tr><td class="m">4</td><td><b>12.3&Prime; LCD driver board</b> (LVDS/HDMI)</td><td>1</td><td><b>{DRV_L:.2f} &times; {DRV_W:.2f}</b>, 4 &times; M2.5 on the confirmed centres, in the <b>+x bay</b> on {H["PI_STANDOFF_H"]:.0f} mm bosses at x={H["DRV_BOARD_CX"]:.0f} &mdash; the bay is named for it. Ships with the panel; HDMI in from the Pi, LVDS out to the glass. The board moved 6 mm inboard of its bump so the Gore vent&rsquo;s bore passes over open air, not over its corner</td></tr>
     <tr><td class="m">5</td><td>DROK 9&ndash;36 V &rarr; 12 V 5 A</td><td>1</td><td>113.25 &times; 55.25 &times; 17, in the <b>+x bay</b> on {H["N_DRV_SCREWS"]} &times; M2.5. Hole pattern is <b>not rectangular</b></td></tr>
     <tr><td class="m">6</td><td>Raspberry Pi 4</td><td>1</td><td>85 &times; 56, in the <b>&minus;x bay</b>, turned portrait so the HDMI/USB-C edge faces the open side</td></tr>
     <tr><td class="m">6b</td><td>GeeekPi Armor Lite</td><td>1</td><td>Active cooler on the Pi. In a sealed box its fan exports nothing &mdash; it <b>stirs</b>, which is the point</td></tr>
@@ -323,15 +325,14 @@ a{{color:var(--accent)}}
     <tr><td class="m">19</td><td><b>M5 &times; 25 316 cap screw + M5 316 nyloc</b></td><td>2 sets</td><td><b>Visor pivots.</b> Screw in from the housing&rsquo;s upstand, nut <b>captive in a hex pocket in the visor ear&rsquo;s OUTBOARD face</b> &mdash; the inboard face is the friction land that runs on the 316 shim. Set by hand: firm enough to stay put, loose enough to move under bare-hand pressure</td></tr>
     <tr><td class="m">20</td><td><b>M5 &times; 25 316 cap screw + M5 316 nyloc</b></td><td>2 sets</td><td><b>Bail pivots.</b> Screw in from OUTBOARD through the arm eye, the serrated pair and the trunnion land; nut <b>captive in an {H["TRUN_NUT_AF"]:.0f} mm A/F hex pocket {H["TRUN_NUT_DEEP"]:.0f} mm deep in the trunnion web&rsquo;s INBOARD face</b>, reached from the middle of the back. Steel pulls against steel and the ASA is only in compression &mdash; it is no longer a thread formed in plastic</td></tr>
     <tr><td class="m">20b</td><td>Dash screws</td><td>{B["N_DASH"]}</td><td>Base plate to the dash, through &Oslash;{B["DASH_D"]} &times; {B["DASH_SLOT"]:.0f} slots in two rows {B["DASH_ROWS"]:.0f} apart</td></tr><tr><td class="m">20c</td><td><b>M5 &times; 16 316 + M5 heat-set insert</b></td><td>4 sets</td><td><b>Arm feet.</b> Up from <em>under</em> the base plate into inserts in the arm&rsquo;s {B["FOOT_PAD_T"]:.0f} mm foot pad &mdash; which is why the arms go on the plate before the plate goes on the dash. The blade thickens to take them: &Oslash;{B["INSERT_D"]} in a 7 mm blade left 0.8 mm of wall</td></tr>
-    <tr><td class="m">20c</td><td>M5 316 + nyloc</td><td>{B["N_FOOT_BOLTS"]}</td><td>Arm feet down onto the base plate, two per arm, fore-and-aft</td></tr>
-    <tr><td class="m">21</td><td>M3 &times; 20 316 SS</td><td>4</td><td>LP-24 into the shroud frame</td></tr>
+        <tr><td class="m">21</td><td>M3 &times; 20 316 SS</td><td>4</td><td>LP-24 into the shroud frame</td></tr>
     <tr><td class="m">22</td><td>M4 &times; 30 316 SS</td><td>2</td><td>Clamp up into the shroud beam</td></tr>
     <tr><td class="m">23</td><td>M5 316 SS</td><td>8</td><td>LP-24 shroud to the dash</td></tr>
     <tr><td class="m">24</td><td>M2.5 &times; 8</td><td>{H["N_SENSOR_SCREWS"]}</td><td>Breakouts onto the cover&rsquo;s {H["STANDOFF_H"]} mm standoffs</td></tr>
     <tr><td class="m">25</td><td>CNLINKO LP-24</td><td>1</td><td>&Oslash;24.4 bore, 26.0 sq pattern</td></tr>
     <tr><td class="m">26</td><td><b>M16&times;1.5 straight gland</b>, 316 or IP68 nylon</td><td>1</td><td>Tapped into the &minus;x fitting block at x={H["GL_X"]:.0f}, <b>bore along &minus;y, facing DOWN</b>. Tapping drill &Oslash;{H["GL_TAP"]}, {abs(H["BLK_Y1"]-H["BLK_Y0"]):.0f} mm of thread. Clamps &le;&Oslash;{H["CABLE_D"]:.0f} cable &mdash; was an M20 elbow, which fits nowhere on this part and whose elbow the &minus;y bore makes redundant</td></tr>
     <tr><td class="m">27</td><td>M12&times;1.5 Gore screw-in vent</td><td>1</td><td><b>Tapped</b> into the +x block at x={H["VENT_X"]:.0f}, drill &Oslash;{H["VENT_TAP"]}, facing DOWN. Tapped not clearance: a &Oslash;19 locknut pocket there reaches the bay wall with 0.00 mm to spare. Equalises pressure so the cord only has to stop water. Do not paint or block</td></tr>
-    <tr><td class="m">28</td><td>SMA female bulkhead, M16</td><td>1</td><td>&Oslash;{H["SMA_D"]} bore straight through the {COVER_T:.0f} mm cover, on a raised sealing pad. <b>Position relocating</b></td></tr>
+    <tr><td class="m">28</td><td>SMA female bulkhead, <b>M8&times;0.75 IP67</b></td><td>1</td><td>&Oslash;{H["SMA_D"]} bore at x={H["SMA_X"]:.0f} in the <b>TOP block of the driver bump</b>, facing <b>UP</b>, with its nut captive in a {H["SMA_NUT_AF"]:.0f} mm A/F hex pocket in the block&rsquo;s inner face. The whip screws straight onto it and stands at the sky &mdash; which is the whole reason it is on top of a bump and not on the flat cover face, where it would have pointed into the dash</td></tr>
     <tr><td class="m">29</td><td><b>{GASKET_T:.0f} mm round rubber cord</b></td><td>~{CORD_L/1000:.2f} m</td><td>In a {GASKET_W:.2f} &times; {H["GASKET_D"]:.2f} groove in the brim. Cut long, scarf the splice with CA, keep the joint <b>off the bottom rail</b></td></tr>
     <tr><td class="m">30</td><td>Belden 1058A</td><td>as needed</td><td>12 pair 20 AWG PLTC</td></tr>
     <tr><td class="m">31</td><td>Bail base plate</td><td>1</td><td>ASA {g(B.get("BASE_CM3"))}. {B["BASE_L"]:.0f} &times; {B["BASE_W"]:.0f} &times; {B["BASE_T"]:.0f}, flat to the dash</td></tr>
