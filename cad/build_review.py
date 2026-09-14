@@ -258,6 +258,18 @@ a{{color:var(--accent)}}
   <div class="grid">
     {pic("cad/out/asm_housing.png","Assembled - front","Nothing on the face. Every fastener is either behind the unit or hidden under the visor.")}
     {pic("cad/out/asm_housing_left.png","Assembled - other shoulder","")}
+  </div>
+  <h3>Ghosted &mdash; where everything packs in</h3>
+  <p>The printed parts at 22% opacity, every bought part solid. A section answers
+     &ldquo;what is at this plane&rdquo;; the question a builder asks is &ldquo;what is in
+     there, and does it all fit&rdquo;.</p>
+  <div class="grid">
+    {pic("cad/out/asm_ghost_front.png","Ghosted - front","")}
+    {pic("cad/out/asm_ghost_rear.png","Ghosted - rear","Pi and Armor Lite in the -x bay, driver board and the RTL-SDR on edge in the +x, heatsink between them, GPS in the top block opposite the whip.")}
+    {pic("cad/out/asm_ghost_side.png","Ghosted - side","")}
+    {pic("cad/out/asm_ghost_top.png","Ghosted - from above","")}
+  </div>
+  <div class="grid">
     {pic("cad/out/asm_housing_side.png","Assembled - side","The shroud's depth and how far the bail holds it off the dash.")}
     {pic("cad/out/asm_housing_top.png","Assembled - from above","")}
     {pic("cad/out/asm_housing_rear.png","Assembled - rear",f"{NBOLT} M3 through the cover into the shell&rsquo;s brim, the fan shroud over the heatsink, and the bail arms on trunnions grown from the cover itself.")}
@@ -323,7 +335,7 @@ a{{color:var(--accent)}}
     <tr><td class="m">11</td><td>Fit coupon</td><td>1</td><td>ASA. <b>Print this first</b> &mdash; it is the bore and thread fit check</td></tr>
     <tr><td class="m">12</td><td>MCP23017</td><td>1</td><td>Holes {H["SENSORS"][0]["pitch_x"]:.2f} &times; {H["SENSORS"][0]["pitch_y"]:.2f}. Encoder + all four keys land on this one chip</td></tr>
     <tr><td class="m">13</td><td>MCP9808 / ADXL345 / ICM20948</td><td>3</td><td>25.40 &times; 17.78, holes {H["SENSORS"][1]["pitch_x"]:.2f} &times; {H["SENSORS"][1]["pitch_y"]:.2f}</td></tr>
-    <tr><td class="m">13b</td><td>GPS &mdash; <b>external puck</b></td><td>1</td><td>On the hardtop, lead in through the gland. <b>No internal cradle</b>: a patch lying flat in {H["FIN_GAP"]:.1f} mm behind the panel sees no sky</td></tr>
+    <tr><td class="m">13b</td><td>SEQURE M10-18 GPS</td><td>1</td><td><b>External puck is still the better answer</b> and the recommendation has not changed. But the internal option is now built: an {H["GPS_L"]:.0f} sq patch in a <b>shielded chimney in the &minus;x top block</b> at x={H["GPS_X"]:.0f}, pushed up from inside the Pi bay onto two shelves, under a <b>{H["GPS_WIN_T"]} mm ASA radome</b> &mdash; ASA is RF-transparent, so the window is the only thing between the patch and the sky. <b>Line the four walls and the shelf under it with copper foil, never the window</b>: that cup is both the EMI shield and the ground plane a patch needs and does not have in a plastic box. Bond to system ground at ONE point. {abs(H["GPS_X"] - H["SMA_X"]):.0f} mm from the whip, which is the point &mdash; a 400&ndash;470 MHz transmitter closer than that desenses L1 on every key-down</td></tr>
     <tr><td class="m">14</td><td>PCM1808 + PCM5102A</td><td>1 + 2</td><td>Strap-down bays &mdash; no mounting holes</td></tr>
     <tr><td class="m">15</td><td>RTL-SDR v3 dongle</td><td>1</td><td>{H["SDR_L"]:.0f} &times; {H["SDR_W"]:.0f} &times; {H["SDR_T"]:.0f}, <b>on edge</b> in the +x bay at x={H["SDR_X"]:.0f} &mdash; the bay&rsquo;s void is 75 wide and the driver board takes 55 of it, which leaves a 19 mm strip: too narrow to lay a dongle flat, wide enough to stand one in. Strapped to the two tie anchors on that bay&rsquo;s floor, directly under the SMA bulkhead it feeds. It has no mounting holes, so the strap is the mount</td></tr>
     <tr><td class="m">16</td><td>Oak Grigsby 91Q128</td><td>1</td><td>3/8-32 bushing, &Oslash;6.299 shaft, 3 V TTL. Bore &Oslash;{H["ENC_D"]}, knob &Oslash;{H["KNOB_OD"]}</td></tr>
@@ -736,6 +748,7 @@ a{{color:var(--accent)}}
     {subpic("sub_wire_pass")}
     {subpic("sub_fittings_context")}
     {subpic("sub_fittings_detail")}
+    {subpic("sub_gps")}
   </div>
   <div class="flag">
     <h3>The thermal path &mdash; and the step that is honestly weak</h3>

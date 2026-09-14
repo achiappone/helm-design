@@ -647,6 +647,41 @@ BLK_Y0, BLK_Y1 = -76.0, -62.5       # from the bump's end wall outward
 # stands up at the sky instead of pointing into the dash - which is the whole
 # reason it came off the flat cover face in the first place.
 BLK_TY0, BLK_TY1 = 76.0, 62.5
+
+# -- INTERNAL GPS, in a shielded chimney in the -x top block ---------------
+# The GPS went EXTERNAL two revisions ago and that is still the better answer:
+# a ceramic patch behind a metre of dash sees no sky, and a display's LVDS
+# ribbon radiates hard at L1. Nothing below changes that recommendation. What it
+# does is make the internal option BUILDABLE, because "put it somewhere inside"
+# is the request and somewhere inside is a decision with exactly one good answer
+# on this housing.
+#
+# WHERE. The patch has to face the sky, and the only upward-facing real estate
+# on the unit is the two TOP blocks. The +x one has the whip's bulkhead in it -
+# a 400-470 MHz transmitter whose third harmonic lands on top of L1 at 1575, and
+# no amount of foil fixes a transmitter 40 mm away - so the GPS takes the -x
+# block, 242 mm from the whip. That puts it over the Pi, which is broadband
+# digital hash rather than a transmitter, and broadband hash is exactly what a
+# shielded cup and a ground plane are for.
+#
+# WHAT IT IS. A chimney: open DOWNWARD into the Pi bay so the module can be
+# pushed up into it and reached again, closed at the top by a thin ASA window.
+# ASA is RF-transparent, so the window is the radome; it is also the only thing
+# between the patch and the weather, which is why it is printed solid rather
+# than left as a hole with a cover over it.
+#
+# WHAT YOU LINE WITH COPPER. The four walls and the shelf UNDER the module -
+# never the window. That cup is both the EMI shield and the patch's ground
+# plane, which a patch antenna needs and which it has not got inside a plastic
+# box. Bond the foil to system ground at one point only: foil that is not
+# grounded is a reflector, and foil grounded at two points is a loop.
+GPS_INTERNAL = True
+GPS_L, GPS_W, GPS_T = 18.0, 18.0, 8.0      # MEASURED: SEQURE M10-18
+GPS_FIT = 0.4                               # per side
+GPS_WIN_T = 1.2                             # the ASA radome over the patch
+GPS_SHELF = 2.0                             # the ledge the module sits on
+GPS_X = -(BLK_X0 + BLK_X1)/2                # centred in the -x top block
+GPS_Z = -PI_BUMP_H/2                        # mid-height, as the fittings are
 BLK_CHAM = 2.0
 BORE_Z = -PI_BUMP_H/2               # bores on the block's mid-height
 
@@ -1294,6 +1329,44 @@ for _n, _x, _d, _fl, _need in [("cable gland", GL_X, GL_TAP, GL_FLANGE, 0),
         f"{_n}'s O-ring land is {100*(1 - _have/_ring.volume):.0f}% cut away at "
         f"the seating face - it has nothing to seal against")
 
+# -- the GPS chimney -------------------------------------------------------
+if GPS_INTERNAL:
+    _gy_top = BLK_TY0 - GPS_WIN_T                  # under the radome
+    _gy_bot = BLK_TY1 - WALL - 2.0                 # through into the Pi bay
+    _pl, _pw = GPS_L + 2*GPS_FIT, GPS_W + 2*GPS_FIT
+    _v0 = c.volume
+    c -= Pos(GPS_X, cy((_gy_top + _gy_bot)/2), GPS_Z) * Box(
+        _pl, abs(_gy_top - _gy_bot), _pw, align=(Align.CENTER,)*3)
+    assert c.volume < _v0 - 1000, (
+        "the GPS chimney removed almost nothing - it is not landing in the block")
+    # the shelf the module sits on, so the patch ends up square under the
+    # window with a known air gap rather than wherever it was pushed to
+    for _sx in (-1, 1):
+        c += Pos(GPS_X + _sx*(_pl/2 - GPS_SHELF/2),
+                 cy(_gy_top - GPS_T - 0.5 - 1.0), GPS_Z) * Box(
+            GPS_SHELF, 2.0, _pw, align=(Align.CENTER,)*3)
+    # the lead goes down the chimney into the bay; it is already open, so all
+    # this needs is that the chimney actually reaches the bay
+    assert _gy_bot < PI_BUMP_W/2 - WALL + 0.01, (
+        f"the GPS chimney stops at y={_gy_bot:.1f} and the bay's void starts at "
+        f"{PI_BUMP_W/2 - WALL:.1f} - the module could never be fitted or reached")
+    # and that a real shield can be built in it: walls thick enough to take
+    # foil and still hold, and a window thin enough to see through at L1
+    _wall_x = (BLK_X1 - BLK_X0)/2 - _pl/2
+    assert _wall_x > 4.0, (
+        f"only {_wall_x:.1f} mm of block either side of the chimney - not enough "
+        f"to line with foil and still have a wall")
+    assert GPS_WIN_T <= 1.6, (
+        f"a {GPS_WIN_T} mm ASA radome is thicker than it needs to be; every "
+        f"millimetre is loss at 1575 MHz")
+    # the whole point: distance from the transmitting whip
+    _sep = abs(GPS_X - SMA_X)
+    assert _sep > 150.0, (
+        f"the GPS patch is {_sep:.0f} mm from the whip's bulkhead - a 400-470 MHz "
+        f"transmitter that close will desense it on every transmission")
+    print(f"       GPS: {GPS_L:.0f} sq patch in a shielded chimney at x={GPS_X:.0f}, "
+          f"under a {GPS_WIN_T} mm ASA radome, {_sep:.0f} mm from the whip")
+
 # ---- and the checks that would have caught the original fault -------------
 # Every one of these compares a fitting to something OUTSIDE its own family -
 # the bay void, the board in it, the block's own faces, the seal, the fastener
@@ -1702,6 +1775,7 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "FIN_GAP":FIN_GAP,"GASKET_OUT":GASKET_OUT,
            "APER_W":APER_W,"APER_H":APER_H,"APER_X":APER_X,"APER_Y":APER_Y,
            "BTN_X":BTN_X,"ENC_X":ENC_X,"ROW_CY":ROW_CY,"BTN_D":BTN_D,"ENC_D":ENC_D,
+           "GPS_X":GPS_X,"GPS_Z":GPS_Z,"GPS_L":GPS_L,"GPS_W":GPS_W,"GPS_T":GPS_T,"GPS_WIN_T":GPS_WIN_T,
            "SMA_X":SMA_X,"SMA_D":SMA_D,"SMA_NUT_AF":SMA_NUT_AF,"SMA_NUT_DEEP":SMA_NUT_DEEP,"GL_X":GL_X,"GL_TAP":GL_TAP,
            "CABLE_D":CABLE_D,"SEAT_LAND":SEAT_LAND,
            "VENT_X":VENT_X,"VENT_TAP":VENT_TAP,"BORE_Z":BORE_Z,

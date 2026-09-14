@@ -268,6 +268,33 @@ for _d, _nm in ((0, "deployed"), (-45, "half"), (-90, "stowed")):
         render_multi(_FOLD + [(visor_at(_d), BLUE)], 210, -135, W=980, H=760)[0])
 print("  asm_visor_deployed / half / stowed")
 
+# ---- GHOSTED: the housing translucent, everything inside solid -----------
+# A section answers "what is at this plane". The question a builder actually
+# asks is "what is in there, and does it all fit" - and for that the box has to
+# go see-through rather than get cut open. Printed parts drop to 22% alpha;
+# every bought part stays solid, so what you see is exactly the packing.
+GHOST = 0.22
+_ghost = [(Pos(0, 0, 0) * SHELL, BLUE + (GHOST,)),
+          (Pos(0, 0, _BACK) * Rot(180, 0, 0) * COVER, BLUE2 + (GHOST,)),
+          (_SHROUD_ASM, (0.10, 0.26, 0.52, GHOST)),
+          (visor_at(0), BLUE + (GHOST,)),
+          (_DISP, (0.08, 0.09, 0.11, 0.55)),
+          (_HS, ALLOY), (_FANS_ASM, DARK),
+          (_PI, PI_G), (_ARM, ALLOY), (_DRV, (0.12, 0.43, 0.47)),
+          (_SDR, (0.20, 0.55, 0.35)), (_SENS, (0.76, 0.47, 0.12)),
+          (_BTN, (0.13, 0.13, 0.15)), (_ENC, (0.72, 0.60, 0.25)),
+          (_FITS, (0.55, 0.56, 0.58)), (_NUTS, _STEEL), (_BOLTS, _STEEL),
+          (_ANT, DARK), (_SMA, (0.80, 0.68, 0.24))]
+if "GPS_X" in H:
+    _GPS = Pos(H["GPS_X"], H["BLK_TY0"] - H["GPS_WIN_T"] - H["GPS_T"]/2 - 0.5,
+               _BACK - H["GPS_Z"]) * Box(H["GPS_L"], H["GPS_T"], H["GPS_W"],
+                                         align=(Align.CENTER,)*3)
+    _ghost.append((_GPS, (0.20, 0.55, 0.35)))
+for _nm, _az, _el in (("ghost_front", 198, -112), ("ghost_rear", 150, -20),
+                      ("ghost_side", 270, -100), ("ghost_top", 198, -150)):
+    png(f"cad/out/asm_{_nm}.png", render_multi(_ghost, _az, _el, W=1200, H=850)[0])
+print("  asm_ghost_front / _rear / _side / _top  (housing translucent)")
+
 YAW = Rot(0, -40, 0)
 # 0 / +10 / +20, not 15 / 0 / -30. Tilt is FACE UP ONLY now - the arms run
 # inside the bezel width, so face-down swings the unit into them - and a sheet

@@ -206,14 +206,20 @@ if __name__ == "__main__":
 def render_multi(parts, az, el, W=1200, H=850, ss=2, bgtint=0.55, style="solid"):
     """parts = [(build123d shape, (r,g,b)), ...] rendered with one shared camera."""
     import numpy as _np
-    Vs, Ts, Cs, off = [], [], [], 0
+    # A colour may be (r,g,b) or (r,g,b,a). Alpha < 1 makes a part TRANSLUCENT,
+    # which is the only way to show where things are packed inside a sealed box
+    # without cutting it open - a section answers "what is at this plane", and
+    # the question here is "what is in there".
+    Vs, Ts, Cs, As, off = [], [], [], [], 0
     for shape, col in parts:
         v, t = _mesh(shape, 0.12)
         Vs.append(_np.array(v))
         Ts.append(_np.array(t, dtype=_np.int32) + off)
-        Cs.append(_np.tile(_np.array(col, dtype=float), (len(t), 1)))
+        Cs.append(_np.tile(_np.array(col[:3], dtype=float), (len(t), 1)))
+        As.append(_np.full(len(t), col[3] if len(col) > 3 else 1.0))
         off += len(v)
     V = _np.vstack(Vs); T = _np.vstack(Ts); C = _np.vstack(Cs)
+    AL = _np.concatenate(As)
 
     cen = (V.min(0) + V.max(0)) / 2
     V = V - cen
@@ -241,6 +247,7 @@ def render_multi(parts, az, el, W=1200, H=850, ss=2, bgtint=0.55, style="solid")
         C = _np.ones_like(C) * 0.93
         shade = _np.clip(0.86 + 0.14 * shade, 0, 1)
     zbuf = _np.full((h, w), _np.inf)
+    cover = _np.zeros((h, w), dtype=bool)
     img = _np.zeros((h, w, 3), dtype=_np.float32)
     img[:] = 0.93 if line else 0.30
     order = _np.argsort(-((depth[A] + depth[B] + depth[Cc]) / 3))
@@ -262,8 +269,19 @@ def render_multi(parts, az, el, W=1200, H=850, ss=2, bgtint=0.55, style="solid")
         sub = zbuf[iy0:iy1, ix0:ix1]
         upd = m & (z < sub)
         if not upd.any(): continue
-        sub[upd] = z[upd]
-        img[iy0:iy1, ix0:ix1][upd] = _np.clip(C[i] * shade[i], 0, 1)
+        _a = AL[i]
+        _col = _np.clip(C[i] * shade[i], 0, 1)
+        if _a >= 0.999:
+            sub[upd] = z[upd]
+            img[iy0:iy1, ix0:ix1][upd] = _col
+        else:
+            # translucent: blend over what is already there and do NOT claim the
+            # depth buffer, so anything nearer still paints over it. Triangles
+            # are already drawn back to front, which is what makes this correct
+            # rather than merely plausible.
+            _dst = img[iy0:iy1, ix0:ix1][upd]
+            img[iy0:iy1, ix0:ix1][upd] = _dst * (1 - _a) + _col * _a
+        cover[iy0:iy1, ix0:ix1][upd] = True
 
     zf = _np.where(_np.isinf(zbuf), _np.nan, zbuf)
     span = (_np.nanmax(zf) - _np.nanmin(zf)) if _np.isfinite(zf).any() else 1.0
@@ -272,7 +290,7 @@ def render_multi(parts, az, el, W=1200, H=850, ss=2, bgtint=0.55, style="solid")
     e = _np.clip(_np.maximum(_np.abs(_np.diff(zf, axis=1, prepend=zf[:, :1])),
                              _np.abs(_np.diff(zf, axis=0, prepend=zf[:1, :]))) / thr, 0, 1)
     img *= (1 - (0.97 if line else 0.85) * e)[:, :, None]
-    alpha = _np.isfinite(zbuf).astype(_np.float32)
+    alpha = cover.astype(_np.float32)
     img = img.reshape(H, ss, W, ss, 3).mean(axis=(1, 3))
     alpha = alpha.reshape(H, ss, W, ss).mean(axis=(1, 3))
     def proj(pt):

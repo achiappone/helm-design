@@ -195,6 +195,36 @@ out.append({"name": "sub_fittings_detail",
                     f"- it moved to the TOP block of the driver bump at x={SMA_X:.0f}, where "
                     f"it bores upward and the whip can stand up."})
 
+# ── the GPS chimney, sectioned, with the foil called out ─────────────────
+if "GPS_X" in H:
+    GX, GZ = H["GPS_X"], H["GPS_Z"]
+    _gy = -(H["BLK_TY0"] + H["BLK_TY1"])/2
+    # the module, where it ends up: patch upward, under the radome
+    _mod = Pos(GX, -(H["BLK_TY0"] - H["GPS_WIN_T"] - H["GPS_T"]/2 - 0.5), GZ) * Box(
+        H["GPS_L"], H["GPS_T"], H["GPS_W"], align=(Align.CENTER,)*3)
+    # what you line with copper: the four walls and the shelf, never the window
+    _foil = (Pos(GX, -(H["BLK_TY1"] - 1.0), GZ) * Box(
+                 H["GPS_L"] + 3, 1.0, H["GPS_W"] + 3, align=(Align.CENTER,)*3))
+    _CUT = Pos(GX, 0, GZ) * Box(200, 300, 150, align=(Align.CENTER,)*3)
+    _half = Pos(GX - 60, 0, GZ) * Box(120, 300, 150, align=(Align.CENTER,)*3)
+    rgba, _ = render_multi([(_asm((COVER & _CUT) - _half), DEEP),
+                            (_asm(_mod), (0.20, 0.55, 0.35)),
+                            (_asm(_foil), (0.80, 0.50, 0.22))],
+                           az=150, el=-26, W=1100, H=780)
+    png("cad/out/sub_gps.png", rgba)
+    out.append({"name": "sub_gps",
+                "title": "GPS - shielded chimney in the -x top block",
+                "note": f"Sectioned. The module pushes UP from inside the Pi bay and sits on "
+                        f"two shelves under a {H['GPS_WIN_T']} mm ASA radome - ASA is "
+                        f"RF-transparent, so the window is the only thing between the patch "
+                        f"and the sky. ORANGE is where the copper foil goes: the four walls "
+                        f"and the shelf UNDER the module, which is both the EMI shield and "
+                        f"the ground plane a patch needs and does not have inside a plastic "
+                        f"box. Never foil the window. Bond to system ground at ONE point - "
+                        f"ungrounded foil is a reflector and two bonds are a loop. It sits "
+                        f"{abs(GX - H['SMA_X']):.0f} mm from the whip, which is the point: a "
+                        f"400-470 MHz transmitter any closer desenses L1 on every key-down."})
+
 json.dump(out, open("cad/out/subdims.json", "w"), indent=1)
 for v in out:
     print(f"  {v['name']}.png  -  {v['title']}")
