@@ -107,7 +107,14 @@ def _drop(deg):
     corners = [(OUT_H/2, 0.0), (-OUT_H/2, 0.0),            # front face
                (OUT_H/2, BACK), (-OUT_H/2, BACK),          # cover
                (OUT_H/2, BACK + H["PI_BUMP_H"]), (-OUT_H/2, BACK + H["PI_BUMP_H"]),
-               (SH["OH"]/2, REAR), (-SH["OH"]/2, REAR)]    # shroud
+               (SH["OH"]/2, REAR), (-SH["OH"]/2, REAR),    # shroud
+               # AND THE FITTINGS, which hang BELOW the outline. The cable
+               # gland is a 3/4 NPT body on a 5 mm boss: it reaches 23.5 mm
+               # past the unit's bottom edge and is the lowest thing on the
+               # whole assembly. Sizing the rise off the housing's corners put
+               # it 11.7 mm underneath the dash.
+               (H["BLK_Y0"] - H["GL_HANG"], BACK - H["BORE_Z"]),
+               (H["BLK_Y0"] - H["VENT_HANG"], BACK - H["BORE_Z"])]
     for cy, cz in corners:
         dy, dz = cy - TILT_Y, cz - AXIS_Z
         for t in (-TILT_DOWN, 0.0, deg):

@@ -4,7 +4,7 @@ sys.path.insert(0, "cad")
 from build123d import *
 from parts_lib import (pi4, armor_lite, pican_m, drok as _drok, breakout, finned,
                        nyloc, cap_screw, push_button, driver_board, rtl_sdr,
-                       sensor_breakout, lobe_knob)
+                       sensor_breakout, lobe_knob, breather_vent, cable_gland)
 
 def _solid(path):
     """import_step may return a Compound; a Location on the wrapper is
@@ -145,11 +145,9 @@ ITEMS = [
     # ---- the five the cross-check found with no shape on the sheet -------
     # A BOM row nobody can point at is a part the builder has to find by
     # reading prose. Each of these is where it is actually fitted.
-    (26, Pos(H["GL_X"], -132, 700) * Rot(90, 0, 0)
-         * Cylinder(11.0, 30, align=(Align.CENTER, Align.CENTER, Align.MIN)), ALLOY,
+    (26, Pos(H["GL_X"], -132, 700) * Rot(90, 0, 0) * cable_gland(), (0.18,0.18,0.20),
          (H["GL_X"] - 70, -150, 700)),
-    (27, Pos(H["VENT_X"], -132, 700) * Rot(90, 0, 0)
-         * Cylinder(9.5, 20, align=(Align.CENTER, Align.CENTER, Align.MIN)), ALLOY,
+    (27, Pos(H["VENT_X"], -132, 700) * Rot(90, 0, 0) * breather_vent(), (0.18,0.18,0.20),
          (H["VENT_X"] + 70, -150, 700)),
     (36, Pos(H["SMA_X"], 215, 700) * Rot(-90, 0, 0) * whip, BLACK,
          (H["SMA_X"] + 80, 300, 700)),

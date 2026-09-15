@@ -108,7 +108,7 @@ BRK = (Plane(origin=(0, _DASH_Y - _BJ["BASE_T"], _AXIS_Z),
 # tell from them that the fan had changed, which is exactly what happened.
 from parts_lib import (finned, pi4, armor_lite, pcb, nyloc, cap_screw,
                        driver_board, rtl_sdr, sensor_breakout, push_button,
-                       lobe_knob)
+                       lobe_knob, breather_vent, cable_gland)
 _BACK = H["DEPTH"] + H["COVER_T"] + H["GASKET_C"]
 # The LANDING FACE is shroud-local z = OD, not the part's bounding box: the
 # louvres stand LOUV_H proud on the other side, so using the bbox floated the
@@ -143,25 +143,26 @@ _DRV = (Pos(H["DRV_BOARD_CX"], 0, _BAY_FLOOR - 1.6) * Rot(180, 0, 0) * Rot(0, 0,
 # The three bulkhead fittings, drawn as bodies hanging BELOW their blocks. The
 # whip that used to be drawn here has come off the housing (see helm_housing.py
 # at SMA_X) - what the housing has is a coax entry.
-_FIT_Z = _BACK - H["BORE_Z"]                     # BORE_Z is cover-local
+_FIT_Z = _BACK - H["BORE_Z"]
+# THE REAL FITTINGS, and they STAND PROUD. They were a disc and a long thin
+# tail, which is neither end of either part and made both look flush with the
+# block. The gland's hex hangs below the unit and the vent's nose stands off
+# its face; how far each one reaches is a number a builder needs.
 _FITS = None
-for _fx, _fd, _fl in ((H["GL_X"], H["GL_TAP"], 22.0), (H["VENT_X"], H["VENT_TAP"], 19.0),
-                      (H["SMA_X"], H["SMA_D"], 12.7)):
-    _body = (Pos(_fx, H["BLK_Y0"], _FIT_Z) * Rot(90, 0, 0)
-             * Cylinder(_fl/2, 8.0, align=(Align.CENTER, Align.CENTER, Align.MIN))
-             + Pos(_fx, H["BLK_Y0"] - 8.0, _FIT_Z) * Rot(90, 0, 0)
-             * Cylinder(_fd/2 - 1.0, 18.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
-    _FITS = _body if _FITS is None else _FITS + _body
+for _fx, _fpart in ((H["GL_X"], cable_gland(thread_d=H["GL_TAP"] + 3.3,
+                                            thread_l=H["GL_BOSS_PROUD"] + 8.0)),
+                    (H["VENT_X"], breather_vent())):
+    _f = (Pos(_fx, H["BLK_Y0"] - (H["GL_BOSS_PROUD"] if _fx < 0 else 0.0), _FIT_Z)
+          * Rot(90, 0, 0) * _fpart)
+    _FITS = _f if _FITS is None else _FITS + _f
 # ---- THE PIVOT HARDWARE, where it actually sits --------------------------
 # Four M5 316 nylocs on this unit and not one of them was drawn, so "where does
 # the nut go" was never a question anyone could answer by looking. Two are
 # captive in hex pockets in the TRUNNION WEBS, reached from the middle of the
-# back; two are in the VISOR EARS' outboard faces. The bolts pull steel against
-# steel through the printed boss, which is the only load ASA is good at.
+# back; two are in the VISOR EARS' outboard faces.
 _STEEL = (0.78, 0.79, 0.82)
 _NUTS, _BOLTS = None, None
 for _sx in (-1, 1):
-    # bail pivot: bolt in from outboard, nut captive at the web's inboard face
     _nz = _sx*(H["TRUN_X"] - H["TRUN_WEB_T"])
     _n = (Pos(_nz, H["TILT_Y"], _AXIS_Z) * Rot(0, 90*_sx, 0)
           * nyloc(H["TRUN_NUT_AF"], H["TRUN_NUT_DEEP"] - 1.0, H["TRUN_BORE"]))
@@ -172,10 +173,9 @@ for _sx in (-1, 1):
                                           boss_d=_BJ["KNOB_BOSS_D"]))
     _NUTS = _n if _NUTS is None else _NUTS + _n
     _BOLTS = _b if _BOLTS is None else _BOLTS + _b
-    # visor pivot: nut in the ear's OUTBOARD face
     _vx = _sx*(H["PIV_X"][1] - 1.2)
-    _n2 = (Pos(_vx, H["PIV_Y"], H["PIV_Z"]) * Rot(0, 90*_sx, 0) * nyloc(8.0, 4.0, 5.0))
-    _NUTS = _NUTS + _n2
+    _NUTS = _NUTS + (Pos(_vx, H["PIV_Y"], H["PIV_Z"]) * Rot(0, 90*_sx, 0)
+                     * nyloc(8.0, 4.0, 5.0))
 
 # ---- THE ANTENNA, ON TOP OF THE DRIVER BUMP -----------------------------
 # It was drawn on a rail mount beside the unit with a coax run, which is where
@@ -290,9 +290,12 @@ if "GPS_X" in H:
                _BACK - H["GPS_Z"]) * Box(H["GPS_L"], H["GPS_T"], H["GPS_W"],
                                          align=(Align.CENTER,)*3)
     _ghost.append((_GPS, (0.20, 0.55, 0.35)))
+# rendered at 1900 wide, not 1200: these are the views a builder zooms into to
+# find out where a board goes, and they run full page width rather than in the
+# two-up grid the rest of the page uses.
 for _nm, _az, _el in (("ghost_front", 198, -112), ("ghost_rear", 150, -20),
                       ("ghost_side", 270, -100), ("ghost_top", 198, -150)):
-    png(f"cad/out/asm_{_nm}.png", render_multi(_ghost, _az, _el, W=1200, H=850)[0])
+    png(f"cad/out/asm_{_nm}.png", render_multi(_ghost, _az, _el, W=1900, H=1150)[0])
 print("  asm_ghost_front / _rear / _side / _top  (housing translucent)")
 
 YAW = Rot(0, -40, 0)

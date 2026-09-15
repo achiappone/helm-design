@@ -177,6 +177,11 @@ section{{margin-top:56px}}
 .file{{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--muted)}}
 
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:16px}}
+/* one per row, the full width of the sheet - for views you read rather than
+   glance at */
+.grid.wide{{grid-template-columns:1fr;gap:22px}}
+.grid.wide .vp{{aspect-ratio:auto}}
+.grid.wide img{{width:100%;height:auto;display:block}}
 .tile{{margin:0;border:1px solid var(--line);background:var(--surface);overflow:hidden}}
 .vp{{background:var(--viewport);border-bottom:1px solid var(--line-2);
   display:flex;align-items:center;justify-content:center;padding:4px}}
@@ -263,9 +268,9 @@ a{{color:var(--accent)}}
   <p>The printed parts at 22% opacity, every bought part solid. A section answers
      &ldquo;what is at this plane&rdquo;; the question a builder asks is &ldquo;what is in
      there, and does it all fit&rdquo;.</p>
-  <div class="grid">
+  <div class="grid wide">
     {pic("cad/out/asm_ghost_front.png","Ghosted - front","")}
-    {pic("cad/out/asm_ghost_rear.png","Ghosted - rear","Pi and Armor Lite in the -x bay, driver board and the RTL-SDR on edge in the +x, heatsink between them, GPS in the top block opposite the whip.")}
+    {pic("cad/out/asm_ghost_rear.png","Ghosted - rear","Full width. Pi and Armor Lite in the -x bay, driver board and the RTL-SDR on edge in the +x, heatsink between them, GPS in the top block opposite the whip.")}
     {pic("cad/out/asm_ghost_side.png","Ghosted - side","")}
     {pic("cad/out/asm_ghost_top.png","Ghosted - from above","")}
   </div>
@@ -350,7 +355,7 @@ a{{color:var(--accent)}}
     <tr><td class="m">24</td><td>M2.5 &times; 8</td><td>{H["N_SENSOR_SCREWS"]}</td><td>Breakouts onto the cover&rsquo;s {H["STANDOFF_H"]} mm standoffs</td></tr>
     <tr><td class="m">25</td><td>CNLINKO LP-24</td><td>1</td><td>&Oslash;24.4 bore, 26.0 sq pattern</td></tr>
     <tr><td class="m">26</td><td><b>3/4&Prime; NPT straight cable gland</b>, 316 or IP68 nylon</td><td>1</td><td>Tapped into the &minus;x fitting block at x={H["GL_X"]:.0f}, <b>bore along &minus;y, facing DOWN</b>. Tap drill <b>&Oslash;{H["GL_TAP"]}</b> (59/64&Prime;), 3/4&ndash;14 taper tap. 3/4 NPT glands clamp <b>13&ndash;18 mm</b>, which is the window the {H["CABLE_D"]} mm Belden 1058A needs &mdash; an M16 clamps 5&ndash;10 and an M20 10&ndash;14, so neither would ever have closed on it.<br><b>NPT seals on the THREAD, not on a face</b>, so what it needs is engagement: L2 for 3/4&ndash;14 is {H["GL_NPT_L2"]} mm and the block is only {abs(H["BLK_Y1"]-H["BLK_Y0"]):.1f} deep, so the gland gets a local {H["GL_BOSS_W"]:.0f} &times; {H["GL_BOSS_H"]:.0f} boss standing {H["GL_BOSS_PROUD"]:.0f} mm proud &mdash; {abs(H["BLK_Y1"]-H["BLK_Y0"])+H["GL_BOSS_PROUD"]:.1f} mm of thread. The hex overhangs the boss freely; it is not bearing on anything. PTFE tape or a pipe sealant, not an O-ring</td></tr>
-    <tr><td class="m">27</td><td>M12&times;1.5 Gore screw-in vent</td><td>1</td><td><b>Tapped</b> into the +x block at x={H["VENT_X"]:.0f}, drill &Oslash;{H["VENT_TAP"]}, facing DOWN. Tapped not clearance: a &Oslash;19 locknut pocket there reaches the bay wall with 0.00 mm to spare. Equalises pressure so the cord only has to stop water. Do not paint or block</td></tr>
+    <tr><td class="m">27</td><td><b>M12&times;1.5 IP68 breather screw</b></td><td>1</td><td>Tapped into the +x block at x={H["VENT_X"]:.0f}, drill &Oslash;{H["VENT_TAP"]}, facing DOWN. Hex body with an <b>O-ring under it</b> &mdash; it seals on the block&rsquo;s face, so that face stays flat and unbroken. It <b>stands {H["VENT_HANG"]:.0f} mm proud</b> of its seat; the vented nose has to be in free air, not buried. Equalises pressure so the cord only ever has to stop water. Do not paint it, do not seal over the nose</td></tr>
     <tr><td class="m">28</td><td>SMA female bulkhead, <b>M8&times;0.75 IP67</b></td><td>1</td><td>&Oslash;{H["SMA_D"]} bore at x={H["SMA_X"]:.0f} in the <b>TOP block of the driver bump</b>, facing <b>UP</b>, with its nut captive in a {H["SMA_NUT_AF"]:.0f} mm A/F hex pocket in the block&rsquo;s inner face. The whip screws straight onto it and stands at the sky &mdash; which is the whole reason it is on top of a bump and not on the flat cover face, where it would have pointed into the dash</td></tr>
     <tr><td class="m">29</td><td><b>{GASKET_T:.0f} mm round rubber cord</b></td><td>~{CORD_L/1000:.2f} m</td><td>In a {GASKET_W:.2f} &times; {H["GASKET_D"]:.2f} groove in the brim. Cut long, scarf the splice with CA, keep the joint <b>off the bottom rail</b></td></tr>
     <tr><td class="m">30</td><td>Belden 1058A</td><td>as needed</td><td>12 pair 20+22 AWG PLTC, overall foil, <b>{H["CABLE_D"]} mm OD</b>. <b>Bend radius {H["GL_BEND_R"]:.0f} mm</b> at 5&times;OD &mdash; and the bay it enters is only {H["PI_BUMP_L"]:.0f} wide, so <b>make the turn OUTSIDE</b>, in the free air under the unit, and bring it into the raceway already running across. Do not try to turn it inside the bay</td></tr>

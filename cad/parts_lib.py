@@ -221,3 +221,33 @@ def lobe_knob(d=32.0, h=14.0, lobes=5, boss_d=16.0, boss_h=6.0, stud=20.0):
     s += Pos(0, 0, -boss_h) * Cylinder(boss_d/2, boss_h, align=MIN)
     s += Pos(0, 0, -boss_h - stud) * Cylinder(2.5, stud, align=MIN)
     return s
+
+
+def breather_vent(thread_d=12.0, thread_l=9.0, af=17.0, dome_d=10.0, dome_h=5.0):
+    """M12x1.5 IP68 breather screw, from the owner's photo of the real part.
+
+    It is a hex body with an O-RING under it, a threaded shank on one side and a
+    stepped, vented nose on the other - and the whole hex plus nose STANDS PROUD
+    of whatever it is screwed into. It was being drawn as a flat disc and a long
+    thin tail, which is neither end of the real thing and made it look like it
+    sat flush."""
+    cr = af / 2 / math.cos(math.pi / 6)
+    s = extrude(RegularPolygon(cr, 6), 8.0)                  # the hex body
+    s += Pos(0, 0, 8.0) * Cylinder(dome_d / 2 + 1.2, 2.0, align=MIN)   # step
+    s += Pos(0, 0, 10.0) * Cylinder(dome_d / 2, dome_h, align=MIN)     # vented nose
+    s += Pos(0, 0, -1.4) * Cylinder(thread_d / 2 + 1.1, 1.4, align=MIN)  # O-ring
+    s += Pos(0, 0, -1.4 - thread_l) * Cylinder(thread_d / 2, thread_l, align=MIN)
+    return s
+
+
+def cable_gland(thread_d=26.7, thread_l=14.0, af=34.0, body_l=20.0, cap_d=24.0):
+    """A 3/4 NPT straight cable gland: tapered thread, hex body, then the
+    compression cap the cable comes out of. Drawn because how far it hangs
+    below the unit is a real number - it is the lowest thing on the housing."""
+    cr = af / 2 / math.cos(math.pi / 6)
+    s = extrude(RegularPolygon(cr, 6), 11.0)
+    s += Pos(0, 0, 11.0) * Cylinder(cap_d / 2, body_l * 0.45, align=MIN)
+    s += Pos(0, 0, 11.0 + body_l * 0.45) * Cone(cap_d / 2, cap_d / 2 - 3.0,
+                                                body_l * 0.55, align=MIN)
+    s += Pos(0, 0, -thread_l) * Cylinder(thread_d / 2, thread_l, align=MIN)
+    return s
