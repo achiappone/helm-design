@@ -792,9 +792,9 @@ a{{color:var(--accent)}}
       <li class="q"><b>cad/exploded.py is a revision behind</b> &mdash; it still draws the alloy plate at balloon 33 and two strip heatsinks at 34</li>
       <li class="q"><b>Sensor tray has nowhere to go &mdash; and the spare room is in the wrong place.</b> With the audio boards measured, the PCM1808 stack is <b>15.0 mm</b> over the tray floor and the 5102A pair 12.0, against a <b>4.0 mm</b> air gap behind the display module. Meanwhile the Pi bay now measures <b>{H["PI_STACK_REAL"]:.1f} mm</b> of as-built stack (standoff {H["PI_STANDOFF_H"]:.0f} + Pi and PiCAN-M at {H["PI_HAT_H"]:.1f}) in <b>{H["PI_ROOM"]:.1f} mm</b> of room &mdash; about 24 mm of dead air. But the tray is 196 &times; 118 and the bay is {H["PI_BUMP_L"]:.0f} &times; {H["PI_BUMP_W"]:.0f}, so the headroom is not where the tray is. The tray outline was always provisional; this is what re-cuts it</li>
       <li class="q"><b>Fan drive.</b> Two IP67 fans on one potted pass: decide PWM off the MCP9808 vs straight 12 V before the leads are potted, because that is a one-shot joint</li>
-      <li class="q"><b>Encoder SHAFT length (the bushing is settled).</b> Bushing measured 8.0 mm: nut and lockwasher take 2.92, so it clamps 5.08 of panel and the {H["FACE_T"]} mm face fits with 2.58 spare &mdash; <b>no counterbore</b>. But the knob&rsquo;s M4 grub sits 11.06 above the face, and a .375&Prime; FMS shaft tops out at 9.53: <b>the grub would clamp air</b>. Order .875&Prime; and cut the shaft to ~14 mm from the mounting surface</li>
     </ul></div>
     <div class="panel"><h3>Measure when convenient</h3><ul class="chk">
+      <li>&#10003; <b>Encoder bushing 8.0 mm</b> &mdash; nut and lockwasher take 2.92, so it clamps 5.08 of panel and the {H["FACE_T"]} mm face fits with 2.58 spare. <b>No counterbore at the encoder.</b> Shaft and knob fixing are the owner&rsquo;s to sort at assembly</li>
       <li class="q">Belden 1058A jacket OD vs the &Oslash;{LP.get("CABLE_D", 0):.1f} saddle and the gland</li>
       <li class="q">PiCAN-M footprint and N2K connector position</li>
       <li class="q">Dash thickness, for the bail base screws</li>
@@ -808,7 +808,7 @@ a{{color:var(--accent)}}
     <p>About <b>{FILAMENT:.2f} kg</b> across {NPARTS} parts, at {ASA} g/cm&sup3;:
        {" &middot; ".join(f'{n} {g(v)}' + (f' x{q}' if q > 1 else '') for n, v, q in PRINTED if v)}.
        The fit coupon is extra &mdash; and print it first.</p>
-    <p><b>Print <code>helm_encoder_coupon_revA</code> before anything else.</b> 9.8 cm&sup3;, about twenty minutes. Two &Oslash;9.7 bores: one through a {H["FACE_T"]} mm floor (the real shell face) and one through a 5.0 mm pad, which brackets the 5.08 mm the measured 8 mm bushing can clamp. Thread the encoder into the {H["FACE_T"]} station with its nut and lockwasher and fit the knob. If the grub screw does not land on the shaft, that is the shaft-length problem above, not the panel.</p>
+    <p><b>Print <code>helm_encoder_coupon_revA</code> before anything else.</b> 9.8 cm&sup3;, about twenty minutes. Two &Oslash;9.7 bores: one through a {H["FACE_T"]} mm floor (the real shell face) and one through a 5.0 mm pad, which brackets the 5.08 mm the measured 8 mm bushing can clamp. Thread the encoder into the {H["FACE_T"]} station with its nut and lockwasher and you have proved the face.</p>
   </div>
 </section>
 

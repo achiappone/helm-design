@@ -674,19 +674,7 @@ Nut 2.36 + lockwasher 0.56 = **2.92 mm** of stack, so 8.0 mm of bushing clamps *
 The shell face is **2.5 mm**. It fits with **2.58 mm to spare — no counterbore at the encoder.**
 The 8.92 figure was for a 6.0 mm panel and never applied to this face; 2.5 mm needs only 5.42 mm.
 
-🚨 **What it moves the problem to: the knob, not the panel.** With the bushing at 8.0 the shaft is barely
-proud of it, and the guitar knob's set screw sits **10.5 mm above the knob's own base** (M4 grub, 7.0 down
-from a 17.5 tall knob). Run the stack from the panel face:
-
-| | .375″ FMS shaft | .875″ FMS shaft |
-|---|---|---|
-| Shaft top above panel face | 9.53 | 22.23 |
-| Set-screw axis above panel face | 11.06 | 11.06 |
-| Verdict | ✗ grub sits **1.5 mm above** the shaft — it clamps air | ✗ shaft is **5.7 mm too long** for the 13 mm bore, knob rides proud |
-
-Either option needs a fix: **order the .875″ shaft and cut it to ~14 mm from the mounting surface**, which
-puts the grub squarely on it. The Ø15.5 × 3.0 skirt recess does clear the nut (2.92 < 3.56), so the knob
-seats — this is purely about where the grub lands. **Confirm which FMS option is on the actual encoder.**
+**The shaft and knob fixing are set aside.** The stack was run and the grub screw does not land on a .375″ FMS shaft — but the owner is handling the knob at assembly, so this is not a design constraint and does not come back as a blocker. The panel result above is what the model needs.
 
 ## Two electrical notes
 
@@ -755,6 +743,5 @@ All cooling is **outside** the cover. The 4 mm interior clearance cannot take a 
 - **12.3″ module outline** — 305 × 125 × 10 is assumed; only the 292.5 × 109.7 active area is derived
 - **Printer bed** — 384 mm needs ≥400, or a designed split
 - **Panel thickness + on-face or recessed** — blocks the bottom hinge
-- **Encoder shaft FMS option** — bushing is measured (8.0, fits the 2.5 face with no counterbore) but the *shaft* length now blocks the knob: .375″ leaves the grub clamping air, .875″ rides the knob proud
 - **Sensor tray placement** — the PCM1808 stack is 15.0 mm tall and the cavity behind the display is 4.0. The 24 mm of spare depth is in the Pi bay, which is 82 × 125 against a 196 × 118 tray, so it does not solve it. The tray outline was always provisional and this is what re-cuts it
 - Cable OD, PiCAN-M footprint
