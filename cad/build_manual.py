@@ -112,6 +112,22 @@ SLICER = [
                 "up too. Pick <b>Top surfaces</b>, not <i>Topmost surface only</i> &mdash; the "
                 "cover&rsquo;s mating face is 37 mm below its own outer face, so "
                 "&ldquo;topmost&rdquo; would skip the one that matters"),
+    ("A-surface finish", "The bezel&rsquo;s weather face is the <b>first layer</b> &mdash; it "
+                         "prints A-surface down, so what you see on the finished part is the "
+                         "bed. <b>Bed surface and Z-offset decide this, not flow.</b> Smooth "
+                         "PEI or glass for gloss; textured PEI stamps its texture into the "
+                         "face you look at every day. If you still want to close the extrusion "
+                         "lines, nudge <i>Quality &rsaquo; Precision &rsaquo; Bottom surface "
+                         "flow ratio</i> to ~1.02&ndash;1.05 &mdash; that touches bottom solid "
+                         "layers only, where the global flow ratio would move the walls and "
+                         "every bore with them. Expect elephant&rsquo;s foot and trim it with "
+                         "<i>Elephant foot compensation</i>"),
+    ("&#9888; ORDER", "<b>Any flow or first-layer change invalidates the fit coupon.</b> Flow "
+                      "and squish move hole size, so the coupon&rsquo;s &Oslash;8.00 ladder only "
+                      "reads true for the settings it was printed with. Settle bed, Z-offset and "
+                      "flow FIRST, then print the coupon, then read X-Y hole compensation off it. "
+                      "Do it the other way round and you have calibrated a profile you are no "
+                      "longer using"),
     ("Hole compensation", "<b>Set this from the fit coupon, not from a guess.</b> The coupon "
                           "prints a ladder of five nominally &Oslash;8.00 holes at +0.0 to "
                           "+0.4. Measure all five, see which reads 8.00, and put that offset "
