@@ -98,7 +98,20 @@ SLICER = [
     ("Sparse infill", "<b>40%</b> on the shell, cover and bail arms; 25% elsewhere. "
                       "Pattern <b>Gyroid</b>. <i>Strength &rsaquo; Sparse infill density / "
                       "Sparse infill pattern</i>. Right-click a part on the plate for "
-                      "<i>per-object settings</i> so one plate can hold both numbers"),
+                      "<i>per-object settings</i> so one plate can hold both numbers. "
+                      "<b>Gyroid is a SPARSE pattern only</b> &mdash; it is not offered for "
+                      "solid layers, and should not be"),
+    ("Top / bottom surface", "Leave both on <b>Monotonic</b>. <i>Strength &rsaquo; Top surface "
+                             "pattern / Bottom surface pattern</i>. These are solid-layer "
+                             "patterns and share nothing with the gyroid above"),
+    ("Ironing", "<b>Top surfaces</b> on the shell and cover &mdash; <i>Quality &rsaquo; Ironing "
+                "&rsaquo; Ironing type</i>. This is the setting that answers &ldquo;the printed "
+                "sealing face leaks through layer lines&rdquo;, because on this build <b>both "
+                "sealing faces print facing UP</b>: the shell goes A-surface down so its brim and "
+                "cord groove are the top, and the cover goes bumps-down so its mating face points "
+                "up too. Pick <b>Top surfaces</b>, not <i>Topmost surface only</i> &mdash; the "
+                "cover&rsquo;s mating face is 37 mm below its own outer face, so "
+                "&ldquo;topmost&rdquo; would skip the one that matters"),
     ("Hole compensation", "<b>Set this from the fit coupon, not from a guess.</b> The coupon "
                           "prints a ladder of five nominally &Oslash;8.00 holes at +0.0 to "
                           "+0.4. Measure all five, see which reads 8.00, and put that offset "
