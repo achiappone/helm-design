@@ -802,7 +802,11 @@ a{{color:var(--accent)}}
   </div>
   <div class="flag w">
     <h3>Print notes</h3>
-    <p><b>ASA blue &middot; 0.2 mm &middot; 5 perimeters &middot; 30% gyroid &middot; enclosure on.</b> Every part
+    <p><b>ASA blue &middot; 0.4 nozzle &middot; 0.2 mm &middot; enclosure on.</b>
+       Perimeters <b>5 on the shell and cover</b>, 4 elsewhere. Infill <b>40% gyroid on the shell, cover and
+       bail arms</b>, 25% elsewhere. This page used to say a flat &ldquo;5 perimeters, 30% gyroid&rdquo;, which
+       contradicted the build manual&rsquo;s slicer card on both counts &mdash; the manual is the one you print
+       and stand at the machine with, so it wins and this now matches it. Every part
        prints flat-face down with no supports &mdash; the shell face-down on the bed, the cover bays up, the
        shroud on its louvred face, both bail parts flat. Slice from 3MF at High refinement.</p>
     <p>About <b>{FILAMENT:.2f} kg</b> across {NPARTS} parts, at {ASA} g/cm&sup3;:

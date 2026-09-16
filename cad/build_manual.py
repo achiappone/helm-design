@@ -85,15 +85,30 @@ PRINTED = [
      "is flat &mdash; that face goes down."),
 ]
 
+# Field names are ORCA SLICER's, because that is what is being used. Orca calls
+# perimeters "wall loops" and infill "sparse infill", which is the one thing that
+# makes a settings list from anywhere else unreadable at the machine.
 SLICER = [
     ("Material", "ASA. Not PETG: this lives on a sun-baked dash and PETG creeps"),
     ("Nozzle", "0.4&nbsp;mm"),
-    ("Layer", "0.2&nbsp;mm, first layer 0.24"),
-    ("Perimeters", "<b>5 on the shell and cover</b>, 4 elsewhere. The cover is the "
-                   "pressure boundary and perimeters are what stop a leak path"),
-    ("Infill", "40% gyroid on the shell, cover and bail arms; 25% elsewhere"),
-    ("Enclosure", "Required. A 334&nbsp;mm ASA plate will lift its corners in a draught"),
-    ("Bed", "90&ndash;100&nbsp;&deg;C, brim on both big plates"),
+    ("Layer", "0.2&nbsp;mm, first layer 0.24 &mdash; <i>Quality &rsaquo; Layer height</i>"),
+    ("Wall loops", "<b>5 on the shell and cover</b>, 4 elsewhere. The cover is the "
+                   "pressure boundary and walls are what stop a leak path. "
+                   "<i>Strength &rsaquo; Wall loops</i> (Orca&rsquo;s name for perimeters)"),
+    ("Sparse infill", "<b>40%</b> on the shell, cover and bail arms; 25% elsewhere. "
+                      "Pattern <b>Gyroid</b>. <i>Strength &rsaquo; Sparse infill density / "
+                      "Sparse infill pattern</i>. Right-click a part on the plate for "
+                      "<i>per-object settings</i> so one plate can hold both numbers"),
+    ("Hole compensation", "<b>Set this from the fit coupon, not from a guess.</b> The coupon "
+                          "prints a ladder of five nominally &Oslash;8.00 holes at +0.0 to "
+                          "+0.4. Measure all five, see which reads 8.00, and put that offset "
+                          "in <i>Quality &rsaquo; Precision &rsaquo; X-Y hole compensation</i>. "
+                          "Every bore on this build &mdash; encoder, buttons, gland, vent "
+                          "&mdash; depends on it"),
+    ("Enclosure", "Required. A 334&nbsp;mm ASA plate will lift its corners in a draught. "
+                  "Part cooling fan low (ASA wants the heat), <i>Filament &rsaquo; Cooling</i>"),
+    ("Bed", "90&ndash;100&nbsp;&deg;C, brim on both big plates &mdash; "
+            "<i>Others &rsaquo; Brim type: Outer brim only</i>"),
     ("Supports", "Only the rear cover, and only under the plate"),
 ]
 
