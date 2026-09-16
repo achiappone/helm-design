@@ -86,7 +86,7 @@ with the parts you are holding.</p>
 <tr><td>&#9888; ORDER</td><td><b>Any flow or first-layer change invalidates the fit coupon.</b> Flow and squish move hole size, so the coupon&rsquo;s &Oslash;8.00 ladder only reads true for the settings it was printed with. Settle bed, Z-offset and flow FIRST, then print the coupon, then read X-Y hole compensation off it. Do it the other way round and you have calibrated a profile you are no longer using</td></tr>
 <tr><td>Hole compensation</td><td><b>Set this from the fit coupon, not from a guess.</b> The coupon prints a ladder of five nominally &Oslash;8.00 holes at +0.0 to +0.4. Measure all five, see which reads 8.00, and put that offset in <i>Quality &rsaquo; Precision &rsaquo; X-Y hole compensation</i>. Every bore on this build &mdash; encoder, buttons, gland, vent &mdash; depends on it</td></tr>
 <tr><td>Enclosure</td><td>Required. A 334&nbsp;mm ASA plate will lift its corners in a draught. Part cooling fan low (ASA wants the heat), <i>Filament &rsaquo; Cooling</i></td></tr>
-<tr><td>Bed</td><td>90&ndash;100&nbsp;&deg;C, brim on both big plates &mdash; <i>Others &rsaquo; Brim type: Outer brim only</i></td></tr>
+<tr><td>Bed</td><td>90&ndash;100&nbsp;&deg;C, brim on both big plates &mdash; <i>Others &rsaquo; Brim type: Outer brim only</i>. <b>Brim width 5&nbsp;mm maximum on the shell and cover.</b> They are 334 wide on a 350 bed, so 334 + 2&times;brim has to stay under 350 &mdash; at 8&nbsp;mm you are exactly on the limit</td></tr>
 <tr><td>Supports</td><td>Only the rear cover, and only under the plate</td></tr>
 </table>
 <h3>The seven pieces</h3><table><tr><th>Part</th><th>Lay it</th><th>Support</th><th>Notes</th></tr>

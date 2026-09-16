@@ -136,8 +136,11 @@ SLICER = [
                           "&mdash; depends on it"),
     ("Enclosure", "Required. A 334&nbsp;mm ASA plate will lift its corners in a draught. "
                   "Part cooling fan low (ASA wants the heat), <i>Filament &rsaquo; Cooling</i>"),
-    ("Bed", "90&ndash;100&nbsp;&deg;C, brim on both big plates &mdash; "
-            "<i>Others &rsaquo; Brim type: Outer brim only</i>"),
+    ("Bed", f"90&ndash;100&nbsp;&deg;C, brim on both big plates &mdash; "
+            f"<i>Others &rsaquo; Brim type: Outer brim only</i>. <b>Brim width 5&nbsp;mm "
+            f"maximum on the shell and cover.</b> They are 334 wide on a "
+            f"{H['BED']:.0f} bed, so 334 + 2&times;brim has to stay under "
+            f"{H['BED']:.0f} &mdash; at 8&nbsp;mm you are exactly on the limit"),
     ("Supports", "Only the rear cover, and only under the plate"),
 ]
 

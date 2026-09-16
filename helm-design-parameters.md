@@ -738,10 +738,24 @@ All cooling is **outside** the cover. The 4 mm interior clearance cannot take a 
 4. **Never cut a channel deeper than the wall.** Build it up instead.
 5. **Assert every string replacement.** A silent no-op patch reported success and changed nothing, twice.
 
+## Printer ✅ — Creality K2 Plus, 350 × 350 × 350
+
+The old "384 mm needs ≥400, or a designed split" blocker was **rev B geometry** (`helm_shell_revB` at 384 × 190) and died with rev B. Rev C's largest footprint is the shell at **334 × 194**, and `cad/print_check.py` has been asserting against a 350 bed all along. Everything fits:
+
+| Part | Footprint | Margin on 350 |
+|---|---|---|
+| Front shell | 334 × 194 | 8 mm a side |
+| Rear cover | 334 × 177 | 8 mm a side |
+| Bail base | 327 × 96 | 11 mm a side |
+| Visor | 294 × 66 | 28 mm a side |
+
+⚠️ **The brim is what eats the margin.** 334 + 2 × brim has to stay under 350, so the shell and cover take a **5 mm brim maximum** — at 8 mm you are exactly on the limit. Outer brim only, which the slicer card already specifies.
+
+No split needed. No larger printer needed.
+
 ## Still blocking
 
 - **12.3″ module outline** — 305 × 125 × 10 is assumed; only the 292.5 × 109.7 active area is derived
-- **Printer bed** — 384 mm needs ≥400, or a designed split
 - **Panel thickness + on-face or recessed** — blocks the bottom hinge
 - **Sensor tray placement** — the PCM1808 stack is 15.0 mm tall and the cavity behind the display is 4.0. The 24 mm of spare depth is in the Pi bay, which is 82 × 125 against a 196 × 118 tray, so it does not solve it. The tray outline was always provisional and this is what re-cuts it
 - Cable OD, PiCAN-M footprint
