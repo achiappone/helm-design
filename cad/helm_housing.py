@@ -1176,12 +1176,25 @@ assert c.volume > _v_before, (
     "bolt to, which is exactly the fault this block was written to fix")
 # The stack has to fit the hole it is bolted into: bay floor to the display's
 # back is the bay depth, plus the window through the plate, plus the gap behind
-# the panel. Pi + Armor Lite is the tall case.
-_PI_STACK = PI_STANDOFF_H + 1.6 + 17.0          # standoff + board + Armor Lite
+# the panel.
+#
+# PI_HAT_H IS MEASURED. 14.5 mm, Pi 4 PCB bottom to the top of the PiCAN-M -
+# 1.6 board + an 11 mm standoff + the HAT's own 1.6. That is the build that is
+# actually going in the box, and it replaces the 17.0 mm Armor Lite case as the
+# governing case. Armor Lite stays in the assert as the alternative, because
+# the bay has to swallow either one and the taller of the two is the test.
+PI_HAT_H, PI_ARMOR_H = 14.5, 17.0
+_PI_STACK = PI_STANDOFF_H + max(PI_HAT_H, PI_ARMOR_H)   # standoff + tall case
+PI_STACK_REAL = PI_STANDOFF_H + PI_HAT_H                # what is being built
 _PI_ROOM = (PI_BUMP_H - WALL) + COVER_T + (DEPTH - FACE_T - GLUE_T - MOD_D)
 assert _PI_STACK < _PI_ROOM, (
     f"Pi stack is {_PI_STACK:.1f} tall and there is {_PI_ROOM:.1f} from the bay "
     f"floor to the back of the display")
+# ponytail: the as-built stack is PI_STACK_REAL against _PI_ROOM, so the bay has
+# a lot of dead air above the HAT. It does NOT get shallower - PI_BUMP_H is
+# TRUN_STAND + TRUN_R so the bumps' backs stay coplanar with the trunnion tips,
+# which is what gives the cover its bed contact. The spare room is a place to
+# put something, not a saving to take.
 
 # -- tie-wrap anchors, inner face ------------------------------------------
 for _xs, _sgn in ((TIE_TOP, 1), (TIE_BOT, -1)):
@@ -1875,7 +1888,7 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "BLK_X0":BLK_X0,"BLK_X1":BLK_X1,"BLK_Y0":BLK_Y0,"BLK_Y1":BLK_Y1,
            "BLK_TY0":BLK_TY0,"BLK_TY1":BLK_TY1,
            "PI_BUMP_H":PI_BUMP_H,"PI_BUMP_L":PI_BUMP_L,"PI_BUMP_W":PI_BUMP_W,
-           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,"DRV_BOARD_CX":DRV_BOARD_CX,"SDR_X":SDR_X,"SDR_L":SDR_L,"SDR_W":SDR_W,"SDR_T":SDR_T,"PI_STANDOFF_H":PI_STANDOFF_H,
+           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,"DRV_BOARD_CX":DRV_BOARD_CX,"SDR_X":SDR_X,"SDR_L":SDR_L,"SDR_W":SDR_W,"SDR_T":SDR_T,"PI_STANDOFF_H":PI_STANDOFF_H,"PI_HAT_H":PI_HAT_H,"PI_STACK_REAL":PI_STACK_REAL,"PI_ROOM":_PI_ROOM,
            "PI_BOARD_CX":PI_BOARD_CX,"PI_HOLES":PI_HOLES,"DRV_HOLES":DRV_HOLES,
            "PIV_X":PIV_X,"PIV_Y":PIV_Y,"PIV_Z":PIV_Z,
            # mating dimensions - the visor and the bracket read these rather

@@ -39,10 +39,50 @@ KERB_OFF, TIE_OFF = 15.0, 19.0
 # Board drops between the kerbs, sits on corner pips, held by one cable tie.
 # Envelope is generous - anything up to the bay size fits, and so does the
 # replacement you buy in two years.
-BAYS = [("PCM1808",  -55.0,  8.0, 40.0, 32.0),
-        ("PCM5102A",   0.0,  8.0, 32.0, 26.0),
-        ("PCM5102A",  40.0,  8.0, 32.0, 26.0)]
+#
+# EXCEPT the PCM1808, which is now MEASURED: 34.5 x 8.25, and 9.5 tall over
+# its capacitors. The old bay was 40 x 32 - a 32 mm slot for an 8.25 mm board.
+# The corner pips sat 12 mm off centre, i.e. 8 mm OUTBOARD of a board edge at
+# 4.125, so the board touched none of them and the cable tie had 24 mm of slop.
+# A generous envelope is right for a module you have not bought; it is wrong
+# for one on the bench with calipers on it.
+# The PCM5102A is measured too, and its old bay was worse in the other
+# direction: 32.0 long for a 32.0 board. Zero clearance is not a fit, it is an
+# interference - the board could not be dropped in at all.
+PCM1808_BOARD  = (34.5, 8.25, 9.5)      # L, W, H over capacitors - MEASURED
+PCM5102A_BOARD = (32.0, 17.25, 6.5)     # L, W, H - MEASURED
+BAY_CLEAR      = 1.5                    # per bay, total across the dimension
+
+def _bay(name, x, y, board):
+    return (name, x, y, board[0] + BAY_CLEAR, board[1] + BAY_CLEAR)
+
+BAYS = [_bay("PCM1808",  -55.0, 8.0, PCM1808_BOARD),
+        _bay("PCM5102A",   0.0, 8.0, PCM5102A_BOARD),
+        _bay("PCM5102A",  40.0, 8.0, PCM5102A_BOARD)]
 PIP_D, PIP_H, KERB_T, KERB_H = 5.0, 1.5, 2.0, 5.0
+PIP_INSET = 4.0
+
+for _n, _bx, _by, _bl, _bw in BAYS:
+    assert _bw/2 - PIP_INSET > 0, (
+        f"{_n}: bay is {_bw:.2f} wide, so the pips at {PIP_INSET} inset cross the "
+        f"centreline - the board would have nothing to sit on")
+    assert _bl/2 - 6.0 > 0, f"{_n}: bay too short for its tie slots"
+
+# Bays must not run into each other now that they are sized to real boards.
+_sorted = sorted(BAYS, key=lambda b: b[1])
+for _a, _b in zip(_sorted, _sorted[1:]):
+    _gap = (_b[1] - _b[3]/2) - (_a[1] + _a[3]/2)
+    assert _gap > 3.0, f"{_a[0]} and {_b[0]} bays are {_gap:.2f} apart"
+
+# The stack each bay has to live under: tray floor + pip + board and caps.
+AUDIO_TOP = TRAY_T + PIP_H + max(PCM1808_BOARD[2], PCM5102A_BOARD[2])
+assert AUDIO_TOP > KERB_H + TRAY_T, (
+    "kerbs taller than the board - check KERB_H, it is meant to guide, not bury")
+# ponytail: the PCM1808 is the tall one at 15.0 mm over the tray's bed face
+# (the 5102A pair reach 12.0), against a 4.0 mm air gap behind
+# the display module. The tray has no placement in the assembly yet, so this
+# is recorded, not resolved - it is the constraint that picks where the tray
+# goes, and it rules out the cavity directly behind the panel.
 
 t = Box(TRAY_L, TRAY_W, TRAY_T, align=(Align.CENTER, Align.CENTER, Align.MIN))
 t = fillet(t.edges().filter_by(Axis.Z), CORNER_R)

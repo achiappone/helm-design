@@ -341,7 +341,7 @@ a{{color:var(--accent)}}
     <tr><td class="m">12</td><td>MCP23017</td><td>1</td><td>Holes {H["SENSORS"][0]["pitch_x"]:.2f} &times; {H["SENSORS"][0]["pitch_y"]:.2f}. Encoder + all four keys land on this one chip</td></tr>
     <tr><td class="m">13</td><td>MCP9808 / ADXL345 / ICM20948</td><td>3</td><td>25.40 &times; 17.78, holes {H["SENSORS"][1]["pitch_x"]:.2f} &times; {H["SENSORS"][1]["pitch_y"]:.2f}</td></tr>
     <tr><td class="m">13b</td><td>SEQURE M10-18 GPS</td><td>1</td><td><b>External puck is still the better answer</b> and the recommendation has not changed. But the internal option is now built: an {H["GPS_L"]:.0f} sq patch in a <b>shielded chimney in the &minus;x top block</b> at x={H["GPS_X"]:.0f}, pushed up from inside the Pi bay onto two shelves, under a <b>{H["GPS_WIN_T"]} mm ASA radome</b> &mdash; ASA is RF-transparent, so the window is the only thing between the patch and the sky. <b>Line the four walls and the shelf under it with copper foil, never the window</b>: that cup is both the EMI shield and the ground plane a patch needs and does not have in a plastic box. Bond to system ground at ONE point. {abs(H["GPS_X"] - H["SMA_X"]):.0f} mm from the whip, which is the point &mdash; a 400&ndash;470 MHz transmitter closer than that desenses L1 on every key-down</td></tr>
-    <tr><td class="m">14</td><td>PCM1808 + PCM5102A</td><td>1 + 2</td><td>Strap-down bays &mdash; no mounting holes</td></tr>
+    <tr><td class="m">14</td><td>PCM1808 + PCM5102A</td><td>1 + 2</td><td><b>Measured.</b> 1808 is 34.5 &times; 8.25 &times; 9.5 over its caps; 5102A is 32.0 &times; 17.25 &times; 6.5. Strap-down bays, no mounting holes &mdash; bays now cut to the boards, not to a guess</td></tr>
     <tr><td class="m">15</td><td>RTL-SDR v3 dongle</td><td>1</td><td>{H["SDR_L"]:.0f} &times; {H["SDR_W"]:.0f} &times; {H["SDR_T"]:.0f}, <b>on edge</b> in the +x bay at x={H["SDR_X"]:.0f} &mdash; the bay&rsquo;s void is 75 wide and the driver board takes 55 of it, which leaves a 19 mm strip: too narrow to lay a dongle flat, wide enough to stand one in. Strapped to the two tie anchors on that bay&rsquo;s floor, directly under the SMA bulkhead it feeds. It has no mounting holes, so the strap is the mount</td></tr>
     <tr><td class="m">16</td><td>Oak Grigsby 91Q128</td><td>1</td><td>3/8-32 bushing, &Oslash;6.299 shaft, 3 V TTL. Bore &Oslash;{H["ENC_D"]}, knob &Oslash;{H["KNOB_OD"]}</td></tr>
     <tr><td class="m">17</td><td>Twidec 12 mm buttons</td><td>4</td><td>Bore &Oslash;{H["BTN_D"]}, dome &Oslash;{H["BTN_DOME"]}, at {H["BTN_PITCH"]:.0f} mm pitch</td></tr>
@@ -592,7 +592,7 @@ a{{color:var(--accent)}}
       <li>The brim is {RIM:.0f} mm because five bands have to fit across it: land {H["LAND_OUT"]:.2f} + M3 {H["BRIM_BOLT"]} + web {H["LAND_WEB"]:.2f} + groove {GASKET_W:.2f} + lip {H["LAND_IN"]:.2f}. The build fails if that stops adding up</li>
       <li>The <b>Gore vent</b> removes the pressure term, so this seal only has to stop water, not hold a differential</li>
       <li class="q">Splice the cord with a scarf joint and CA, positioned <b>away from the bottom rail</b></li>
-      <li class="q">&#9888; Confirm the cord is {GASKET_T:.0f} mm and not 3/32&Prime; &mdash; the listing says both, and they are 0.6 mm apart</li>
+      <li>&#10003; <b>Cord measured at {GASKET_T:.0f} mm</b> &mdash; the listing said both {GASKET_T:.0f} mm and 3/32&Prime; and they are 0.6 mm apart. It is the {GASKET_T:.0f}. The groove as drawn is correct and does not move</li>
     </ul></div>
   </div>
   <div class="flag w">
@@ -790,14 +790,13 @@ a{{color:var(--accent)}}
       <li class="q"><b>Internal air-to-metal step unproven.</b> The inside of the heatsink base is a bare plate; if it throttles, bond a second finned block to it</li>
       <li class="q"><b>Touchscreen driver board is not placed</b> &mdash; outline, hole pattern, and which edge the ribbon and HDMI/USB leave from</li>
       <li class="q"><b>cad/exploded.py is a revision behind</b> &mdash; it still draws the alloy plate at balloon 33 and two strip heatsinks at 34</li>
+      <li class="q"><b>Sensor tray has nowhere to go &mdash; and the spare room is in the wrong place.</b> With the audio boards measured, the PCM1808 stack is <b>15.0 mm</b> over the tray floor and the 5102A pair 12.0, against a <b>4.0 mm</b> air gap behind the display module. Meanwhile the Pi bay now measures <b>{H["PI_STACK_REAL"]:.1f} mm</b> of as-built stack (standoff {H["PI_STANDOFF_H"]:.0f} + Pi and PiCAN-M at {H["PI_HAT_H"]:.1f}) in <b>{H["PI_ROOM"]:.1f} mm</b> of room &mdash; about 24 mm of dead air. But the tray is 196 &times; 118 and the bay is {H["PI_BUMP_L"]:.0f} &times; {H["PI_BUMP_W"]:.0f}, so the headroom is not where the tray is. The tray outline was always provisional; this is what re-cuts it</li>
       <li class="q"><b>Fan drive.</b> Two IP67 fans on one potted pass: decide PWM off the MCP9808 vs straight 12 V before the leads are potted, because that is a one-shot joint</li>
+      <li class="q"><b>Encoder SHAFT length (the bushing is settled).</b> Bushing measured 8.0 mm: nut and lockwasher take 2.92, so it clamps 5.08 of panel and the {H["FACE_T"]} mm face fits with 2.58 spare &mdash; <b>no counterbore</b>. But the knob&rsquo;s M4 grub sits 11.06 above the face, and a .375&Prime; FMS shaft tops out at 9.53: <b>the grub would clamp air</b>. Order .875&Prime; and cut the shaft to ~14 mm from the mounting surface</li>
     </ul></div>
     <div class="panel"><h3>Measure when convenient</h3><ul class="chk">
-      <li class="q">Rubber cord &mdash; {GASKET_T:.0f} mm or 3/32&Prime;</li>
-      <li class="q">Encoder bushing length &mdash; it has to reach through a {H["FACE_T"]} mm face and still take its nut</li>
       <li class="q">Belden 1058A jacket OD vs the &Oslash;{LP.get("CABLE_D", 0):.1f} saddle and the gland</li>
       <li class="q">PiCAN-M footprint and N2K connector position</li>
-      <li class="q">PCM1808 and PCM5102A outlines</li>
       <li class="q">Dash thickness, for the bail base screws</li>
     </ul></div>
   </div>
@@ -809,6 +808,7 @@ a{{color:var(--accent)}}
     <p>About <b>{FILAMENT:.2f} kg</b> across {NPARTS} parts, at {ASA} g/cm&sup3;:
        {" &middot; ".join(f'{n} {g(v)}' + (f' x{q}' if q > 1 else '') for n, v, q in PRINTED if v)}.
        The fit coupon is extra &mdash; and print it first.</p>
+    <p><b>Print <code>helm_encoder_coupon_revA</code> before anything else.</b> 9.8 cm&sup3;, about twenty minutes. Two &Oslash;9.7 bores: one through a {H["FACE_T"]} mm floor (the real shell face) and one through a 5.0 mm pad, which brackets the 5.08 mm the measured 8 mm bushing can clamp. Thread the encoder into the {H["FACE_T"]} station with its nut and lockwasher and fit the knob. If the grub screw does not land on the shaft, that is the shaft-length problem above, not the panel.</p>
   </div>
 </section>
 

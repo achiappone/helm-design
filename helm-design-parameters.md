@@ -92,8 +92,8 @@ Source: `41M7jsgv-qL._AC_SL1500_.jpg`, `61ZZvwWDaWL._AC_SL1500_.jpg`
 ⚠️ Antenna base diameter not dimensioned — measure the knurled collar OD for the mount/strain relief.
 📻 Note: a handheld whip needs a ground plane to work properly. Mounted on a plastic helm box it will perform poorly. Consider a proper marine VHF antenna and treat the SMA bulkhead as a feed-through only.
 
-## 7. Rubber cord — enclosure gasket ⚠️
-CleverDelights black solid rubber cord, listed as **"3mm (3/32\") round"** — those two are inconsistent (3/32" = 2.38 mm, 3 mm ≈ 1/8"). **Measure the actual cord** before cutting a gland.
+## 7. Rubber cord — enclosure gasket ✅ MEASURED
+**Measured: Ø3.0 mm.** The listing said *3mm (3/32")* and those are 0.6 mm apart; the cord on the bench is the 3 mm one. The 2.38 mm row below is dead — kept only so the ratio rules stay visible. **Gland is 3.45 W × 2.31 D and does not change.**
 
 Static face-seal gland, ~20–25% squeeze:
 
@@ -116,7 +116,7 @@ These are the parts that actually drive the design, and none are dimensioned yet
 3. **PiCAN-M HAT** — footprint, connector positions, N2K terminal/M12 orientation, standoff height above the Pi.
 4. **M12×1.5 breather vent** — thread length, required boss thickness, wrench flats, sealing washer OD.
 5. **SMA waterproof box, M16** — panel bore, thread length, flats.
-6. **PCM1808 audio ADC board** — footprint and hole pattern.
+6. ~~**PCM1808 audio ADC board** — footprint and hole pattern.~~ ✅ measured: 34.5 × 8.25 × 9.5. Strap-down, no holes.
 7. **Helm geometry** — dash cutout size available, dash thickness/material, rake angle, and rear clearance depth.
 
 ---
@@ -399,7 +399,7 @@ Your instinct is correct and it's better than the 45° I was going to build. A v
 | Walls | 4.5 mm, shelled, open bottom |
 | LP-24 bore | **Ø24.4, teardropped** |
 | LP-24 fixing | 4 × Ø4.0 insert bores on 26.0 square, into 8.5 mm bosses on the **inside** of the front wall (a 4.5 mm wall alone is too thin for an insert) — **316 SS M3 heat-sets** |
-| Gasket | 3 mm rubber cord in a groove cut into the shell brim, 3.60 W × 2.31 D (85% fill), 22 × M3 outboard of it into blind pilots — no washers needed there; the 4 panel screws are the sealed penetrations |
+| Gasket | 3 mm rubber cord (**measured**) in a groove cut into the shell brim, 3.60 W × 2.31 D (85% fill), 22 × M3 outboard of it into blind pilots — no washers needed there; the 4 panel screws are the sealed penetrations |
 | Cable opening | 36 × 34 in the base, with a **5 mm anti-wick lip** so floor water can't run down into the deck penetration |
 | Strain relief | 20 × 36 pad + 2 × M4 316 SS inserts at 24 mm pitch, with the separate clamp block (Ø14.8 saddle, countersunk) |
 | Drain | 20 × 14 × 3.5 slot at the front low point — **leave it open, no sealant** |
@@ -608,8 +608,35 @@ Both boards carry line-level analog in a box containing a switching DC/DC conver
 
 Also note the PCM5102A is **line level** — it will not drive a speaker. If audio goes to a speaker you need an amplifier stage that is not yet in the parts list.
 
-## Dimensions still needed ❌
-Board outline and hole pattern for the **PCM1808** and the **PCM5102A/GY-PCM5102** modules. These are generic modules whose layouts vary between sellers, so calipers on the actual boards beat any datasheet I could find.
+## ✅ Board outlines — MEASURED
+
+| Module | L × W | H over caps | Bay (L × W, +1.5 clear) |
+|---|---|---|---|
+| **PCM1808** | **34.5 × 8.25** | **9.5** | 36.0 × 9.75 |
+| **PCM5102A** | **32.0 × 17.25** | **6.5** | 33.5 × 18.75 |
+
+Both old bays were wrong, in opposite directions:
+
+- **PCM1808** had a **40 × 32** bay for an 8.25 mm board. The corner pips sat 12 mm off centre — **8 mm outboard of the board's own edge** — so the board touched none of them, and the cable tie had 24 mm of slop.
+- **PCM5102A** had a **32.0** long bay for a **32.0** long board. Zero clearance is not a fit, it is an interference; the board could not be dropped in.
+
+No hole pattern is needed — these are strap-down bays. The tie slots and kerbs now derive from the measured board, with asserts that the pips land under it and that adjacent bays keep ≥3 mm apart.
+
+🚨 **Height is the new constraint.** Tray floor 4.0 + pip 1.5 + 9.5 of PCM1808 = **15.0 mm above the tray's bed face** (the 5102A pair reach 12.0). The air gap behind the display module is **4.0 mm**. The tray has no placement in the assembly yet, and this rules out the cavity directly behind the panel — it now picks where the tray goes.
+
+## Pi + PiCAN-M stack ✅ MEASURED — 14.5 mm
+
+Pi 4 PCB bottom to the top of the HAT: 1.6 board + 11 standoff + 1.6 HAT. The model had been carrying **17.0 mm (Pi + Armor Lite case)** as the governing case; the Armor Lite stays in the assert as the alternative, but 14.5 is what is being built.
+
+| | mm |
+|---|---|
+| Bay standoff (clears solder side + SD card) | 5.0 |
+| Pi + PiCAN-M | **14.5** |
+| **As-built stack** | **19.5** |
+| Room, bay floor to display back | **43.5** |
+| Spare | **24.0** |
+
+**The bay does not get shallower.** `PI_BUMP_H = TRUN_STAND + TRUN_R` keeps the bumps' backs coplanar with the trunnion tips, which is what gives the cover ~24,000 mm² of bed contact instead of two r15 tips. The spare depth is somewhere to put something, not a saving to take — and note it is **not** where the sensor tray needs it: the tray is 196 × 118 and the Pi bay is 82 × 125.
 
 ---
 
@@ -626,7 +653,7 @@ Board outline and hole pattern for the **PCM1808** and the **PCM5102A/GY-PCM5102
 | Max mounting torque | 10 in·lb | ✅ specs |
 | Operating temp | −40 to +85 °C (128 PPR) | ✅ specs |
 | Output | 2-bit gray, A leads B CW, 5 V TTL | ✅ specs |
-| **Bushing length** | ❌ **NOT DIMENSIONED** | — |
+| **Bushing length** | **≈ 8.0 mm** | ✅ **measured on the part** (datasheet does not dimension it) |
 
 ## ⚠️ Correction
 
@@ -641,7 +668,25 @@ I previously read `.375 FMS` / `.875 FMS` as bushing-length options giving 6.60 
 | 0.350″ (8.89) | 5.97 | ✗ (just) |
 | 0.375″ (9.52) | 6.60 | ✓ |
 
-**Measure the bushing on the actual part.** If it's under 8.92 mm, the bezel gets counterbored from behind at the encoder — same fix as the 12 mm buttons.
+## ✅ Resolved — bushing measured at ≈ 8.0 mm
+
+Nut 2.36 + lockwasher 0.56 = **2.92 mm** of stack, so 8.0 mm of bushing clamps **5.08 mm of panel, max**.
+The shell face is **2.5 mm**. It fits with **2.58 mm to spare — no counterbore at the encoder.**
+The 8.92 figure was for a 6.0 mm panel and never applied to this face; 2.5 mm needs only 5.42 mm.
+
+🚨 **What it moves the problem to: the knob, not the panel.** With the bushing at 8.0 the shaft is barely
+proud of it, and the guitar knob's set screw sits **10.5 mm above the knob's own base** (M4 grub, 7.0 down
+from a 17.5 tall knob). Run the stack from the panel face:
+
+| | .375″ FMS shaft | .875″ FMS shaft |
+|---|---|---|
+| Shaft top above panel face | 9.53 | 22.23 |
+| Set-screw axis above panel face | 11.06 | 11.06 |
+| Verdict | ✗ grub sits **1.5 mm above** the shaft — it clamps air | ✗ shaft is **5.7 mm too long** for the 13 mm bore, knob rides proud |
+
+Either option needs a fix: **order the .875″ shaft and cut it to ~14 mm from the mounting surface**, which
+puts the grub squarely on it. The Ø15.5 × 3.0 skirt recess does clear the nut (2.92 < 3.56), so the knob
+seats — this is purely about where the grub lands. **Confirm which FMS option is on the actual encoder.**
 
 ## Two electrical notes
 
@@ -710,5 +755,6 @@ All cooling is **outside** the cover. The 4 mm interior clearance cannot take a 
 - **12.3″ module outline** — 305 × 125 × 10 is assumed; only the 292.5 × 109.7 active area is derived
 - **Printer bed** — 384 mm needs ≥400, or a designed split
 - **Panel thickness + on-face or recessed** — blocks the bottom hinge
-- **Encoder bushing length** — must be ≥ 8.92 mm for a 2.5 mm face plus nut and washer (datasheet does not give it; FMS dims are shaft, not bushing)
-- Cable OD, cord 3 mm vs 3/32″, PiCAN-M footprint, PCM board outlines
+- **Encoder shaft FMS option** — bushing is measured (8.0, fits the 2.5 face with no counterbore) but the *shaft* length now blocks the knob: .375″ leaves the grub clamping air, .875″ rides the knob proud
+- **Sensor tray placement** — the PCM1808 stack is 15.0 mm tall and the cavity behind the display is 4.0. The 24 mm of spare depth is in the Pi bay, which is 82 × 125 against a 196 × 118 tray, so it does not solve it. The tray outline was always provisional and this is what re-cuts it
+- Cable OD, PiCAN-M footprint

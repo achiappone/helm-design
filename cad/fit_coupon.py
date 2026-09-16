@@ -138,3 +138,43 @@ out = "/Users/anthonychiappone/Helm_Design/cad/out/helm_fit_coupon_revA.stp"
 export_step(p, out)
 print(f"OK  volume = {p.volume/1000:.1f} cm^3   solids = {len(p.solids())}")
 print(f"    {out}")
+
+# ============================================================================
+# ENCODER COUPON  (revA) - separate small plate, prints in minutes
+# ============================================================================
+# The 91Q128 bushing measured ~8.0 mm. Nut 2.36 + lockwasher 0.56 = 2.92, so
+# the most panel it can clamp is 5.08 - the 2.5 mm shell face fits with 2.58
+# to spare and needs NO counterbore. This coupon proves that on the actual
+# printed face instead of on paper, and the 5.0 station brackets the limit:
+# 2.5 must thread on solidly, 5.0 should be at the ragged edge.
+ENC_BORE   = 9.7            # 3/8-32 bushing clearance, from the drawing
+ENC_SEAL_D = 16.4           # the encoder's own panel seal groove OD - the face
+                            # inside this circle has to be flat and unbroken
+KNOB_CLEAR = 21.0           # guitar knob OD 20.5 + skirt recess sits on the face
+ENC_T      = [2.5, 5.0]     # real shell face, and the bracketing thickness
+EC_L, EC_W = 80.0, 44.0
+
+e = Box(EC_L, EC_W, min(ENC_T), align=(Align.CENTER, Align.CENTER, Align.MIN))
+e = fillet(e.edges().filter_by(Axis.Z), 5.0)
+_xs = [-20.0, 20.0]
+# The thick station is built UP from the common floor, so both bores share one
+# bed face - that face is the encoder's mounting surface and its seal lands on
+# it, exactly as it will on the shell (which also prints face-down).
+e += Pos(_xs[1], 0, 0) * Cylinder(KNOB_CLEAR/2 + 4, max(ENC_T),
+                                  align=(Align.CENTER, Align.CENTER, Align.MIN))
+for x in _xs:
+    e -= Pos(x, 0) * Cylinder(ENC_BORE/2, 3*max(ENC_T))
+e = chamfer(e.faces().sort_by(Axis.Z)[0].edges(), 0.5)
+
+assert KNOB_CLEAR/2 + 4 < abs(_xs[0] - _xs[1]), "knob pads would collide"
+assert ENC_SEAL_D < KNOB_CLEAR, "seal annulus must land on flat face"
+
+for t, x, y, sz in [("2.5", _xs[0], 14, 4.0), ("5.0", _xs[1], 14, 4.0),
+                    ("ENCODER COUPON revA  3/8-32", 0, -18, 3.2)]:
+    z = min(ENC_T) if x != _xs[1] else min(ENC_T)
+    e -= Pos(x, y, z) * extrude(Text(t, font_size=sz), amount=-0.6)
+
+_eout = "/Users/anthonychiappone/Helm_Design/cad/out/helm_encoder_coupon_revA.stp"
+export_step(e, _eout)
+print(f"OK  encoder coupon volume = {e.volume/1000:.1f} cm^3")
+print(f"    {_eout}")

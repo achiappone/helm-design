@@ -48,7 +48,11 @@ PARTS = [("helm_shell_revC",   None,            "front A-surface down"),
          # of the part - blade and pad together - is flat and the other has a 7 mm
          # step. Laid the wrong way up it stood on the pad alone: 756 mm2 of a 131
          # mm part on the bed, with the blade floating 7 mm in the air.
-         ("bail_arm_revA",    Rot(90, 0, 0),   "blade and pad flat, x2")]
+         ("bail_arm_revA",    Rot(90, 0, 0),   "blade and pad flat, x2"),
+         # Coupons. Flat already, bores vertical. The encoder one is the
+         # 2.5 mm face the 8 mm bushing has to clamp - print it first.
+         ("helm_encoder_coupon_revA", None,  "flat, bores up"),
+         ("helm_fit_coupon_revA",     None,  "flat, feature face up")]
 
 def lay_down(part, rot):
     """Apply the print orientation, then drop the part onto z=0."""
