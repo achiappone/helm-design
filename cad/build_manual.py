@@ -141,7 +141,18 @@ SLICER = [
             f"maximum on the shell and cover.</b> They are {H['OUT_W']:.0f} wide on a "
             f"{H['BED']:.0f} bed, so {H['OUT_W']:.0f} + 2&times;brim has to stay under "
             f"{H['BED']:.0f} &mdash; that leaves {(H['BED']-H['OUT_W'])/2:.1f}&nbsp;mm a side"),
-    ("Supports", "Only the rear cover, and only under the plate"),
+    ("Supports", "<b>Only the rear cover.</b> Type <b>Normal (auto)</b>, not Tree &mdash; "
+                 "21,617&nbsp;mm&sup2; of its overhang is within 15&deg; of flat and a "
+                 "sparse tree contact sags under a ceiling that size. Threshold angle 30 "
+                 "is right: the part has <b>zero</b> area between 15&deg; and 30&deg; and "
+                 "only 187&nbsp;mm&sup2; between 30 and 45. Body sparse (3&ndash;4&nbsp;mm "
+                 "spacing), <b>interface solid</b> (3 top layers, spacing 0) &mdash; the "
+                 "interface is what carries a flat roof, not the body. "
+                 "<b>&#9888; Do NOT tick &ldquo;On build plate only&rdquo;.</b> Measured on "
+                 "the solid: only 1,256&nbsp;mm&sup2; of the overhang has a clear column to "
+                 "the bed and <b>20,416&nbsp;mm&sup2; stands over model</b> &mdash; the bays "
+                 "open upward in this orientation and their floors are at z 10&ndash;31. "
+                 "Ticking it drops support under 94% of the area that needs it"),
 ]
 
 # ══════════════════════════════════════════════════════════ 3. THE ORDER
