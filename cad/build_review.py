@@ -1,4 +1,13 @@
 import base64, json, math, pathlib, datetime
+
+# The interactive viewer's meshes. Written by cad/web3d.py from the same STEPs
+# the renders use. Optional on purpose: if it has not been built the page still
+# assembles, just without the 3D section - a build page that dies because a
+# nice-to-have is missing is worse than one that quietly does without it.
+try:
+    WEB3D = json.load(open("cad/out/web3d.json"))
+except FileNotFoundError:
+    WEB3D = None
 R = json.load(open("cad/out/renders.json"))
 D = json.load(open("cad/out/dims.json"))
 # The assembly elevations are ONE of this page's many inputs, and for several revs a
@@ -118,6 +127,137 @@ def tile(i, cap, note=""):
     return (f'<figure class="tile"><div class="vp"><img src="{img(i)}" alt="{cap}" loading="lazy"></div>'
             f'<figcaption><span class="cap">{cap}</span>{n}</figcaption></figure>')
 
+
+# ══════════════════════════════════════════════════════ INTERACTIVE VIEWER
+# Drag to rotate, wheel to zoom, slider to explode. three.js comes from
+# jsdelivr's npm path - one of the two CDNs an artifact may load - and the
+# geometry is inline base64, so there is no second request to fail.
+#
+# NO CONTROLS LIBRARY. OrbitControls lives in three's examples, which moved to
+# ES modules; pulling it in means an importmap and a module script for what is
+# forty lines of pointer maths. The orbit here is spherical about the assembly
+# centre, which is all this needs.
+#
+# If three fails to load the <noscript>-ish fallback text stays visible and the
+# still renders below are untouched.
+def viewer_html(w3):
+    if not w3:
+        return ""
+    parts = w3["parts"]
+    meta = w3["meta"]
+    data = json.dumps({k: {"b64": v["b64"], "colour": v["colour"],
+                           "explode": v["explode"], "title": v["title"]}
+                       for k, v in parts.items()}, separators=(",", ":"))
+    tris = sum(v["tris"] for v in parts.values())
+    toggles = "".join(
+        f'<label class="v-tog"><input type="checkbox" data-part="{k}" checked>'
+        f'<span>{v["title"]}</span></label>' for k, v in parts.items())
+    return f"""
+  <h3>Rotate it &mdash; {len(parts)} parts, live</h3>
+  <p>The same solids as the renders below, meshed at {meta["tol"]}&nbsp;mm and
+     {meta["ang"]}&nbsp;rad and carried inline &mdash; <b>{tris:,} triangles</b>. Drag to
+     rotate, wheel to zoom, and pull the slider to take it apart. Nothing here is drawn
+     by hand: the positions are the ones <code>cad/assembly.py</code> uses, so this view
+     and the stills cannot disagree.</p>
+  <div class="viewer" id="v3d">
+    <canvas id="v3dc"></canvas>
+    <div class="v-msg" id="v3dm">loading the 3D view&hellip;</div>
+    <div class="v-bar">
+      <label class="v-exp">Exploded
+        <input type="range" id="v3de" min="0" max="100" value="0">
+      </label>
+      <button class="v-btn" id="v3dr">Reset view</button>
+    </div>
+    <div class="v-legend">{toggles}</div>
+  </div>
+  <!-- r149, PINNED. r160's build/three.min.js still works but is a deprecation
+       stub that says it will be removed at r160 - which this is. r149 is the last
+       version shipping a plain UMD bundle with no warning attached, and a UMD
+       bundle is what lets this be one script tag instead of an importmap. -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+  <script>
+  (function(){{
+    var DATA = {data};
+    var META = {json.dumps(meta, separators=(",", ":"))};
+    var msg = document.getElementById('v3dm');
+    if (typeof THREE === 'undefined') {{ msg.textContent =
+      'the 3D view needs three.js, which did not load - the renders below are unaffected';
+      return; }}
+    var cv = document.getElementById('v3dc'), wrap = document.getElementById('v3d');
+    var sc = new THREE.Scene();
+    var cam = new THREE.PerspectiveCamera(38, 1, 1, 8000);
+    var rend = new THREE.WebGLRenderer({{canvas: cv, antialias: true, alpha: true}});
+    rend.setPixelRatio(Math.min(devicePixelRatio, 2));
+    sc.add(new THREE.AmbientLight(0xffffff, 0.62));
+    var key = new THREE.DirectionalLight(0xffffff, 0.85); key.position.set(-0.4,-0.72,0.57);
+    sc.add(key);
+    var fill = new THREE.DirectionalLight(0xffffff, 0.30); fill.position.set(0.6,0.5,0.4);
+    sc.add(fill);
+    var root = new THREE.Group(); sc.add(root);
+    var C = META.centre, R = META.radius, meshes = {{}};
+    function b64buf(b64){{
+      var bin = atob(b64), n = bin.length, u8 = new Uint8Array(n);
+      for (var i=0;i<n;i++) u8[i] = bin.charCodeAt(i);
+      return new Float32Array(u8.buffer);
+    }}
+    Object.keys(DATA).forEach(function(k){{
+      var d = DATA[k], pos = b64buf(d.b64);
+      var g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.computeVertexNormals();
+      var m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({{
+        color: new THREE.Color(d.colour), side: THREE.DoubleSide }}));
+      m.userData.explode = d.explode;
+      root.add(m); meshes[k] = m;
+    }});
+    root.position.set(-C[0], -C[1], -C[2]);
+    // +Z of the model is REARWARD, so the camera sits on -Z to look at the face,
+    // and +Y is up in model space but down on screen - hence the flip.
+    root.scale.set(1,-1,1);
+    var az = 0.62, el = 0.42, dist = R * 3.6, drag = null;
+    function place(){{
+      cam.position.set(C[0]*0 + dist*Math.cos(el)*Math.sin(az),
+                       dist*Math.sin(el),
+                       -dist*Math.cos(el)*Math.cos(az));
+      cam.lookAt(0,0,0);
+    }}
+    function size(){{
+      var w = wrap.clientWidth, h = Math.max(320, Math.min(560, Math.round(w*0.62)));
+      rend.setSize(w, h, false); cam.aspect = w/h; cam.updateProjectionMatrix();
+    }}
+    function draw(){{ place(); rend.render(sc, cam); }}
+    cv.addEventListener('pointerdown', function(e){{
+      drag = {{x:e.clientX, y:e.clientY}}; cv.setPointerCapture(e.pointerId); }});
+    cv.addEventListener('pointermove', function(e){{
+      if (!drag) return;
+      az -= (e.clientX - drag.x) * 0.008;
+      el = Math.max(-1.45, Math.min(1.45, el + (e.clientY - drag.y) * 0.008));
+      drag = {{x:e.clientX, y:e.clientY}}; draw(); }});
+    cv.addEventListener('pointerup', function(e){{ drag = null; }});
+    cv.addEventListener('wheel', function(e){{
+      e.preventDefault();
+      dist = Math.max(R*1.25, Math.min(R*9, dist * (1 + Math.sign(e.deltaY)*0.11)));
+      draw(); }}, {{passive:false}});
+    document.getElementById('v3de').addEventListener('input', function(e){{
+      var t = e.target.value/100;
+      Object.keys(meshes).forEach(function(k){{
+        var v = meshes[k].userData.explode;
+        meshes[k].position.set(v[0]*t, v[1]*t, v[2]*t);
+      }});
+      draw(); }});
+    document.getElementById('v3dr').addEventListener('click', function(){{
+      az = 0.62; el = 0.42; dist = R*3.6; draw(); }});
+    wrap.querySelectorAll('input[data-part]').forEach(function(cb){{
+      cb.addEventListener('change', function(){{
+        meshes[cb.dataset.part].visible = cb.checked; draw(); }});
+    }});
+    addEventListener('resize', function(){{ size(); draw(); }});
+    size(); msg.style.display = 'none'; draw();
+  }})();
+  </script>"""
+
+VIEWER = viewer_html(WEB3D)
+
 HTML = f"""<title>Helm Housing rev {H["REV"]}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -130,6 +270,27 @@ HTML = f"""<title>Helm Housing rev {H["REV"]}</title>
   --warn:#9a5709; --warn-soft:#f8ecd9; --crit:#9e2f28; --crit-soft:#f8dedb;
   --ok:#276b3e; --ok-soft:#dcefe1;
 }}
+.viewer {{ border:1px solid var(--line); border-radius:6px; background:var(--viewport);
+  padding:10px; margin:14px 0 18px; }}
+.viewer canvas {{ display:block; width:100%; border-radius:4px;
+  background:var(--sunk); touch-action:none; cursor:grab; }}
+.viewer canvas:active {{ cursor:grabbing; }}
+.v-msg {{ font:12px/1.5 'IBM Plex Mono',monospace; color:var(--muted); padding:8px 2px; }}
+.v-bar {{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:10px; }}
+.v-exp {{ display:flex; gap:8px; align-items:center; flex:1 1 220px;
+  font:600 11px/1 'IBM Plex Sans Condensed',sans-serif; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-2); }}
+.v-exp input {{ flex:1; accent-color:var(--accent); }}
+.v-btn {{ font:600 11px/1 'IBM Plex Sans Condensed',sans-serif; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--accent); background:var(--surface);
+  border:1px solid var(--line); border-radius:4px; padding:7px 12px; cursor:pointer; }}
+.v-btn:hover {{ background:var(--accent-soft); }}
+.v-legend {{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px;
+  padding-top:10px; border-top:1px solid var(--line-2); }}
+.v-tog {{ display:flex; gap:5px; align-items:center; cursor:pointer;
+  font:400 11px/1.4 'IBM Plex Mono',monospace; color:var(--ink-2); }}
+.v-tog input {{ accent-color:var(--accent); }}
+@media (max-width:640px) {{ .v-legend {{ gap:6px 10px; }} }}
 @media (prefers-color-scheme: dark) {{
   :root:not([data-theme="light"]) {{
     --ground:#0c1118; --surface:#141c26; --sunk:#0f1620; --viewport:#1a2431;
@@ -264,6 +425,7 @@ a{{color:var(--accent)}}
     {pic("cad/out/asm_housing.png","Assembled - front","Nothing on the face. Every fastener is either behind the unit or hidden under the visor.")}
     {pic("cad/out/asm_housing_left.png","Assembled - other shoulder","")}
   </div>
+  {VIEWER}
   <h3>Ghosted &mdash; where everything packs in</h3>
   <p>The printed parts at 22% opacity, every bought part solid. A section answers
      &ldquo;what is at this plane&rdquo;; the question a builder asks is &ldquo;what is in

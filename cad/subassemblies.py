@@ -225,6 +225,59 @@ if "GPS_X" in H:
                         f"{abs(GX - H['SMA_X']):.0f} mm from the whip, which is the point: a "
                         f"400-470 MHz transmitter any closer desenses L1 on every key-down."})
 
+# ── the coax route, SMA bulkhead to RTL-SDR ───────────────────────────────
+# This view exists because the owner asked "how does the coax get to the SDR"
+# and the honest answer was that it could not: all three bulkhead bores ended
+# 3 mm short of the bay, and the dongle had an X and no Y. Both are fixed; this
+# is the picture that shows it, and it is drawn from housing.json so it cannot
+# drift from the model the way a hand-made diagram would.
+import math
+SDR_X, SDR_Y, SDR_L = H["SDR_X"], H["SDR_Y"], H["SDR_L"]
+SDR_W, SDR_T = H["SDR_W"], H["SDR_T"]
+BAY_Y_IN, WALL_ = H["BAY_Y_IN"], H["WALL"]
+_floor = -H["PI_BUMP_H"] + WALL_
+# Sectioned at the SMA end of the bay, which is the only place the route is
+# visible: a whole-cover view puts the dongle behind 80 mm of bay wall.
+# Cropped to the SMA end of the bay, and the PLATE IS TRANSLUCENT - the one
+# idiom in render_multi for showing what is packed inside a box you cannot
+# cut open. A solid plate hides the bulkhead behind the bay's end wall from
+# every angle that also shows the dongle.
+_cut = Pos(SDR_X - 14, -46.0, -H["PI_BUMP_H"]/2) * Box(80, 60, 92, align=(Align.CENTER,)*3)
+_plate = COVER & _cut
+# the dongle, standing on edge on its two strap bridges
+_dong = Pos(SDR_X, -SDR_Y, _floor + H["TIE_H"] if "TIE_H" in H else _floor + 3.5) * Box(
+    SDR_T, SDR_L, SDR_W, align=(Align.CENTER, Align.CENTER, Align.MIN))
+# the bulkhead: barrel through the block, nut inside the bay
+_barrel = (Pos(SMA_X, -(BAY_Y_IN + 7.0), BORE_Z) * Rot(-90, 0, 0)
+           * Cylinder(H["SMA_D"]/2 - 0.6, 20.0, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+_nut = (Pos(SMA_X, -BAY_Y_IN, BORE_Z) * Rot(-90, 0, 0)
+        * extrude(RegularPolygon(H["SMA_NUT_AF"]/2/math.cos(math.pi/6), 6), 3.0))
+# the pigtail: bulkhead inner end -> the dongle's connector end
+_a = Vector(SMA_X, -BAY_Y_IN, BORE_Z)
+_b = Vector(SDR_X, -H["SDR_CONN_END"], _floor + 3.5 + SDR_W/2)
+_d = _b - _a
+_coax = (Plane(origin=tuple(_a), z_dir=tuple(_d.normalized()),
+               x_dir=(0, 0, 1) if abs(_d.normalized().Z) < 0.9 else (1, 0, 0))
+         * Cylinder(1.4, _d.length, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+_dcut = _dong & _cut
+rgba, _ = render_multi([(_asm(_plate), (0.13, 0.31, 0.60, 0.42)),
+                        (_asm(_dcut), (0.22, 0.60, 0.38)),
+                        (_asm(_barrel), BRASS), (_asm(_nut), STEEL),
+                        (_asm(_coax), COPPER)], az=36, el=28, W=1150, H=820)
+png("cad/out/sub_coax_path.png", rgba)
+out.append({"name": "sub_coax_path",
+            "title": "COAX - SMA bulkhead to the RTL-SDR",
+            "note": f"The hole does not pass a cable: it holds a BULKHEAD. The whip screws "
+                    f"on outside, the barrel fills the &Oslash;{H['SMA_D']} bore through the "
+                    f"top block, and its nut lands in open bay. GREEN is the "
+                    f"{SDR_L:.0f}&nbsp;&times;&nbsp;{SDR_W:.0f}&nbsp;&times;&nbsp;{SDR_T:.0f} "
+                    f"dongle STANDING ON EDGE on two strap bridges, centred in the "
+                    f"{H['SDR_CHAN_OUT'] - H['SDR_CHAN_IN']:.2f} mm channel between the driver "
+                    f"board and the bay wall - centred because the tie has to come up BOTH "
+                    f"sides. ORANGE is the pigtail: <b>{H['SDR_PIGTAIL']:.0f} mm</b>, so a "
+                    f"stock jumper covers it. Use a RIGHT-ANGLE SMA on the bulkhead end; "
+                    f"RG316 bends to 10 mm radius and there is less than that in line."})
+
 json.dump(out, open("cad/out/subdims.json", "w"), indent=1)
 for v in out:
     print(f"  {v['name']}.png  -  {v['title']}")

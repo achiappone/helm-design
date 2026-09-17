@@ -86,6 +86,7 @@ DISP_CX = 0.0
 DISP_CY =  INT_H/2 - (MOD_H + 2*CLR)/2               # +22.0, display sits high
 ROW_CY  = -INT_H/2 + ROW_H/2                         # -69.5, control row below
 DEPTH, FACE_T, WALL, COVER_T = 22.0, 2.5, 3.5, 6.0
+FIRST_LAYER_CHAM = 0.5              # elephant's-foot relief on the bed face
 MOD_D = 12.0                        # MEASURED panel depth, face to back
 R_OUT = 14.0
 
@@ -1144,6 +1145,35 @@ _bb = f.bounding_box()
 assert _bb.size.X <= BED and _bb.size.Y <= BED, (
     f"shell is {_bb.size.X:.0f} x {_bb.size.Y:.0f}, will not fit a {BED:.0f} bed")
 
+# -- first-layer chamfer relief, A-surface ---------------------------------
+# The fit coupons have had this since rev A and the real parts never did, which
+# is backwards: the coupon proves the fits and the shell has to HOLD them. The
+# shell prints A-surface down, so its whole weather face is layer 1 - where
+# elephant's foot lands, and where every bore that matters passes through. A
+# 0.5 relief gives the bulge somewhere to go instead of into the hole.
+#
+# It is safe on the encoder bore: O9.7 opens to O10.7 at the face, and the
+# encoder's own panel seal groove starts at O11.9, so the seat is untouched.
+# One chamfer() over every edge of that face fails - OCC gives up on the whole
+# set if any single edge cannot take it. So the edges are taken in groups, and
+# the groups that matter (the bores) are taken FIRST and asserted; the outline
+# is a nice-to-have and is allowed to decline.
+_v0 = f.volume
+_face = f.faces().sort_by(Axis.Z)[0]
+_circles = [e for e in _face.edges() if e.geom_type == GeomType.CIRCLE]
+_rest = [e for e in _face.edges() if e.geom_type != GeomType.CIRCLE]
+for _grp, _must in ((_circles, True), (_rest, False)):
+    if not _grp:
+        continue
+    try:
+        f = chamfer(ShapeList(_grp), FIRST_LAYER_CHAM)
+    except Exception as _e:
+        assert not _must, f"the bore chamfers failed: {_e}"
+_v1 = f.volume
+assert _v1 < _v0, "the A-surface chamfer removed nothing"
+print(f"SHELL  A-surface relief {FIRST_LAYER_CHAM} on {len(_circles)} bores "
+      f"+ {len(_rest)} outline edges, -{_v0 - _v1:.0f} mm3")
+
 export_step(f, "cad/out/helm_shell_revD.stp")
 print(f"SHELL  vol={f.volume/1000:6.0f} cm3 solids={len(f.solids())} "
       f"bbox={_bb.size.X:.0f}x{_bb.size.Y:.0f}x{_bb.size.Z:.0f}   brim bolts={len(BOLTS)}")
@@ -1377,8 +1407,23 @@ for _by0, _by1 in BLOCKS:
 
 SEAT_LAND = 3.0                     # round-crown collar at the flange face
 
+# THE BAY'S END WALL. The blocks sit OUTBOARD of it: the bump's inner face is
+# at PI_BUMP_W/2 - WALL and the block runs from PI_BUMP_W/2 outward. A bore
+# drawn from the block's outer face to BLK_Y1 therefore stops at the block and
+# leaves the bay's own WALL untouched - which is what every one of these did.
+BAY_Y_IN = PI_BUMP_W/2 - WALL
+
+
 def _ybore(x, dia, y0, y1, teardrop=True):
     """A horizontal bore along -y through a block, printed without support.
+
+    y1 IS THE INNER END AND IT MUST BE THE BAY VOID, NOT THE BLOCK FACE. All
+    three fittings were bored to BLK_Y1, the block's inner face at 62.5, while
+    the bay void starts at 59 - so each one ended in 3 mm of solid ASA. The
+    gland had no cable entry, the coax had no route, and the Gore vent - whose
+    entire job is to connect inside to outside - could not breathe. Nothing
+    caught it: the clearance assert checks the bore's X against the void's X
+    and never asked whether the bore ARRIVES.
 
     The crown of a horizontal hole sags, and a 45 deg teardrop apex above it
     turns that crown into two walls that bridge themselves. But the apex is a
@@ -1407,7 +1452,7 @@ c += (Pos(GL_X, cy(BLK_Y0 - GL_BOSS_PROUD/2), BORE_Z) * Rot(90, 0, 0)
       # enough to stand in a brim screw's driver path.
       * extrude(RectangleRounded(GL_BOSS_W, GL_BOSS_H, 6.0), GL_BOSS_PROUD/2,
                 both=True))
-c -= _ybore(GL_X, GL_TAP, BLK_Y0 - GL_BOSS_PROUD, BLK_Y1)
+c -= _ybore(GL_X, GL_TAP, BLK_Y0 - GL_BOSS_PROUD, -BAY_Y_IN)
 # How far does material actually reach past the block's face? Cover-local, the
 # face is at cy(BLK_Y0) and the boss grows further out; measure that column and
 # take the extreme, rather than trusting the same arithmetic twice.
@@ -1429,12 +1474,12 @@ assert min(GL_BOSS_W, GL_BOSS_H)/2 - GL_TAP/2 > 4.5, (
 assert GL_BOSS_H < PI_BUMP_H - 2.0, (
     f"the gland boss is {GL_BOSS_H} on a {PI_BUMP_H:.0f} block face")
 # Gore vent: tapped, into the driver bay
-c -= _ybore(VENT_X, VENT_TAP, BLK_Y0, BLK_Y1)
+c -= _ybore(VENT_X, VENT_TAP, BLK_Y0, -BAY_Y_IN)
 # SMA coax entry: a short threaded section, then a counterbore so the inner nut
 # lands in open bay rather than being buried in the block
 # the coax entry bores the OTHER way, out through the TOP block, so a whip
 # screwed straight onto it stands up
-c -= _ybore(SMA_X, SMA_D, BLK_TY0, BLK_TY1)
+c -= _ybore(SMA_X, SMA_D, BLK_TY0, BAY_Y_IN)
 _v0 = c.volume
 _sma_cr = SMA_NUT_AF/2/math.cos(math.pi/6)
 # cut from the block's INNER face going OUTWARD into the block. Rot(-90) sent
@@ -1533,6 +1578,28 @@ for _n, _x, _d, _fl, _need, _face in _FITTINGS:
     assert _VOID_X0 < abs(_x) - _d/2 and abs(_x) + _d/2 < _VOID_X1, (
         f"{_n} bore at x={_x} does not open into the bay void "
         f"(x {_VOID_X0:.1f}..{_VOID_X1:.1f}) - it would break out through a wall")
+# EVERY BORE MUST ARRIVE. Probed on the solid, walking inward along the bore's
+# own axis from the block's inner face to the bay void: if any sample is still
+# material, the fitting opens into ASA and not into the box. This is the check
+# that was missing when all three shipped blind - the clearance assert above
+# compares the bore's X to the void's X and never asks whether it gets there.
+for _n, _x, _side in (("cable gland", GL_X, -1), ("Gore vent", VENT_X, -1),
+                      ("SMA coax entry", SMA_X, +1)):
+    _face = _side * (PI_BUMP_W/2)          # block's inner face, cover frame
+    _stop = _side * BAY_Y_IN               # where the bay void begins
+    _blocked = []
+    _steps = 12
+    for _i in range(_steps + 1):
+        _y = _face + (_stop - _face) * _i / _steps
+        _pr = Pos(_x, cy(_y), BORE_Z) * Box(0.6, 0.6, 0.6, align=(Align.CENTER,)*3)
+        _hit = c & _pr
+        if _hit is not None and _hit.volume > 0.02:
+            _blocked.append(_y)
+    assert not _blocked, (
+        f"{_n} is a BLIND BORE: still solid at y={_blocked[0]:.1f}..{_blocked[-1]:.1f}, "
+        f"between the block face at {_face:.1f} and the bay void at {_stop:.1f}. "
+        f"It opens into ASA, not into the box")
+
 # ...and the board each one opens toward has to be far enough away in Y to
 # dress a cable into. The bore stops at the bay's end wall, so it never passes
 # OVER a board - what matters is the gap between where it emerges and where the
@@ -1544,7 +1611,77 @@ for _n, _x, _d, _fl, _need, _face in _FITTINGS:
 # It STANDS ON EDGE in the +x bay beside the driver board, strapped to the two
 # tie anchors on that bay's floor, directly under the SMA it feeds.
 SDR_L, SDR_W, SDR_T = 68.0, 27.0, 12.0
-SDR_X = DRV_CX + 30.0
+# CENTRED IN ITS CHANNEL, not offset by a round 30. The dongle lives in the
+# 15.88 mm slot between the driver board's outer edge and the bay wall, and a
+# 12 mm part in it has 1.94 a side if it is centred - which it has to be,
+# because the cable tie has to pass up BOTH sides. At the old +30 it sat 2.38
+# off the board and 1.50 off the wall, and 1.50 is under a tie's thickness.
+SDR_CHAN_IN  = abs(DRV_BOARD_CX) + 55.25/2          # driver board's outer edge
+SDR_CHAN_OUT = abs(DRV_CX) + PI_BUMP_L/2 - WALL     # the bay wall
+SDR_X = (SDR_CHAN_IN + SDR_CHAN_OUT) / 2
+# SDR_Y DID NOT EXIST. The dongle had an X, three dimensions and three asserts
+# about whether it FITS - and no position along the bay at all. The comment
+# claimed it strapped to "the two tie anchors on that bay's floor", which are
+# the VENT's cable anchors at y -50, 24 mm apart: a 68 mm dongle centred there
+# runs 25 mm out through the end wall. Nothing compared the two because the
+# dongle was never placed.
+#
+# It goes at the SMA end of the bay, because that is what it is wired to. Its
+# connector end faces the bore, and the far end stops clear of the bay's other
+# wall. Everything below derives from that one decision.
+SDR_CONN_END = BAY_Y_IN - 6.0               # where the coax connector sits
+SDR_Y = SDR_CONN_END - SDR_L/2              # centre follows from it
+assert SDR_Y - SDR_L/2 > -BAY_Y_IN + 2.0, (
+    f"the dongle runs from y={SDR_Y + SDR_L/2:.1f} to {SDR_Y - SDR_L/2:.1f} in a bay "
+    f"that ends at {-BAY_Y_IN:.1f}")
+# The pigtail is the point of the placement, so it gets a number rather than a
+# hope. The bulkhead's inner end is at the bay void, on the bore axis.
+SDR_PIGTAIL = math.dist((SMA_X, BAY_Y_IN, BORE_Z),
+                        (SDR_X, SDR_CONN_END, -PI_BUMP_H + WALL + SDR_W/2))
+assert SDR_PIGTAIL < 60.0, (
+    f"the coax run is {SDR_PIGTAIL:.0f} mm - longer than a stock SMA pigtail")
+# Two straps, one near each end, each a floor anchor whose slot runs ACROSS the
+# dongle so a tie passes under, over the 12 x 27 section, and back.
+SDR_STRAP_Y = [SDR_Y + SDR_L/2 - 10.0, SDR_Y - SDR_L/2 + 10.0]
+# The tie passes UNDER the dongle through a tunnel and over the top, so what it
+# needs beside the part is its own thickness, not a whole anchor - there is no
+# room for anchors either side in a 15.88 mm channel.
+SDR_TIE_T = 1.4                                     # a 2.5 mm tie's thickness
+SDR_GAP_IN  = (SDR_X - SDR_T/2) - SDR_CHAN_IN
+SDR_GAP_OUT = SDR_CHAN_OUT - (SDR_X + SDR_T/2)
+for _side, _g in (("board", SDR_GAP_IN), ("bay wall", SDR_GAP_OUT)):
+    assert _g > SDR_TIE_T, (
+        f"only {_g:.2f} mm between the dongle and the {_side} - a {SDR_TIE_T} mm "
+        f"tie cannot come up that side, so it could not be strapped at all")
+# The dongle stands ON the strap bridges, so the bay has to take both.
+assert SDR_W + TIE_H < PI_BUMP_H - WALL - 1.0, (
+    f"dongle {SDR_W} on a {TIE_H} bridge is {SDR_W + TIE_H} in a "
+    f"{PI_BUMP_H - WALL:.1f} mm bay")
+
+# -- RTL-SDR strap bridges, driver-bay floor -------------------------------
+# Two bridges the dongle STANDS ON, each with a tunnel through it in x. The tie
+# threads the tunnel, comes up both sides and closes over the 12 x 27 section.
+# Anchors beside the part were not an option: the channel is 15.88 wide.
+_v0 = c.volume
+# Wide enough to carry the dongle and let the tie up both sides, and NOT so
+# wide that it fuses to the bay wall - at the full channel width it did.
+SDR_BRIDGE_W = SDR_T + 2*SDR_TIE_T
+for _sy in SDR_STRAP_Y:
+    c += Pos(SDR_X, cy(_sy), -PI_BUMP_H + WALL - 0.3) * Box(
+        SDR_BRIDGE_W, TIE_L, TIE_H + 0.3, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    c -= Pos(SDR_X, cy(_sy), -PI_BUMP_H + WALL + TIE_H - TIE_SLOT/2 - 0.4) * Box(
+        SDR_BRIDGE_W + 2, TIE_SLOT, TIE_SLOT, align=(Align.CENTER,)*3)
+assert c.volume > _v0, (
+    "the SDR strap bridges added no material - the dongle has nothing to be "
+    "tied to, which is the fault this block exists to fix")
+for _sy in SDR_STRAP_Y:
+    assert abs(_sy) < BAY_Y_IN - TIE_L/2, (
+        f"a strap bridge at y={_sy:.1f} runs into the bay wall at {BAY_Y_IN:.1f}")
+assert (SDR_X + SDR_BRIDGE_W/2 < SDR_CHAN_OUT - 0.3
+        and SDR_X - SDR_BRIDGE_W/2 > SDR_CHAN_IN + 0.3), (
+    f"the strap bridge spans {SDR_X - SDR_BRIDGE_W/2:.2f}..{SDR_X + SDR_BRIDGE_W/2:.2f}, "
+    f"outside the channel {SDR_CHAN_IN:.2f}..{SDR_CHAN_OUT:.2f}")
+
 _void_out = abs(DRV_CX) + PI_BUMP_L/2 - WALL
 assert SDR_X + SDR_T/2 < _void_out - 1.0, (
     f"the SDR reaches x={SDR_X + SDR_T/2:.1f} and the bay wall is at "
@@ -1553,6 +1690,11 @@ assert SDR_X - SDR_T/2 > abs(DRV_BOARD_CX) + 55.25/2 + 1.0, (
     f"the SDR overlaps the driver board it stands beside")
 assert SDR_W < PI_BUMP_H - WALL - 1.0, (
     f"a {SDR_W:.0f} mm dongle on edge does not fit a {PI_BUMP_H - WALL:.1f} mm bay")
+# and it must not sit under the vent's own cable anchors, which is what the old
+# comment assumed it could share
+for _vy in (-(PI_BUMP_W/2 - WALL) + 9.0,):
+    assert not (SDR_Y - SDR_L/2 < _vy < SDR_Y + SDR_L/2) or abs(SDR_X - VENT_X) > 12.0, (
+        f"the dongle spans the vent's cable anchor at y={_vy:.1f}")
 _BOARDS = [("Pi 4", PI_BOARD_CX, 56.0, 85.0), ("driver board", DRV_BOARD_CX, 55.25, 113.25),
            ("RTL-SDR", SDR_X, SDR_T, SDR_L)]
 for _n, _x, _d, _fl, _need, _face in _FITTINGS:
@@ -1893,6 +2035,20 @@ if len(c.solids()) != 1:
             t.volume, t.bounding_box().min.X, t.bounding_box().max.X,
             t.bounding_box().min.Y, t.bounding_box().max.Y,
             t.bounding_box().min.Z, t.bounding_box().max.Z) for t in _iso))
+# -- first-layer relief on the cover: NOT MODELLED, and why -----------------
+# The shell gets a real 0.5 chamfer on its A-surface. The cover does not, and
+# this is a measured decision rather than an oversight: its bed face is five
+# separate faces at z=-37 (two bay bumps, the fitting blocks, the trunnion
+# tips) carrying 48 edges between them, and OCC accepts a chamfer on TWO of
+# them - at 0.5, 0.3 or 0.2 alike. The neighbours are fillets, gussets and
+# teardrops, and it will not cut into those.
+#
+# Shipping a feature that reaches 2 edges in 48 is worse than not shipping it,
+# so the cover's elephant's foot is handled in the slicer instead - Orca's
+# Elephant foot compensation, which is on the print card. It costs nothing
+# here: this face is the weather side, it is not cosmetic, and it already
+# takes the support interface witness over the whole 24,000 mm2.
+
 export_step(c, "cad/out/helm_cover_revD.stp")
 _cb = c.bounding_box()
 print(f"COVER  vol={c.volume/1000:6.0f} cm3 solids={len(c.solids())} "
@@ -1926,7 +2082,7 @@ json.dump({"REV":"D","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "BLK_X0":BLK_X0,"BLK_X1":BLK_X1,"BLK_Y0":BLK_Y0,"BLK_Y1":BLK_Y1,
            "BLK_TY0":BLK_TY0,"BLK_TY1":BLK_TY1,
            "PI_BUMP_H":PI_BUMP_H,"PI_BUMP_L":PI_BUMP_L,"PI_BUMP_W":PI_BUMP_W,
-           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,"DRV_BOARD_CX":DRV_BOARD_CX,"SDR_X":SDR_X,"SDR_L":SDR_L,"SDR_W":SDR_W,"SDR_T":SDR_T,"PI_STANDOFF_H":PI_STANDOFF_H,"PI_HAT_H":PI_HAT_H,"PI_STACK_REAL":PI_STACK_REAL,"PI_ROOM":_PI_ROOM,
+           "PI_BUMP_CX":PI_BUMP_CX,"DRV_CX":DRV_CX,"DRV_BOARD_CX":DRV_BOARD_CX,"SDR_X":SDR_X,"SDR_Y":SDR_Y,"SDR_L":SDR_L,"SDR_W":SDR_W,"SDR_T":SDR_T,"SDR_CONN_END":SDR_CONN_END,"SDR_STRAP_Y":SDR_STRAP_Y,"SDR_PIGTAIL":SDR_PIGTAIL,"SDR_BRIDGE_W":SDR_BRIDGE_W,"SDR_CHAN_IN":SDR_CHAN_IN,"SDR_CHAN_OUT":SDR_CHAN_OUT,"TIE_H":TIE_H,"BAY_Y_IN":BAY_Y_IN,"PI_STANDOFF_H":PI_STANDOFF_H,"PI_HAT_H":PI_HAT_H,"PI_STACK_REAL":PI_STACK_REAL,"PI_ROOM":_PI_ROOM,
            "PI_BOARD_CX":PI_BOARD_CX,"PI_HOLES":PI_HOLES,"DRV_HOLES":DRV_HOLES,
            "PIV_X":PIV_X,"PIV_Y":PIV_Y,"PIV_Z":PIV_Z,
            # mating dimensions - the visor and the bracket read these rather
