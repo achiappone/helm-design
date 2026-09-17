@@ -38,12 +38,12 @@ H = json.load(open("cad/out/housing.json"))
 S = json.load(open("cad/out/shroud.json"))
 B = json.load(open("cad/out/bail.json"))
 
-SHELL  = import_step("cad/out/helm_shell_revC.stp")
-COVER  = import_step("cad/out/helm_cover_revC.stp")
+SHELL  = import_step("cad/out/helm_shell_revD.stp")
+COVER  = import_step("cad/out/helm_cover_revD.stp")
 SHROUD = import_step("cad/out/heatsink_shroud_revD.stp")
 ARM    = import_step("cad/out/bail_arm_revA.stp")
 BASE   = import_step("cad/out/bail_base_revA.stp")
-VISOR  = import_step("cad/out/helm_visor_revC.stp")
+VISOR  = import_step("cad/out/helm_visor_revD.stp")
 
 BACK   = H["DEPTH"] + H["GASKET_C"] + H["COVER_T"]
 OD     = S["SHROUD_OD"]
@@ -269,8 +269,12 @@ for _sx in (-1, 1):
 stage("fastener lengths")
 grip("brim screw", "M3 pan, 316", passes=H["COVER_T"],
      pilot=H["PILOT_L"], floor=H["DEPTH"] - H["PILOT_L"])
-grip("panel screw", "M3 pan, 316", passes=H["COVER_T"] + H["DSP_POST_H"],
-     pilot=6.0, floor=99.0)
+# The counterbore was missing here and present in helm_housing.py, so the two
+# files disagreed about this screw by 2.5 mm. The head seats at the bottom of the
+# washer counterbore, so that depth is NOT material the screw has to cross.
+grip("panel screw", "M3 pan, 316",
+     passes=H["COVER_T"] - H["DSP_CB_DEEP"] + H["DSP_POST_H"],
+     pilot=H["MOD_STANDOFF_DEEP"], floor=99.0)
 grip("shroud screw", "M3 pan, 316",
      passes=OD - H["SHROUD_PILOT_BOSS"] + S["LOUV_H"] - 4.0,
      pilot=H["SHROUD_PILOT_TOTAL"], floor=H["COVER_T"] - H["SHROUD_PILOT_DEEP"])

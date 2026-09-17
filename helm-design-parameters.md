@@ -753,9 +753,35 @@ The old "384 mm needs ≥400, or a designed split" blocker was **rev B geometry*
 
 No split needed. No larger printer needed.
 
+## rev D — first printed shell, and what it said ⚠️
+
+The rev C front shell came off the bed on 2026-09-17 and the display would not go in.
+
+| | was | now | source |
+|---|---|---|---|
+| `MOD_H` | 130 | **131** | measured on the module |
+| `MOD_D` | 15 | **12** | measured on the module |
+| `CLR` | 1.0 | **1.5** | restored — see below |
+| `MOD_FIT` | 0.35 | **0.80** | the index features were the binding constraint |
+
+**The index positions were what jammed, not the cavity.** `MOD_FIT` was 0.35 per side over a **310 mm** span. ASA moves 0.4–0.7% on cooling, which is 1.2–2.2 mm across this part, so a 0.35 index fit is inside the noise — the panel hit the rails and pads before it ever reached a cavity wall. An index locates; at this length it must not also be a press fit.
+
+`CLR` 1.0 → 1.5 for the same reason. A 1 mm cavity clearance on a 310 mm span is a number that only works on paper, and nothing anywhere in the model budgeted for shrinkage.
+
+**Fallout:** `DIVIDER` was the typed constant `RIM - 6.0`, where the 6 was silently `BOND_BAND + CLR` evaluated at `CLR = 1.0`. Moving CLR unbalanced the bezel round the control row — 10.25 above, 9.75 below — and the balance assert caught it. It is now the identity `DIVIDER = RIM - BOND_BAND - CLR`.
+
+`MOD_D` 15 → 12 opens the air gap behind the panel from **4.0 to 7.0 mm**. Still not the 15.0 the sensor tray needs, so that stays blocked.
+
+🚨 **The width is NOT settled, and the model has not been changed for it.** `MOD_W` is still 310. The 1.5 mm shortfall is 0.48% of 310, which is exactly ASA's shrinkage range — so widening the CAD could be fixing a slicer problem in the wrong place, and would leave the pocket loose once compensation is set correctly.
+
+**One measurement settles it: caliper the printed rev C shell across its overall width.** Nominal was 334.0.
+
+- Reads **~332.4** → shrinkage. Fix it in Orca (*Filament → Advanced → Shrinkage compensation XY*, ~100.5% for ASA), not in CAD.
+- Reads **~334.0** → the print is true and the module really is wider than 310. Then `MOD_W` moves.
+
 ## Still blocking
 
-- **12.3″ module outline** — 305 × 125 × 10 is assumed; only the 292.5 × 109.7 active area is derived
+- **Display module WIDTH** — height 131 and depth 12 are now measured; width is still the assumed 310, and the first printed shell says it is out by ~1.5. See the rev D section: that 1.5 may be ASA shrinkage, not the module
 - **Panel thickness + on-face or recessed** — blocks the bottom hinge
 - **Sensor tray placement** — the PCM1808 stack is 15.0 mm tall and the cavity behind the display is 4.0. The 24 mm of spare depth is in the Pi bay, which is 82 × 125 against a 196 × 118 tray, so it does not solve it. The tray outline was always provisional and this is what re-cuts it
 - Cable OD, PiCAN-M footprint

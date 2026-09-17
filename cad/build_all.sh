@@ -7,7 +7,7 @@
 set -e
 cd "$(dirname "$0")/.."
 PY=.venv/bin/python
-for s in helm_housing heatsink_shroud bail assembly_check print_check helm_visor sensor_tray fit_coupon \
+for s in helm_housing heatsink_shroud bail helm_visor assembly_check print_check sensor_tray fit_coupon \
          lp24_mount lp24_shroud lp24_upright_mount lp24_wedge_mount \
          export_mesh render assembly exploded annotate assembly_dims \
          measured_parts seal_detail subassemblies build_review build_manual; do

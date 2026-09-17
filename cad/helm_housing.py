@@ -1,5 +1,5 @@
 """
-Helm Display Housing  (rev C)  -- FRONT SHELL + REAR COVER
+Helm Display Housing  (rev D)  -- FRONT SHELL + REAR COVER
 ==========================================================
 rev B put the four buttons and the encoder in a COLUMN beside the display.
 That made the shell 389 wide, which does not fit the K2 Plus's 350 bed, so it
@@ -29,7 +29,13 @@ from build123d import *
 import math, json
 
 ACT_W, ACT_H = 295.0, 112.0             # MEASURED, not derived
-MOD_W, MOD_H, CLR = 310.0, 130.0, 1.0   # MEASURED (CLR was 1.5)
+# MOD_H 130 -> 131 and MOD_D 15 -> 12: MEASURED on the module, after the first
+# shell came off the bed and the panel would not drop in.
+#
+# CLR 1.0 -> 1.5, back where it was. A 1.0 mm cavity clearance on a 310 mm span
+# is a number that only works on paper: ASA moves ~0.4-0.7% on cooling, which is
+# 1.2-2.2 mm across this part, and none of that was budgeted anywhere.
+MOD_W, MOD_H, CLR = 310.0, 131.0, 1.5   # MEASURED
 # ROW_H is set by what actually needs flat bezel, which is NOT the bores.
 # Sizing the band to the O11.8 bore gave 38 mm for a 20.5 mm footprint and put
 # the whole difference straight into overall height.
@@ -49,7 +55,14 @@ ROW_H = 18.0
 # OUTBOARD of the gasket: a continuous foam band cannot share the brim face
 # with the fasteners the way a punched flat gasket did.
 RIM = 11.0
-DIVIDER = RIM - 6.0
+# The aperture is set by the BOND BAND, not by the active area - full reasoning
+# at APER_W below. It is DEFINED here because DIVIDER depends on it.
+BOND_BAND = 5.0                     # flat land for a single bead
+# DIVIDER was "RIM - 6.0", and the 6 was BOND_BAND + CLR evaluated at CLR = 1.0.
+# A typed constant that silently encoded another parameter: the moment CLR went
+# to 1.5 the bezel came out 10.25 above the control row and 9.75 below, and the
+# balance assert caught it. Now it is the identity itself.
+DIVIDER = RIM - BOND_BAND - CLR
 BTN_DOME, KNOB_OD, BTN_NUT_R = 17.5, 20.5, 8.0
 CTRL_MAX = max(BTN_DOME, KNOB_OD)   # whatever is biggest governs the bezel
 INT_W = MOD_W + 2*CLR
@@ -73,7 +86,7 @@ DISP_CX = 0.0
 DISP_CY =  INT_H/2 - (MOD_H + 2*CLR)/2               # +22.0, display sits high
 ROW_CY  = -INT_H/2 + ROW_H/2                         # -69.5, control row below
 DEPTH, FACE_T, WALL, COVER_T = 22.0, 2.5, 3.5, 6.0
-MOD_D = 15.0                        # MEASURED panel depth, face to back
+MOD_D = 12.0                        # MEASURED panel depth, face to back
 R_OUT = 14.0
 
 # -- control row -----------------------------------------------------------
@@ -90,7 +103,6 @@ ENC_X = -134.5                                       # 44.5 clear of the last ke
 # posts - the silicone only has to SEAL - so 5.0 is enough land, and the extra
 # 2 mm per side goes into the aperture instead of the bezel. What shows there
 # is the module's own black border, not housing.
-BOND_BAND = 5.0                     # flat land for a single bead
 APER_W, APER_H = MOD_W - 2*BOND_BAND, MOD_H - 2*BOND_BAND
 assert APER_W > ACT_W and APER_H > ACT_H, (
     f"aperture {APER_W}x{APER_H} would mask active pixels ({ACT_W}x{ACT_H})")
@@ -857,7 +869,28 @@ assert DSP_POST_H > 0, (
 # penetration in the weather face - counterbored for a bonded sealing washer,
 # the same call the brim screws now make. M3 x 14: 3.5 of cover under the
 # counterbore + 4.5 of post + 5 into the standoff.
-DSP_SCREW, DSP_CB_D, DSP_CB_DEEP = 3.4, 7.0, 2.5   # M3 clearance, washer seat
+# CB 2.5 -> 1.5. The counterbore is the only dial on this joint, and MOD_D
+# 15 -> 12 made it load-bearing: the panel moved 3 mm back, the post grew 3 mm
+# with it, and the screw that used to be a stock M3 x 14 landed at 15.5 - which
+# is not a length anybody sells. At CB 1.5 the grip is 11.5, a stock M3 x 16
+# engages 4.5 of the standoff's 6, and the cover keeps 4.5 mm of solid material
+# under a sealed penetration instead of 3.5. Every direction is better.
+DSP_SCREW, DSP_CB_D, DSP_CB_DEEP = 3.4, 7.0, 1.5   # M3 clearance, washer seat
+# The module's own M3 standoff depth. ASSUMED, and the module has now been wrong
+# twice on dimensions that were also "known" - this one decides whether ANY stock
+# screw fits, so it is worth a caliper before the cover is printed.
+MOD_STANDOFF_DEEP = 6.0
+M3_STOCK = [6, 8, 10, 12, 14, 16, 20, 25, 30]
+DSP_GRIP = (COVER_T - DSP_CB_DEEP) + DSP_POST_H   # material the screw crosses
+# Pick a length that EXISTS and lands its engagement in the window - deep enough
+# to hold, shallow enough not to bottom out in the standoff. The old code did
+# grip + 5.0 and asserted only "<= 16.0", so it happily returned 15.5.
+DSP_SCREW_L = next((L for L in M3_STOCK
+                    if 4.0 <= L - DSP_GRIP <= MOD_STANDOFF_DEEP - 1.0), None)
+assert DSP_SCREW_L is not None, (
+    f"panel screw crosses {DSP_GRIP:.1f} and needs 4.0-{MOD_STANDOFF_DEEP-1.0:.1f} "
+    f"of thread: no stock M3 lands in that window. DSP_CB_DEEP ({DSP_CB_DEEP}) is "
+    f"the dial - every 1 mm deeper takes 1 mm off the grip")
 # -- display locating recess ----------------------------------------------
 # The panel is glued to a flat land with a wet bead under it and, until now,
 # nothing at all holding it in place: the cavity pinched it to +/-1 on three
@@ -871,7 +904,12 @@ DSP_SCREW, DSP_CB_D, DSP_CB_DEEP = 3.4, 7.0, 2.5   # M3 clearance, washer seat
 # goes in the way anyone actually fits a glass part - bottom edge onto the
 # rail, swing the top in. Tight on all four and you would have to slide it
 # straight down through a bead of wet silicone.
-MOD_FIT = 0.35                      # per side, once the pads have it
+# 0.35 -> 0.80 per side. THE INDEX FEATURES WERE THE BINDING CONSTRAINT on the
+# first printed shell - not the cavity, the rails and pads. 0.35 a side over a
+# 310 mm span is inside the noise of ASA shrinkage on a part this size, so the
+# panel jammed on the index before it ever reached the cavity wall. An index
+# locates; it does not need to be a press fit, and at this length it must not be.
+MOD_FIT = 0.80                      # per side, once the pads have it
 MOD_REC_H = 2.0                     # rail and pad height off the bond land
 MOD_PAD_PROUD = CLR - MOD_FIT       # how far a pad stands off the cavity wall
 MOD_RAIL_L, MOD_RAIL_X = 80.0, 70.0 # two segments, centre left open for flex
@@ -941,7 +979,7 @@ _bz_up = _ap_bot - (ROW_CY + CTRL_MAX/2)
 _bz_dn = (ROW_CY - CTRL_MAX/2) + OUT_H/2
 assert abs(_bz_up - _bz_dn) < 1e-9, (
     f"bezel round the control row is unbalanced: {_bz_up:.2f} above vs "
-    f"{_bz_dn:.2f} below - DIVIDER = RIM - 6 no longer solves it")
+    f"{_bz_dn:.2f} below - DIVIDER = RIM - BOND_BAND - CLR no longer solves it")
 _feet = [(x, BTN_DOME) for x in BTN_X] + [(ENC_X, KNOB_OD)]
 for _i in range(len(_feet)):
     for _j in range(_i+1, len(_feet)):
@@ -1106,7 +1144,7 @@ _bb = f.bounding_box()
 assert _bb.size.X <= BED and _bb.size.Y <= BED, (
     f"shell is {_bb.size.X:.0f} x {_bb.size.Y:.0f}, will not fit a {BED:.0f} bed")
 
-export_step(f, "cad/out/helm_shell_revC.stp")
+export_step(f, "cad/out/helm_shell_revD.stp")
 print(f"SHELL  vol={f.volume/1000:6.0f} cm3 solids={len(f.solids())} "
       f"bbox={_bb.size.X:.0f}x{_bb.size.Y:.0f}x{_bb.size.Z:.0f}   brim bolts={len(BOLTS)}")
 print(f"       ONE PIECE on a {BED:.0f} bed: {(BED-_bb.size.X)/2:.1f} mm/side spare in x, "
@@ -1855,12 +1893,12 @@ if len(c.solids()) != 1:
             t.volume, t.bounding_box().min.X, t.bounding_box().max.X,
             t.bounding_box().min.Y, t.bounding_box().max.Y,
             t.bounding_box().min.Z, t.bounding_box().max.Z) for t in _iso))
-export_step(c, "cad/out/helm_cover_revC.stp")
+export_step(c, "cad/out/helm_cover_revD.stp")
 _cb = c.bounding_box()
 print(f"COVER  vol={c.volume/1000:6.0f} cm3 solids={len(c.solids())} "
       f"bbox={_cb.size.X:.0f}x{_cb.size.Y:.0f}x{_cb.size.Z:.0f}")
 
-json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T,
+json.dump({"REV":"D","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T,
            "RIM":RIM,"BOLT_INSET":BOLT_INSET,"GASKET_W":GASKET_W,
            "LAND_OUT":LAND_OUT,"LAND_WEB":LAND_WEB,"LAND_IN":LAND_IN,
            "GASKET_T":GASKET_T,"GASKET_C":GASKET_C,"GASKET_D_COVER":GASKET_D_COVER,
@@ -1922,7 +1960,8 @@ json.dump({"REV":"C","OUT_W":OUT_W,"OUT_H":OUT_H,"DEPTH":DEPTH,"COVER_T":COVER_T
            "DSP_POSTS":[[_p[0],_p[1]] for _p in DSP_POSTS],
            "N_DSP_POSTS":len(DSP_POSTS),"DSP_POST_H":DSP_POST_H,
            "DSP_CB_D":DSP_CB_D,
-           "DSP_SCREW_L":(COVER_T - DSP_CB_DEEP) + DSP_POST_H + 5.0,
+           "DSP_SCREW_L":DSP_SCREW_L,"DSP_GRIP":DSP_GRIP,"DSP_CB_DEEP":DSP_CB_DEEP,
+           "MOD_STANDOFF_DEEP":MOD_STANDOFF_DEEP,
            "TIE_N":len(TIE_TOP) + len(TIE_BOT),"TIE_SLOT":TIE_SLOT,
            "VENT_D":VENT_D,
            "WIRE_DAM_X":WIRE_DAM_X,"WIRE_DAM_Y":WIRE_DAM_Y,
@@ -1985,9 +2024,7 @@ assert AIR_GAP > 3.0, (
     f"the display")
 
 # 4. the panel screws have to be long enough to reach, and not bottom out
-_grip = (COVER_T - DSP_CB_DEEP) + DSP_POST_H     # material the screw passes
-DSP_SCREW_L = _grip + 5.0                        # + standoff engagement
-assert DSP_SCREW_L <= 16.0, f"panel screw wants {DSP_SCREW_L:.1f} mm - odd length"
+
 
 print(f"ASSY   front face 0 | land {_z_land} | panel back {_z_panel} | "
       f"brim {_z_brim} | foam {GASKET_C} | cover {_z_cover}")

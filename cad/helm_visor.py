@@ -1,5 +1,5 @@
 """
-Helm Display Visor  (rev C)  -- HINGED, HAND-ADJUSTABLE
+Helm Display Visor  (rev D)  -- HINGED, HAND-ADJUSTABLE
 =======================================================
 Tilts by hand on a pair of detent pivots at the top of the housing.
 
@@ -177,7 +177,7 @@ v = Pos(X_MID, PIV_Y, PIV_Z) * v
 assert len(v.solids()) == 1, (
     f"the visor is {len(v.solids())} solids - the hood stands {HOOD_RISE:.1f} off "
     f"the axis and the r{R_EAR} ears do not reach it without the crank")
-export_step(v, "cad/out/helm_visor_revC.stp")
+export_step(v, "cad/out/helm_visor_revD.stp")
 bb = v.bounding_box()
 print(f"VISOR  vol={v.volume/1000:6.1f} cm3 solids={len(v.solids())} "
       f"bbox={bb.size.X:.0f}x{bb.size.Y:.0f}x{bb.size.Z:.0f}")

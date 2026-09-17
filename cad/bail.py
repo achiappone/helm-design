@@ -314,8 +314,8 @@ def arm_at(sx):
 
 # ---- can the arms be fitted to the unit at all? --------------------------
 # The one check neither part had: intersect the placed arm with the housing.
-_SHELL = import_step("cad/out/helm_shell_revC.stp")
-_COVER = import_step("cad/out/helm_cover_revC.stp")
+_SHELL = import_step("cad/out/helm_shell_revD.stp")
+_COVER = import_step("cad/out/helm_cover_revD.stp")
 _UNIT = Compound([_SHELL, Pos(0, 0, BACK) * Rot(180, 0, 0) * _COVER])
 # SWEPT, not checked at rest. At 0 deg the arms clear by construction; the
 # question is whether they still clear at the ends of the range, and the answer

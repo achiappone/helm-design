@@ -30,12 +30,12 @@ LINEAR, ANGULAR = 0.01, 5.0          # mm, degrees
 #   visor  hood plate has its normal along +Y, i.e. standing on edge. Roll it
 #          down so the hood is flat and the ears point up.
 #   bracket same: the plate is vertical in the file.
-PARTS = [("helm_shell_revC",   None,            "front A-surface down"),
-         ("helm_cover_revC",   None,            "bumps down"),
+PARTS = [("helm_shell_revD",   None,            "front A-surface down"),
+         ("helm_cover_revD",   None,            "bumps down"),
          # The visor lies flat now: its hood hangs below the pivot axis by
          # R_EAR - VIS_T/2, so the underside is tangent to the ears. Hood normal
          # is +Y in the file, so roll it down.
-         ("helm_visor_revC",   Rot(-90, 0, 0),  "hood underside down, ears up"),
+         ("helm_visor_revD",   Rot(-90, 0, 0),  "hood underside down, ears up"),
          # Louvre tips and the 3 mm rim round them are the first layer - a
          # continuous perimeter loop plus the four boss ends. The ribs and fan
          # pads then land on the slat tops at 6 mm pitch, the walls go up, the

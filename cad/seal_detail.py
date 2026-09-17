@@ -28,8 +28,8 @@ assert abs(GASKET_OUT + GASKET_W + LAND_IN - RIM) < 1e-6, (
     f"brim bands {GASKET_OUT:.2f} + {GASKET_W:.2f} + {LAND_IN:.2f} do not close "
     f"on RIM {RIM:.2f} - housing.json and this detail disagree about the brim")
 
-SHELL = import_step("cad/out/helm_shell_revC.stp")
-COVER = import_step("cad/out/helm_cover_revC.stp")
+SHELL = import_step("cad/out/helm_shell_revD.stp")
+COVER = import_step("cad/out/helm_cover_revD.stp")
 # Same stack-up as cad/assembly.py: the cover lands on COMPRESSED foam, so its
 # inner face is DEPTH + GASKET_C, not DEPTH. Asserted against the real hole
 # below rather than trusted.

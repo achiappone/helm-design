@@ -159,14 +159,14 @@ if __name__ == "__main__":
         #  - az=180 with -el puts model +y up and model -x on screen right.
         #    Viewer's right IS model -x, so this is the as-installed view;
         #    at az=0 the render comes out upside down AND mirrored.
-        ("helm_shell_revC",  "rev C front face - straight on", 180,-90),
-        ("helm_shell_revC",  "rev C front face - raking",      180,-62),
-        ("helm_shell_revC",  "rev C - three-quarter",          150,-38),
-        ("helm_shell_revC",  "rev C - rear / inside",           26, 52),
-        ("helm_cover_revC",  "rev C rear cover",            30, 44),
+        ("helm_shell_revD",  "rev D front face - straight on", 180,-90),
+        ("helm_shell_revD",  "rev D front face - raking",      180,-62),
+        ("helm_shell_revD",  "rev D - three-quarter",          150,-38),
+        ("helm_shell_revD",  "rev D - rear / inside",           26, 52),
+        ("helm_cover_revD",  "rev D rear cover",            30, 44),
         
         # still on rev B pivots - these need rebuilding for rev C
-        ("helm_visor_revC",  "Visor - hinged, 16-tooth detent", 28, 30),
+        ("helm_visor_revD",  "Visor - hinged, 16-tooth detent", 28, 30),
         ("bail_base_revA",  "Bail base plate",             200,-25),
         ("bail_arm_revA",   "Bail arm - x2",                25, 18),
         ("lp24_shroud_revD", "LP-24 shroud",                 35, 22),
@@ -180,8 +180,8 @@ if __name__ == "__main__":
     from build123d import import_step as _imp, Pos, Box, Align, export_step
     import json as _json
     _H = _json.load(open("cad/out/housing.json"))
-    _shell = _imp("cad/out/helm_shell_revC.stp")
-    _cover = _imp("cad/out/helm_cover_revC.stp")
+    _shell = _imp("cad/out/helm_shell_revD.stp")
+    _cover = _imp("cad/out/helm_cover_revD.stp")
     _bx = (_H["BLK_X0"] + _H["BLK_X1"]) / 2
     _by = -(_H["BLK_Y0"] + _H["BLK_Y1"]) / 2
     _crop = _cover & (Pos(-_bx, _by, -_H["PI_BUMP_H"]/2)

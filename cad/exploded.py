@@ -16,9 +16,9 @@ from render import render_multi, png
 H = json.load(open("cad/out/housing.json"))
 B = json.load(open("cad/out/bail.json"))
 DISP_CX = H["DISP_CX"]
-SHELL = _solid("cad/out/helm_shell_revC.stp")
-COVER = _solid("cad/out/helm_cover_revC.stp")
-VISOR = _solid("cad/out/helm_visor_revC.stp")
+SHELL = _solid("cad/out/helm_shell_revD.stp")
+COVER = _solid("cad/out/helm_cover_revD.stp")
+VISOR = _solid("cad/out/helm_visor_revD.stp")
 BAIL_B  = _solid("cad/out/bail_base_revA.stp")
 BAIL_A  = _solid("cad/out/bail_arm_revA.stp")
 SHROUD_F = _solid("cad/out/heatsink_shroud_revD.stp")

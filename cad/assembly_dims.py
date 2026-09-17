@@ -16,7 +16,7 @@ from build123d import *
 from render import render_multi, png
 
 H = json.load(open("cad/out/housing.json"))
-assert H.get("REV") == "C", f"housing.json is rev {H.get('REV')}, these views are rev C"
+assert H.get("REV") == "D", f"housing.json is rev {H.get('REV')}, these views are rev D"
 OW, OH, DEPTH, CT = H["OUT_W"], H["OUT_H"], H["DEPTH"], H["COVER_T"]
 APW, APH = H["APER_W"], H["APER_H"]
 DCX, DCY = H["DISP_CX"], H["DISP_CY"]
@@ -40,9 +40,9 @@ assert all(abs((BTN_X[i] - BTN_X[i+1]) - BTN_PITCH) < 1e-9 for i in range(3)), (
 assert ROW_CY + BTN_D/2 < H["APER_Y"] - APH/2, (
     "control row is not below the display aperture - this drawing is rev B again")
 
-SHELL = import_step("cad/out/helm_shell_revC.stp")
-COVER = import_step("cad/out/helm_cover_revC.stp")
-VISOR = import_step("cad/out/helm_visor_revC.stp")
+SHELL = import_step("cad/out/helm_shell_revD.stp")
+COVER = import_step("cad/out/helm_cover_revD.stp")
+VISOR = import_step("cad/out/helm_visor_revD.stp")
 # Cover placement is assembly.py's, not this file's: Rot(180,0,0) then z up by
 # DEPTH + COVER_T. The brim seal is closed-cell foam that the screws crush, so
 # the cover rides on the COMPRESSED thickness - take that from housing.json the

@@ -28,7 +28,7 @@ from render import render_multi, png
 
 H = json.load(open("cad/out/housing.json"))
 S = json.load(open("cad/out/shroud.json"))
-COVER = import_step("cad/out/helm_cover_revC.stp")
+COVER = import_step("cad/out/helm_cover_revD.stp")
 SHROUD = import_step("cad/out/heatsink_shroud_revD.stp")
 sys.path.insert(0, "cad")
 from parts_lib import finned

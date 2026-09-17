@@ -64,16 +64,16 @@ TOOLS = [
 
 # ══════════════════════════════════════════════════════════ 2. PRINTED PARTS
 PRINTED = [
-    ("Front shell", "helm_shell_revC", "front A-surface down", "none",
+    ("Front shell", "helm_shell_revD", "front A-surface down", "none",
      "The face is the bed. Nothing stands proud of it, which is why it prints "
      "with no support at all &mdash; keep it that way if you modify anything."),
-    ("Rear cover", "helm_cover_revC", "bumps down", "under the plate",
+    ("Rear cover", "helm_cover_revD", "bumps down", "under the plate",
      f"The one part that needs support. It rests on the two bay bumps and the "
      f"fitting blocks &mdash; about 24,000&nbsp;mm&sup2; &mdash; and its plate is then a flat "
      f"roof {H['PI_BUMP_H']:.0f}&nbsp;mm up spanning between them. The support interface "
      f"lands on the weather face, where a witness mark does not matter, and the "
      f"cord&rsquo;s sealing face ends up as the top surface where it prints smooth."),
-    ("Sun visor", "helm_visor_revC", "hood underside down, ears up", "none",
+    ("Sun visor", "helm_visor_revD", "hood underside down, ears up", "none",
      "The hood hangs below the ear rims by design so the part lies flat."),
     ("Fan shroud", "heatsink_shroud_revD", "louvre tips + rim on the bed, walls up", "none",
      "The louvre slats are 45&deg; on purpose and print unaided. Open-end-down "
@@ -134,13 +134,13 @@ SLICER = [
                           "in <i>Quality &rsaquo; Precision &rsaquo; X-Y hole compensation</i>. "
                           "Every bore on this build &mdash; encoder, buttons, gland, vent "
                           "&mdash; depends on it"),
-    ("Enclosure", "Required. A 334&nbsp;mm ASA plate will lift its corners in a draught. "
+    ("Enclosure", f"Required. A {H['OUT_W']:.0f}&nbsp;mm ASA plate will lift its corners in a draught. "
                   "Part cooling fan low (ASA wants the heat), <i>Filament &rsaquo; Cooling</i>"),
     ("Bed", f"90&ndash;100&nbsp;&deg;C, brim on both big plates &mdash; "
             f"<i>Others &rsaquo; Brim type: Outer brim only</i>. <b>Brim width 5&nbsp;mm "
-            f"maximum on the shell and cover.</b> They are 334 wide on a "
-            f"{H['BED']:.0f} bed, so 334 + 2&times;brim has to stay under "
-            f"{H['BED']:.0f} &mdash; at 8&nbsp;mm you are exactly on the limit"),
+            f"maximum on the shell and cover.</b> They are {H['OUT_W']:.0f} wide on a "
+            f"{H['BED']:.0f} bed, so {H['OUT_W']:.0f} + 2&times;brim has to stay under "
+            f"{H['BED']:.0f} &mdash; that leaves {(H['BED']-H['OUT_W'])/2:.1f}&nbsp;mm a side"),
     ("Supports", "Only the rear cover, and only under the plate"),
 ]
 

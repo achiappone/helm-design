@@ -118,7 +118,7 @@ def tile(i, cap, note=""):
     return (f'<figure class="tile"><div class="vp"><img src="{img(i)}" alt="{cap}" loading="lazy"></div>'
             f'<figcaption><span class="cap">{cap}</span>{n}</figcaption></figure>')
 
-HTML = f"""<title>Helm Housing rev C</title>
+HTML = f"""<title>Helm Housing rev {H["REV"]}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;450;600&display=swap">
@@ -608,7 +608,7 @@ a{{color:var(--accent)}}
 
 <section>
   <div class="sheet-hd"><h2>Hinged visor</h2><span class="rev">REV {H["REV"]}</span>
-    <span class="file">helm_visor_revC.stp</span></div>
+    <span class="file">helm_visor_revD.stp</span></div>
   <div class="grid">
     {pic("cad/out/asm_tilt_flat.png","Flat","0&deg;. Where it sits at rest.")}
     {pic("cad/out/asm_tilt_up.png","Tilted up","+10&deg;.")}
@@ -640,7 +640,7 @@ a{{color:var(--accent)}}
 
 <section>
   <div class="sheet-hd"><h2>Housing parts</h2><span class="rev">REV {H["REV"]}</span>
-    <span class="file">helm_shell_revC.stp &middot; helm_cover_revC.stp &middot; helm_visor_revC.stp</span></div>
+    <span class="file">helm_shell_revD.stp &middot; helm_cover_revD.stp &middot; helm_visor_revD.stp</span></div>
   <div class="grid">
     {tile(0,"Front shell - face",f"Four soft keys at {H['BTN_PITCH']:.0f} mm pitch in a row UNDER the screen, encoder at the viewer&rsquo;s-right end. Visor pivots at the top. Nothing else on the face.")}
     {tile(2,"Front shell - three-quarter","The brim and the cord groove run all the way round the back of this part. Straight walls, no taper.")}
