@@ -41,9 +41,13 @@ try:
     SD = json.load(open("cad/out/subdims.json"))
 except FileNotFoundError:
     SD = []
+_SUBPIC_USED = set()
+
+
 def subpic(name, note=None):
     """note= overrides the caption subassemblies.py wrote - used only where a
     feature is mid-move and the page must not quote a coordinate for it."""
+    _SUBPIC_USED.add(name)
     for v in SD:
         if v["name"] == name:
             return pic(f"cad/out/{v['name']}.png", v["title"],
@@ -273,6 +277,8 @@ HTML = f"""<title>Helm Housing rev {H["REV"]}</title>
   --warn:#9a5709; --warn-soft:#f8ecd9; --crit:#9e2f28; --crit-soft:#f8dedb;
   --ok:#276b3e; --ok-soft:#dcefe1;
 }}
+ol.fit {{ margin:10px 0 18px; padding-left:22px; }}
+ol.fit li {{ margin:7px 0; line-height:1.55; }}
 .viewer {{ border:1px solid var(--line); border-radius:6px; background:var(--viewport);
   padding:10px; margin:14px 0 18px; }}
 /* The canvas is LIGHT GREY IN BOTH THEMES, deliberately not var(--sunk).
@@ -924,7 +930,48 @@ a{{color:var(--accent)}}
     {subpic("sub_fittings_context")}
     {subpic("sub_fittings_detail")}
     {subpic("sub_gps")}
+    {subpic("sub_coax_path")}
+    {subpic("sub_trunnion_where")}
+    {subpic("sub_trunnion_nut")}
   </div>
+  <h3>Fitting the tilt-knob nylocs</h3>
+  <p><b>Two M5 316 nylocs, one in each end lug of the rear cover, and they go in before
+     anything else.</b> The pocket is an <b>{H["TRUN_NUT_AF"]:.0f} mm A/F hex,
+     {H["TRUN_NUT_DEEP"]:.0f} mm deep</b>, centred at
+     <b>({H["TRUN_X"]-H["TRUN_WEB_T"]:.0f},&thinsp;{-H["TILT_Y"]:.1f},&thinsp;{-H["TRUN_STAND"]:.0f})</b>
+     and mirrored at &minus;x. <b>It opens into the bay</b>, so from inside the cover you are
+     looking straight down it; from the back of the part it is invisible. Find the
+     &Oslash;{H["TRUN_BORE"]} bolt bore on the lug&rsquo;s outer face and the hex is on the same
+     axis, reached from the other side.</p>
+  <div class="flag w"><h3>&#9888; This pocket used to be sealed shut</h3>
+  <p>Through rev D it was cut 6 mm into the lug from a face that has the bay&rsquo;s own
+     <b>3.5 mm end wall</b> 1 mm behind it. The pocket was the right size and had <b>no way
+     in</b> &mdash; a {H["TRUN_NUT_AF"]/2/math.cos(math.pi/6)*2:.2f} mm across-corners nyloc,
+     reachable only through a &Oslash;{H["TRUN_BORE"]} bolt bore. It would have printed as a
+     void nobody could ever put a nut into, and the joint the whole tilt mechanism hangs on
+     could not have been assembled. The hex now starts at the bay.</p>
+  <p><b>It costs two penetrations.</b> The bolt bore is now a through path from weather to
+     bay, so each tilt stud takes a <b>bonded sealing washer under the bail arm</b>, on the
+     lug&rsquo;s outer face. The boundary tally is {len(H["DSP_POSTS"])} panel screws +
+     <b>2 tilt studs</b> + 1 potted fan-lead pass.</p></div>
+  <ol class="fit">
+    <li><b>Work from INSIDE the cover.</b> The hex runs right through the bay&rsquo;s end wall,
+        so the nut goes in from the open bay and is guided by flats the whole way to its seat.
+        It is a horizontal hole in a part that prints bumps-down and it sits vertex-up, so it
+        bridges itself and takes no support &mdash; but stringing collects in the corners.
+        Clear it with a pick before you try the nut.</li>
+    <li><b>Try it dry.</b> It should go in under thumb pressure. If it fights, your X-Y hole
+        compensation is off: dress the flats with a needle file. <b>Do not drive it in</b> &mdash;
+        there are only {H["TRUN_WEB_T"] - H["TRUN_NUT_DEEP"]:.0f} mm of material behind the
+        pocket and splitting it scraps the cover.</li>
+    <li><b>Nylon end toward the mouth.</b> The M5 comes in from the OUTBOARD side, so it has to
+        reach steel threads before it reaches nylon. Collar facing you as you push it in.</li>
+    <li><b>Push flush and tack it</b> with a smear of silicone at the mouth &mdash; not on the
+        threads. It only has to stay put long enough to start the bolt; once the knob is torqued
+        the nut is trapped.</li>
+    <li><b>Do both lugs now.</b> Once a bail arm is on, the pocket is behind it and the knob
+        cannot be started without a nut already in there.</li>
+  </ol>
   <div class="flag">
     <h3>The thermal path &mdash; and the step that is honestly weak</h3>
     <p>One heatsink, <b>{H["HS_W"]:.0f} &times; {H["HS_L"]:.0f} &times; {H["HS_H"]:.0f}</b>, bonded
@@ -989,5 +1036,14 @@ a{{color:var(--accent)}}
 <footer><span>Helm Print Package &middot; rev {H["REV"]} &middot; {NPARTS} printed parts</span><span>every dimension read from the geometry</span></footer>
 </div>
 """
+# pic() base64-embeds the image, so the path never appears in the HTML - the
+# first cut of this check looked for it and failed on every view including the
+# ones that were placed. Track the calls instead.
+_unshown = sorted({v["name"] for v in SD} - _SUBPIC_USED)
+assert not _unshown, (
+    "subassembly views rendered but never placed on the page: "
+    + ", ".join(_unshown)
+    + " - add a subpic() for each, or stop rendering it")
+
 pathlib.Path("cad/out/review.html").write_text(HTML)
 print("wrote", len(HTML)//1024, "KB")

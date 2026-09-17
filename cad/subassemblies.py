@@ -278,6 +278,68 @@ out.append({"name": "sub_coax_path",
                     f"stock jumper covers it. Use a RIGHT-ANGLE SMA on the bulkhead end; "
                     f"RG316 bends to 10 mm radius and there is less than that in line."})
 
+# ── the tilt-knob nyloc: where it is, and what it looks like seated ───────
+# "I can't find them" - fair. Two pockets, both on the rear cover, and they are
+# hard to spot for three reasons at once: they face SIDEWAYS toward the
+# centreline, the trunnions are on the BED side when the cover prints
+# bumps-down, and the mouth is an 8 mm hex in a 12 mm web.
+#
+# Two views, because "where is it" and "what does it look like" are different
+# questions. The first was answered with a translucent plate and it was mush;
+# a section and a highlighted locator are the honest answers.
+from parts_lib import nyloc as _nyloc
+TX, WT, ST = H["TRUN_X"], H["TRUN_WEB_T"], H["TRUN_STAND"]
+TL, TB = H["TRUN_LAND"], H["TRUN_BORE"]
+AF, ND = H["TRUN_NUT_AF"], H["TRUN_NUT_DEEP"]
+_ty, _tz = -H["TILT_Y"], -ST
+HOT = (0.90, 0.36, 0.10)
+
+# THE ENTRY POINT. The first cut of this highlighted the trunnion in orange from
+# behind - which shows the OUTBOARD face and its bolt bore, i.e. the one hole
+# that is NOT where the nut goes. Useless, and the owner said so.
+#
+# The fix is not a camera angle, it is the crop: keep only what lies OUTBOARD of
+# the mouth plane, so the web's inboard face - the face with the hex in it - is
+# the nearest surface and nothing can stand in front of it.
+_mouth_x = -(TX - WT)
+_bay_x = H["SDR_CHAN_OUT"] if False else (abs(H["PI_BUMP_CX"]) + H["PI_BUMP_L"]/2 - H["WALL"])
+_tight = Pos(-(_bay_x + (TX - WT + ND - _bay_x)/2 + 0.2), _ty, _tz) * Box(
+    TX - WT + ND - _bay_x, 60, 64, align=(Align.CENTER,)*3)
+rgba, _ = render_multi([(_asm(COVER & _tight), (0.16, 0.42, 0.78))],
+                       az=252, el=18, W=1000, H=800)
+png("cad/out/sub_trunnion_where.png", rgba)
+out.append({"name": "sub_trunnion_where",
+            "title": "TILT-KNOB NYLOC - the entry point",
+            "note": f"<b>This is the hole the nut goes in.</b> An "
+                    f"{AF:.0f}&nbsp;mm A/F hex, seen from inside the bay - which is where the nut goes "
+                    f"in. It runs through the bay&rsquo;s end wall and on to its seat at "
+                    f"|x|&nbsp;{TX-WT+ND:.0f}. It sits <b>vertex up</b>, and that is "
+                    f"deliberate: the pocket is a horizontal blind hole in a part that prints "
+                    f"bumps-down, and a vertex-up hex bridges itself. A flat-up hex would need "
+                    f"support inside a hole 8 mm across. The round bore behind it is the "
+                    f"&Oslash;{TB} the M5 comes through from the other side."})
+
+# WHAT IT LOOKS LIKE SEATED. Section on the bore axis: az=0/el=0 is an elevation
+# along +Y, and the renderer draws far-first, so the NEAR half is the one to cut
+# away or the camera sees the outside of the remaining block.
+_crop = Pos(-TX + 4, _ty, _tz) * Box(72, 80, 76, align=(Align.CENTER,)*3)
+_half = Pos(-TX + 4, _ty - 40, _tz) * Box(220, 80, 220, align=(Align.CENTER,)*3)
+_sec = (COVER & _crop) - _half
+_nut = (Pos(-(TX - WT), _ty, _tz) * Rot(0, -90, 0) * _nyloc(AF, ND - 1.0, TB)) - _half
+rgba, _ = render_multi([(_sec, (0.16, 0.42, 0.78)), (_nut, STEEL)],
+                       az=0, el=0, W=1100, H=820)
+png("cad/out/sub_trunnion_nut.png", rgba)
+out.append({"name": "sub_trunnion_nut",
+            "title": "TILT-KNOB NYLOC - sectioned, nut seated",
+            "note": f"Cut on the bore axis. The hex pocket is <b>{AF:.0f} mm A/F &times; "
+                    f"{ND:.0f} deep</b> seated at <b>|x|&nbsp;{TX-WT+ND:.0f}</b>, and the hex runs all "
+                    f"the way back to the BAY so the nut can be fitted from inside the cover - "
+                    f"through rev D it stopped at the lug and was sealed shut behind the bay "
+                    f"wall. The M5 comes the other way, from OUTBOARD, through "
+                    f"{TL:.0f} mm of land and {WT:.0f} of web, and pulls into the nyloc: steel "
+                    f"against steel with the ASA only in compression, which is the one thing it "
+                    f"is good at. <b>{WT - ND:.0f} mm of web stays behind the nut.</b>"})
+
 json.dump(out, open("cad/out/subdims.json", "w"), indent=1)
 for v in out:
     print(f"  {v['name']}.png  -  {v['title']}")

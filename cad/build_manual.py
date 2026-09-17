@@ -158,6 +158,38 @@ SLICER = [
 # ══════════════════════════════════════════════════════════ 3. THE ORDER
 # Lifted from cad/assembly_check.py's stages, which is the sequence it verifies.
 STEPS = [
+ ("Set the two tilt-knob nylocs, cover straight off the bed",
+  [f"<b>Two M5 316 nylocs, one per trunnion, and they go in FIRST.</b> The pocket "
+   f"is an <b>{H['TRUN_NUT_AF']:.0f} mm A/F hex, {H['TRUN_NUT_DEEP']:.0f} mm deep</b>, "
+   f"at <b>x&nbsp;&plusmn;{H['TRUN_X']-H['TRUN_WEB_T']:.0f}</b> in the trunnion web. It "
+   f"faces INBOARD, toward the centre of the cover - which is why it is easy to miss "
+   f"looking at the back of the part square on. Find the "
+   f"&Oslash;{H['TRUN_BORE']} bolt bore on the trunnion&rsquo;s outboard face; the hex is "
+   f"directly opposite it, {H['TRUN_WEB_T']:.0f} mm away on the same axis.",
+   f"<b>Work from INSIDE the cover.</b> The hex runs right through the bay's end wall, so "
+   f"the nut goes in from the open bay and is on flats the whole way to its seat. Through "
+   f"rev D this pocket was SEALED SHUT behind that wall and no nut could be fitted at all - "
+   f"if you are holding an older print, check it before you plan around it.",
+   f"<b>Clear the pocket before you try the nut.</b> Horizontal hole, printed bumps-down, "
+   f"and it sits vertex-up so it bridges itself - no support goes in there - but stringing "
+   f"collects in the corners. A dental pick or a 2 mm drill turned by hand.",
+   f"<b>Test it dry.</b> It should go in under thumb pressure. If it fights, your X-Y "
+   f"hole compensation is off: dress the flats with a needle file or warm the nut, and "
+   f"do NOT drive it in. There are only {H['TRUN_WEB_T'] - H['TRUN_NUT_DEEP']:.0f} mm of "
+   f"web behind the pocket and splitting it scraps the cover.",
+   f"<b>Nylon end toward the mouth.</b> The M5 enters from OUTBOARD, so it must find "
+   f"steel threads before it reaches the nylon. Collar facing you as you push it in.",
+   f"<b>Push it flush and tack it.</b> A smear of silicone at the mouth - not on the "
+   f"threads - stops it dropping out while you handle the part. It only has to stay put "
+   f"long enough to start the bolt; once the knob is torqued the nut is trapped.",
+   f"<b>Do both now.</b> Once a bail arm is on the lug the pocket is behind it, and the "
+   f"knob cannot be started without a nut already in there.",
+   f"<b>Bonded sealing washer under each bail arm.</b> Opening the pocket into the bay makes "
+   f"the bolt bore a through path from weather to box - these two studs are on the pressure "
+   f"boundary now, alongside the panel screws and the potted fan pass."],
+  "sub_trunnion_where",
+  "orange is the trunnion the nut goes in - seen from BEHIND, which is the only "
+  "side they are on. There is an identical one at +x."),
  ("Tap the three fittings, cover on the bench",
   [f"The gland, the vent and the coax entry all thread into printed blocks beside "
    f"the bay bumps. <b>Do this first, with the cover bare.</b> Once the boards, the "

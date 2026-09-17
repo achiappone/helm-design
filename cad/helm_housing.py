@@ -1913,17 +1913,55 @@ for sx in (-1, 1):
     assert _want*0.95 < _got < _want*1.45, (
         f"trunnion bore removed {_got:.0f} mm3, expected {_want:.0f} plus a "
         f"teardrop - it is cutting outward into air instead of through the boss")
-    # the hex pocket, cut from the web's INBOARD face so the nut drops in from
-    # the middle of the back where your fingers are, not from inside the box
+    # THE HEX POCKET, AND THE WALL THAT USED TO SEAL IT SHUT.
+    #
+    # It was cut 6 mm into the web from the web's INBOARD face at |x|=144, under
+    # a comment claiming the nut "drops in from the middle of the back". It does
+    # not. Between that face and the bay there is a 1 mm slot and then the bay's
+    # own 3.5 mm end wall at |x|=139.5, so the pocket was a SEALED CAVITY: a
+    # 9.24 mm across-corners nyloc with no way in but a O5.4 bolt bore. It would
+    # have printed as a void nobody could ever get a nut into, and the joint the
+    # whole tilt mechanism hangs on could not have been assembled.
+    #
+    # Rule 1 in the parameters doc is "pilots must open toward an opening, never
+    # into a closed volume - verify by ray-casting, not by checking for empty
+    # space". Nothing ray-cast this one. The volume assert below passed happily
+    # because the pocket was exactly the right SIZE; size was never the problem.
+    #
+    # The hex now starts at the BAY VOID and runs outboard to the same floor, so
+    # the nut is presented from inside the cover and guided by flats the whole
+    # way. That makes the bolt bore a through path from weather to bay, which is
+    # why the knob now takes a bonded sealing washer - same call every other
+    # penetration on this part makes.
     _v0 = c.volume
     _nut_cr = TRUN_NUT_AF/2/math.cos(math.pi/6)
-    c -= (Pos(sx*(TRUN_X - TRUN_WEB_T), _ty, -TRUN_STAND) * Rot(0, 90*sx, 0)
-          * extrude(RegularPolygon(_nut_cr, 6), TRUN_NUT_DEEP))
-    _want = (math.sqrt(3)/2*TRUN_NUT_AF**2 - math.pi*(TRUN_BORE/2)**2) * TRUN_NUT_DEEP
-    _got = _v0 - c.volume
-    assert abs(_got - _want) < 0.25*_want, (
-        f"the nyloc pocket removed {_got:.0f} mm3, expected {_want:.0f} - it is "
-        f"cutting outboard into air, which leaves a joint with no nut in it")
+    _nut_floor = TRUN_X - TRUN_WEB_T + TRUN_NUT_DEEP      # |x| 150, unchanged
+    TRUN_NUT_ACCESS = _nut_floor - _VOID_X1               # through the bay wall
+    assert TRUN_NUT_ACCESS > TRUN_NUT_DEEP, (
+        f"the hex reaches {TRUN_NUT_ACCESS:.1f} from the bay wall but the nut's "
+        f"seat is {TRUN_NUT_DEEP} deep - it would not get there")
+    c -= (Pos(sx*_VOID_X1, _ty, -TRUN_STAND) * Rot(0, 90*sx, 0)
+          * extrude(RegularPolygon(_nut_cr, 6), TRUN_NUT_ACCESS))
+    # NOT A VOLUME CHECK. The old one compared the hex's size and passed for
+    # years while the pocket had no way in - size was never the failure mode.
+    # Ray-cast instead, the way rule 1 says to: walk the nut's own axis from
+    # inside the bay out to the seat, and demand the whole run is open. If any
+    # sample is solid the nut cannot be fitted, whatever the volume says.
+    _blocked = []
+    for _i in range(41):
+        _x = sx * (_VOID_X1 - 2.0 + (_nut_floor - _VOID_X1 + 2.0) * _i / 40)
+        _pr = Pos(_x, _ty, -TRUN_STAND) * Box(0.6, 0.6, 0.6, align=(Align.CENTER,)*3)
+        _hit = c & _pr
+        if _hit is not None and _hit.volume > 0.02:
+            _blocked.append(abs(_x))
+    assert not _blocked, (
+        f"the nyloc pocket is SEALED: solid at |x| {_blocked[0]:.1f}..{_blocked[-1]:.1f} "
+        f"between the bay at {_VOID_X1:.1f} and the nut's seat at {_nut_floor:.1f}. "
+        f"A {TRUN_NUT_AF/2/math.cos(math.pi/6)*2:.2f} across-corners nyloc cannot be "
+        f"fitted through a {TRUN_BORE} bore, so the tilt joint cannot be assembled")
+    assert _v0 - c.volume > 250.0, (
+        f"the nyloc pocket removed only {_v0 - c.volume:.0f} mm3 - too little to have "
+        f"crossed the bay wall")
     assert TRUN_NUT_DEEP < TRUN_WEB_T - 3.0, (
         f"a {TRUN_NUT_DEEP} mm nut pocket in a {TRUN_WEB_T} mm web leaves "
         f"{TRUN_WEB_T - TRUN_NUT_DEEP:.1f} mm of ASA for the bolt to pull on")
@@ -2189,9 +2227,19 @@ print(f"       seat: rail at y={APER_Y - MOD_H/2 - MOD_FIT:.2f}, side pads "
 print(f"       order: bond panel into the seat (top open, swing it in) -> cure "
       f"-> foam on brim -> cover -> {len(DSP_POSTS)}x M{3} x {DSP_SCREW_L:.0f} "
       f"into the panel standoffs -> {len(BOLTS)}x M3 brim screws")
-print(f"       through the pressure boundary: {len(DSP_POSTS)} panel screws + 1 potted "
-      f"fan-lead pass. The {len(BOLTS)} brim screws are outboard of the cord in blind "
-      f"pilots - washered and Tef-Gelled to keep the crevice dry, not to seal")
+# THE TILT STUDS ARE NEW ON THIS LIST, and they are on it because opening the
+# nyloc pockets into the bays turned two blind holes into two through paths.
+# That is the price of a joint that can actually be assembled: the pocket had to
+# reach the bay or the nut could never be fitted. Both get a bonded sealing
+# washer under the bail arm, on the lug's OUTER face, which is where the water
+# is - the same call the panel screws make.
+N_TILT_PEN = 2
+print(f"       through the pressure boundary: {len(DSP_POSTS)} panel screws + "
+      f"{N_TILT_PEN} tilt studs + 1 potted fan-lead pass. The {len(BOLTS)} brim "
+      f"screws are outboard of the cord in blind pilots - washered and Tef-Gelled "
+      f"to keep the crevice dry, not to seal")
+print(f"       tilt stud: nyloc pocket now opens into the bay at |x|={_VOID_X1:.1f} "
+      f"so the nut can be fitted at all - bonded washer under each arm")
 print(f"THERM  panel back {_z_panel} -> cover inner {DEPTH + GASKET_C}: "
       f"{AIR_GAP:.1f} mm of air ({FIN_GAP:.1f} on through to the cover's outer face)")
 print(f"CABLE  raceway UNDER the panel: {RACE_H:.0f} mm tall x {RACE_D:.1f} deep, "
