@@ -235,6 +235,41 @@ asm = [
     (_BTN, (0.13, 0.13, 0.15)), (_ENC, (0.72, 0.60, 0.25)),
     (_SENS, (0.76, 0.47, 0.12)),
 ]
+# ══════════════════════════════════════════════ THE SAME UNIT, FOR THE PAGE
+# The interactive viewer on the build page is fed from HERE, not rebuilt: these
+# are the identical shape objects the renders above use, so the 3D view and the
+# stills cannot disagree about where anything is. Each row carries the BOM
+# numbers it stands for and how far it travels at full explode, in mm along +z.
+#
+# The first cut of the viewer was its own list of ten parts and it silently
+# dropped the antenna, the bail, the fans, the fittings and every control -
+# which is why web3d.dump() now fails the build if a BOM row has no shape and
+# no written exemption.
+import web3d as _w3
+_w3.dump([
+    ("visor",    "Sun visor",        tilt(0),                 BLUE,               {"1"},  -230),
+    ("shell",    "Front shell",      Pos(0, 0, 0) * SHELL,    BLUE,               {"2"},  -110),
+    ("buttons",  "Buttons",          _BTN,           (0.13, 0.13, 0.15),          {"17"}, -110),
+    ("encoder",  "Encoder + knob",   _ENC,           (0.72, 0.60, 0.25),          {"16"}, -110),
+    ("display",  "12.3in display",   _DISP,          (0.08, 0.09, 0.11),     {"3", "4"},     0),
+    ("sensors",  "Sensor breakouts", _SENS,          (0.76, 0.47, 0.12), {"12","13","14"},  70),
+    ("pi",       "Raspberry Pi 4",   _PI,                     PI_G,               {"6"},   120),
+    ("armor",    "Armor Lite",       _ARM,                    ALLOY,              {"7"},   120),
+    ("driver",   "LCD driver board", _DRV,           (0.12, 0.43, 0.47),     {"5"},         120),
+    ("sdr",      "RTL-SDR",          _SDR,           (0.20, 0.55, 0.35),    {"15", "38"},   120),
+    ("cover",    "Rear cover",       Pos(0, 0, _BACK) * Rot(180, 0, 0) * COVER, BLUE2,
+                                                                             {"8"},        250),
+    ("fittings", "Gland + vent",     _FITS,          (0.55, 0.56, 0.58),  {"26", "27"},     250),
+    ("sma",      "SMA bulkhead",     _SMA,           (0.80, 0.68, 0.24),         {"28"},    250),
+    ("antenna",  "Whip antenna",     _ANT,                    DARK,              {"36"},    250),
+    ("nuts",     "Pivot nyloc x4",   _NUTS,                   _STEEL,            {"19"},    300),
+    ("knobs",    "Tilt knobs",       _BOLTS,                  _STEEL,            {"20"},    300),
+    ("bail",     "Bail base + arms", BRK,            (0.10, 0.26, 0.52),         {"31"},    300),
+    ("heatsink", "Heatsink",         _HS,                     ALLOY,             {"34"},    340),
+    ("fans",     "80 mm fans x2",    _FANS_ASM,               DARK,              {"35"},    400),
+    ("shroud",   "Fan shroud",       _SHROUD_ASM,    (0.10, 0.26, 0.52),         {"32"},    460),
+], meta_extra={"rev": H["REV"]})
+
 # Camera solved rather than guessed: az=198, el=-112 gives depth.z>0 (front
 # face nearest), up.y>0 (+Y up) and explode.z<0 (front of the stack on top).
 # FOUR angles on the finished unit. One three-quarter view hides half of what

@@ -1,126 +1,113 @@
 """
-Web meshes -- the assembly, packed small enough to live inside the page.
+Web meshes -- the assembled unit, packed small enough to live inside the page.
 
 The build review has always been still renders. They are true, but you cannot
 look BEHIND anything in a PNG, and every question this project has had lately
 -- where does the coax go, where do the bracket nuts install, I can't see where
-the internal wire routes -- was really a request to ROTATE THE PART. So the
-same solids get tessellated once more, at a deflection chosen for a browser
-rather than for a slicer, and the result is embedded in the page as base64
-Float32: no second file to serve, no fetch, no CORS, and it cannot drift from
-the STEP it came from.
+the internal wire routes -- was really a request to ROTATE THE PART.
 
-WHY NOT SHIP THE SLICER MESH. Those are cut at 0.01 mm / 5 deg because the
-detent crown has a 1.08 mm valley and the bores are O11.8 -- detail nobody can
-see on a 700 px canvas, at many times the bytes. This runs coarse ON PURPOSE
-and prints the saving so the choice stays honest.
+THIS FILE DOES NOT MODEL ANYTHING. cad/assembly.py already owns the assembled
+unit, every part in its true place; it calls dump() at the end with the same
+shape objects it renders. An earlier cut of this file rebuilt ten parts from
+housing.json and was immediately wrong in the way this repo keeps being wrong:
+it quietly omitted the antenna, the bail, the fans, the fittings and the
+controls, because nothing compared it to the bill of materials.
 
-EVERY PART CARRIES AN EXPLODE VECTOR, so the page can animate between the
-assembled unit and the exploded stack instead of shipping two pictures. The
-assembled transforms are the ones cad/assembly.py uses, not a second set - a
-viewer that disagreed with the renders would be worse than no viewer.
-
-Positions only. Normals are computed per face in the page, which is smaller
-than shipping them and gives the same flat-shaded look as the stills.
+So dump() CROSS-CHECKS THE BOM, the same way cad/exploded.py does for the
+printed drawing: the numbers are parsed out of cad/build_review.py, which is
+the file that owns them, and anything neither drawn nor explicitly exempt fails
+the build. A viewer that silently drops a part is worse than no viewer.
 """
-import sys, json, base64, struct, os
-sys.path.insert(0, "cad")
-from build123d import *
-from parts_lib import pi4, pican_m, drok as _drok, rtl_sdr, finned
-
-H = json.load(open("cad/out/housing.json"))
-S = json.load(open("cad/out/shroud.json"))
-B = json.load(open("cad/out/bail.json"))
+import json, base64, struct, re
 
 # THE ANGULAR TOLERANCE IS THE ONE THAT MATTERS, which is not obvious and cost
 # a round trip to find. At the default 0.1 rad the cover meshes to 55,810
-# triangles and loosening the LINEAR tolerance from 0.25 to 2.0 changes that by
-# nothing at all; at 0.5 rad the same solid is 12,216 for a result that is
+# triangles, and loosening the LINEAR tolerance from 0.25 to 2.0 changes that
+# by nothing at all; at 0.5 rad the same solid is 12,216 for a result that is
 # indistinguishable at 700 px. Curved-surface refinement, not chord height, is
 # what fills this budget.
 #
-# (Watch out when measuring: OCC caches its triangulation on the shape, so a
-# second tessellate() at a different tolerance hands back the FIRST mesh. Every
-# number above came from a fresh import.)
+# (Watch out when measuring: OCC caches its triangulation on a shape, so a
+# second tessellate() at a different tolerance hands back the FIRST mesh.)
 WEB_TOL, WEB_ANG = 0.5, 0.5
 
-BACK = H["DEPTH"] + H["GASKET_C"] + H["COVER_T"]
-SDR_W, SDR_L, SDR_T = H["SDR_W"], H["SDR_L"], H["SDR_T"]
-_floor = -H["PI_BUMP_H"] + H["WALL"]
+# Fitted rather than exploded: a bonded washer, a smear of sealant, a length of
+# cord. Same list cad/exploded.py keeps, and for the same reason - the
+# exemption is a decision, written down, not an oversight. 11 is the fit
+# coupon, which is not part of the unit at all.
+NO_SHAPE = {"11", "18", "21", "22", "23", "24", "29", "30", "39",
+            "40", "41", "42", "43", "44", "45", "46"}
+
+# NOT ON THE UNIT. The LP-24 disconnect bracket bolts to the DASH and the unit's
+# cable plugs into it; cad/assembly.py draws it in its own local frame because
+# nothing fixes where on the dash it goes - that is the installer's call. Giving
+# it a position in this viewer's explode would be modelling a decision nobody has
+# made, which this repo has been bitten by before. It has its own views on the
+# page instead, and this exemption is why it is not in the stack.
+SEPARATE_ASSEMBLY = {"9", "10", "25"}
+
+# The page has a hard 16 MB ceiling and the PNGs already spend most of it.
+BUDGET = 3_500_000
 
 
-def _solid(path):
-    s = import_step(path)
-    return s.solids()[0] if len(s.solids()) == 1 else s
+def _hex(c):
+    return "#%02x%02x%02x" % tuple(max(0, min(255, round(v * 255))) for v in c[:3])
 
 
-SHELL = _solid("cad/out/helm_shell_revD.stp")
-COVER = _solid("cad/out/helm_cover_revD.stp")
-VISOR = _solid("cad/out/helm_visor_revD.stp")
-SHROUD = _solid("cad/out/heatsink_shroud_revD.stp")
-ARM = _solid("cad/out/bail_arm_revA.stp")
-BASE = _solid("cad/out/bail_base_revA.stp")
+def dump(entries, meta_extra=None, path="cad/out/web3d.json"):
+    """entries = [(key, title, shape, colour, bom_items, explode_dz), ...]
 
-# The display is an envelope, as it is everywhere else in this repo - it is a
-# bought module and the only thing that matters is the volume it occupies.
-DISP = Pos(H["APER_X"], H["APER_Y"], H["FACE_T"] + H["GLUE_T"]) * Box(
-    H["MOD_W"], H["MOD_H"], H["MOD_D"], align=(Align.CENTER, Align.CENTER, Align.MIN))
+    colour is a (r,g,b) float triple, as everywhere else in this repo.
+    bom_items is a set of BOM numbers as strings - what this shape stands for.
+    explode_dz is millimetres along +z, the stack axis, at full explode.
+    """
+    src = open("cad/build_review.py").read()
+    bom = {m for m in re.findall(r'<tr><td class="m">(\d{1,2})[a-z]?</td>', src)}
+    covered = set().union(*[e[4] for e in entries]) if entries else set()
+    missing = sorted(bom - covered - NO_SHAPE - SEPARATE_ASSEMBLY, key=int)
+    orphan = sorted(covered - bom, key=int)
+    if missing or orphan:
+        msg = []
+        if missing:
+            msg.append("in the BOM but NOT IN THE 3D VIEW: " + ", ".join(missing)
+                       + " - add a shape, or name it in NO_SHAPE / SEPARATE_ASSEMBLY "
+                         "with a reason")
+        if orphan:
+            msg.append("in the 3D view but NOT IN THE BOM: " + ", ".join(orphan))
+        raise AssertionError("the 3D viewer and the BOM disagree:\n  - "
+                             + "\n  - ".join(msg))
 
-# EXPLODE IS ALONG Z, the stack axis, and the numbers are ordered front to back
-# so nothing overtakes its neighbour on the way out. Front of the unit is -z.
-#   (key, title, shape, colour, explode dz)
-PARTS = [
-    ("visor",  "Sun visor",     VISOR,                              "#2f6fc4", -210),
-    ("shell",  "Front shell",   SHELL,                              "#2a62b4",  -90),
-    ("display", "12.3in display", DISP,                             "#14171c",    0),
-    ("pi",     "Raspberry Pi 4", Pos(60, -20, BACK - 40) * pi4(),   "#1d7543",  110),
-    ("hat",    "PiCAN-M",       Pos(60, -20, BACK - 28) * pican_m(), "#94282d", 140),
-    ("drok",   "DROK buck",     Pos(-140, 40, BACK - 38) * _drok(), "#1f6e78",  110),
-    ("sdr",    "RTL-SDR",       (Pos(H["SDR_X"], H["SDR_Y"], BACK - _floor - 3.5 - SDR_W)
-                                 * Box(SDR_T, SDR_L, SDR_W,
-                                       align=(Align.CENTER, Align.CENTER, Align.MIN))),
-                                                                    "#33995c",  110),
-    ("cover",  "Rear cover",    Pos(0, 0, BACK) * Rot(180, 0, 0) * COVER, "#21518f", 250),
-    ("heatsink", "Heatsink",    (Pos(S["AP_CX"] if "AP_CX" in S else H["AP_CX"], 0, BACK - 3.0)
-                                 * finned(H["HS_L"], H["HS_W"], H["HS_H"], base=3.0)),
-                                                                    "#9ea4ac",  330),
-    ("shroud", "Fan shroud",    (Pos(H["AP_CX"], 0, BACK + S["SHROUD_OD"])
-                                 * Rot(180, 0, 0) * SHROUD),        "#21518f",  400),
-]
+    out, lo, hi = {}, None, None
+    for key, title, shape, colour, items, dz in entries:
+        verts, tris = shape.tessellate(WEB_TOL, WEB_ANG)
+        buf = bytearray()
+        for a, b, c in tris:
+            for i in (a, b, c):
+                q = verts[i]
+                buf += struct.pack("<fff", q.X, q.Y, q.Z)
+        out[key] = {"title": title, "tris": len(tris), "colour": _hex(colour),
+                    "items": sorted(items, key=int), "explode": [0, 0, dz],
+                    "b64": base64.b64encode(bytes(buf)).decode("ascii")}
+        bb = shape.bounding_box()
+        lo = bb.min if lo is None else type(lo)(min(lo.X, bb.min.X), min(lo.Y, bb.min.Y),
+                                                min(lo.Z, bb.min.Z))
+        hi = bb.max if hi is None else type(hi)(max(hi.X, bb.max.X), max(hi.Y, bb.max.Y),
+                                                max(hi.Z, bb.max.Z))
+        print(f"  {key:11s} {len(tris):6d} tris  {len(buf)/1024:7.1f} KB  "
+              f"items {','.join(sorted(items, key=int))}")
 
-out, raw_total = {}, 0
-for key, title, shape, colour, dz in PARTS:
-    verts, tris = shape.tessellate(WEB_TOL, WEB_ANG)
-    verts = [(q.X, q.Y, q.Z) for q in verts]
-    # Triangle soup. Indexed would be smaller in theory, but the index array
-    # costs 4 bytes a corner and the vertex reuse on these solids is poor -
-    # measured, the soup won.
-    buf = bytearray()
-    for a, b, c in tris:
-        for i in (a, b, c):
-            x, y, z = verts[i]
-            buf += struct.pack("<fff", x, y, z)
-    out[key] = {"title": title, "tris": len(tris), "colour": colour,
-                "explode": [0, 0, dz],
-                "b64": base64.b64encode(bytes(buf)).decode("ascii")}
-    raw_total += len(buf)
-    print(f"  {key:9s} {len(tris):6d} tris  {len(buf)/1024:7.1f} KB raw  "
-          f"{len(out[key]['b64'])/1024:7.1f} KB b64")
+    meta = {"centre": [(lo.X + hi.X)/2, (lo.Y + hi.Y)/2, (lo.Z + hi.Z)/2],
+            "radius": max(hi.X - lo.X, hi.Y - lo.Y, hi.Z - lo.Z) / 2,
+            "tol": WEB_TOL, "ang": WEB_ANG}
+    meta.update(meta_extra or {})
 
-# the whole assembly's bounds, so the page can frame it without guessing
-_all = Compound([s for _, _, s, _, _ in PARTS])
-bb = _all.bounding_box()
-meta = {"centre": [(bb.min.X + bb.max.X)/2, (bb.min.Y + bb.max.Y)/2, (bb.min.Z + bb.max.Z)/2],
-        "radius": max(bb.size.X, bb.size.Y, bb.size.Z) / 2,
-        "rev": H["REV"], "tol": WEB_TOL, "ang": WEB_ANG}
-
-b64_total = sum(len(v["b64"]) for v in out.values())
-# The page has a hard 16 MB ceiling and the PNGs already spend most of it. If
-# this grows, raise WEB_TOL rather than dropping a part - a viewer missing the
-# cover is not a viewer.
-assert b64_total < 3_500_000, (
-    f"web meshes are {b64_total/1e6:.2f} MB of base64 - raise WEB_TOL")
-
-json.dump({"meta": meta, "parts": out}, open("cad/out/web3d.json", "w"))
-print(f"\n  {len(out)} parts, {b64_total/1024:.0f} KB of base64 "
-      f"at {WEB_TOL} mm / {WEB_ANG} rad")
+    total = sum(len(v["b64"]) for v in out.values())
+    assert total < BUDGET, (
+        f"web meshes are {total/1e6:.2f} MB of base64 against a {BUDGET/1e6:.1f} MB "
+        f"budget - raise WEB_ANG rather than dropping a part")
+    json.dump({"meta": meta, "parts": out}, open(path, "w"))
+    print(f"\n  3D view: {len(out)} parts, {total/1024:.0f} KB of base64 at "
+          f"{WEB_TOL} mm / {WEB_ANG} rad")
+    print(f"  BOM cross-check: {len(bom)} rows, {len(covered)} in the view, "
+          f"{len(NO_SHAPE)} fitted-not-shown, {len(SEPARATE_ASSEMBLY)} on the dash")
+    return out

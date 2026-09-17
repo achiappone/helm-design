@@ -206,14 +206,17 @@ def viewer_html(w3):
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       g.computeVertexNormals();
       var m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({{
-        color: new THREE.Color(d.colour), side: THREE.DoubleSide }}));
+        color: new THREE.Color(d.colour), side: THREE.FrontSide }}));
       m.userData.explode = d.explode;
       root.add(m); meshes[k] = m;
     }});
     root.position.set(-C[0], -C[1], -C[2]);
-    // +Z of the model is REARWARD, so the camera sits on -Z to look at the face,
-    // and +Y is up in model space but down on screen - hence the flip.
-    root.scale.set(1,-1,1);
+    // +Z of the model is REARWARD, so the camera sits on -Z to look at the face.
+    // THERE IS NO Y FLIP. An earlier cut had root.scale.set(1,-1,1) on the theory
+    // that model +Y was screen-down; it is not - ROW_CY is negative and DISP_CY
+    // positive, so +Y is up in both. The flip put the control row ABOVE the
+    // screen, and it also inverted every face normal, which is why thematerial needed
+    // DoubleSide to look right at all.
     var az = 0.62, el = 0.42, dist = R * 3.6, drag = null;
     function place(){{
       cam.position.set(C[0]*0 + dist*Math.cos(el)*Math.sin(az),

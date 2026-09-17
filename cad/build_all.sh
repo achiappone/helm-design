@@ -7,9 +7,12 @@
 set -e
 cd "$(dirname "$0")/.."
 PY=.venv/bin/python
+# web3d is deliberately NOT in this list: it is a module now, and assembly.py
+# calls it with the same shapes it renders. (And a comment cannot go inside the
+# backslash continuation below - it ends the line and breaks the loop.)
 for s in helm_housing heatsink_shroud bail helm_visor assembly_check print_check sensor_tray fit_coupon \
          lp24_mount lp24_shroud lp24_upright_mount lp24_wedge_mount \
-         export_mesh web3d render assembly exploded annotate assembly_dims \
+         export_mesh render assembly exploded annotate assembly_dims \
          measured_parts seal_detail subassemblies build_review build_manual; do
   if out=$($PY "cad/$s.py" 2>&1); then
     printf '%-18s ok\n' "$s"
