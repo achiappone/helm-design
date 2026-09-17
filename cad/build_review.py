@@ -188,8 +188,8 @@ def viewer_html(w3):
     var cam = new THREE.PerspectiveCamera(38, 1, 1, 8000);
     var rend = new THREE.WebGLRenderer({{canvas: cv, antialias: true, alpha: true}});
     rend.setPixelRatio(Math.min(devicePixelRatio, 2));
-    sc.add(new THREE.AmbientLight(0xffffff, 0.62));
-    var key = new THREE.DirectionalLight(0xffffff, 0.85); key.position.set(-0.4,-0.72,0.57);
+    sc.add(new THREE.AmbientLight(0xffffff, 0.52));
+    var key = new THREE.DirectionalLight(0xffffff, 0.78); key.position.set(-0.4,-0.72,0.57);
     sc.add(key);
     var fill = new THREE.DirectionalLight(0xffffff, 0.30); fill.position.set(0.6,0.5,0.4);
     sc.add(fill);
@@ -272,8 +272,13 @@ HTML = f"""<title>Helm Housing rev {H["REV"]}</title>
 }}
 .viewer {{ border:1px solid var(--line); border-radius:6px; background:var(--viewport);
   padding:10px; margin:14px 0 18px; }}
+/* The canvas is LIGHT GREY IN BOTH THEMES, deliberately not var(--sunk).
+   Every still render on this page is shot on white, and a viewer that put the
+   same blue parts on a near-black panel read as a different model - the shading
+   on an ASA blue part is carried by its highlights, and they vanish against a
+   dark ground. Matching the stills matters more here than matching the page. */
 .viewer canvas {{ display:block; width:100%; border-radius:4px;
-  background:var(--sunk); touch-action:none; cursor:grab; }}
+  background:#eef1f6; touch-action:none; cursor:grab; }}
 .viewer canvas:active {{ cursor:grabbing; }}
 .v-msg {{ font:12px/1.5 'IBM Plex Mono',monospace; color:var(--muted); padding:8px 2px; }}
 .v-bar {{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:10px; }}
